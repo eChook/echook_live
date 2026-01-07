@@ -8,7 +8,8 @@ import {
   TooltipComponent,
   DataZoomComponent,
   LegendComponent,
-  TitleComponent
+  TitleComponent,
+  DatasetComponent
 } from "echarts/components";
 import VChart from "vue-echarts";
 
@@ -19,7 +20,8 @@ use([
   TooltipComponent,
   DataZoomComponent,
   LegendComponent,
-  TitleComponent
+  TitleComponent,
+  DatasetComponent
 ]);
 
 const props = defineProps({
@@ -33,7 +35,7 @@ const props = defineProps({
   },
   color: {
     type: String,
-    default: '#14b8a6' // teal-500
+    default: '#cb1557' // primary
   },
   group: {
     type: String,
@@ -43,7 +45,7 @@ const props = defineProps({
 
 const option = computed(() => {
   return {
-    animation: false, // Performance optimization for real-time
+    animation: false, // Performance optimization 
     color: [props.color],
     tooltip: {
       trigger: 'axis',
@@ -69,30 +71,40 @@ const option = computed(() => {
       axisLine: { lineStyle: { color: '#525252' } },
       splitLine: { lineStyle: { color: '#262626' } } // neutral-800
     },
+    large: true,
+    largeThreshold: 1000,
+    progressive: 500,
+    progressiveThreshold: 1000,
     dataZoom: [
       {
         type: 'inside', // Allow zooming/panning on the graph itself
         xAxisIndex: 0
       }
     ],
+    dataset: {
+      source: props.data
+    },
     series: [
       {
         name: props.dataKey,
         type: 'line',
         showSymbol: false,
-        sampling: 'lttb',
-        data: props.data.map(item => [item.timestamp, item[props.dataKey]]),
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: props.color.replace(')', ', 0.5)').replace('rgb', 'rgba') || props.color }, 
-              { offset: 1, color: 'transparent' }
-            ]
-          },
-          opacity: 0.2
+        sampling: 'average',
+        encode: {
+          x: 'timestamp',
+          y: props.dataKey
         },
+        // areaStyle: {
+        //   // color: {
+        //   //   type: 'linear',
+        //   //   x: 0, y: 0, x2: 0, y2: 1,
+        //   //   colorStops: [
+        //   //     { offset: 0, color: props.color.replace(')', ', 0.5)').replace('rgb', 'rgba') || props.color },
+        //   //     { offset: 1, color: 'transparent' }
+        //   //   ]
+        //   // },
+        //   // opacity: 0.2
+        // },
         lineStyle: { width: 2 }
       }
     ]
@@ -101,14 +113,10 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div class="h-64 bg-neutral-800/50 rounded-lg border border-neutral-700/50 backdrop-blur-sm shadow-sm overflow-hidden p-2 relative">
+  <div
+    class="h-64 bg-neutral-800/50 rounded-lg border border-neutral-700/50 backdrop-blur-sm shadow-sm overflow-hidden p-2 relative">
     <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{ dataKey }}</h3>
-    <VChart 
-      class="w-full h-full" 
-      :option="option" 
-      autoresize 
-      :group="group"
-    />
+    <VChart class="w-full h-full" :option="option" autoresize :group="group" />
   </div>
 </template>
 

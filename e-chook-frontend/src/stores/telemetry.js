@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { io } from 'socket.io-client'
+import axios from 'axios'
 import { useAuthStore } from './auth'
 
 export const useTelemetryStore = defineStore('telemetry', () => {
     const socket = ref(null)
     const isConnected = ref(false)
+    const lastPacketTime = ref(0) // Timestamp of last received packet
     const liveData = ref({}) // Latest packet
     const history = ref([]) // Array of { timestamp, ...data }
     const auth = useAuthStore()
@@ -34,15 +36,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             console.log('Socket connected')
             // Join the room for the specific car if user is valid
             // Note: API doc says emit 'join' with Car ID. 
-            // User object might be { id: "..." } or similar. we need to verify what ID to use.
-            // Doc says "Retrieves the ID of the currently authenticated user... { "id": "..." }"
-            // And "Join... emit 'join', '60b8...'" (Mongo Object ID)
             // So use auth.user.id
             if (auth.user?.id || auth.user?._id) {
                 joinRoom(auth.user.id || auth.user._id)
-            } else if (auth.user?.car) {
-                // Fallback or if ID is missing (though it shouldn't be if login was real)
-                console.warn('User ID missing, trying to join with Car Name or waiting for ID check')
             }
         })
 
@@ -52,14 +48,19 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         })
 
         socket.value.on('data', (packet) => {
-            // Add timestamp if not present
-            const processed = { ...packet, timestamp: Date.now() }
+            // Prefer server/packet timestamp to align with history
+            const timestamp = packet.timestamp || packet.updated || Date.now()
+            // freeze to prevent Vue from making this deeply reactive (performance)
+            const processed = Object.freeze({ ...packet, timestamp })
 
             liveData.value = packet
+            lastPacketTime.value = timestamp
 
             // Buffer history
             history.value.push(processed)
-            if (history.value.length > MAX_HISTORY_POINTS) {
+            // Limit history size to prevent memory leaks/crash, but allow larger buffer
+            const LIMIT = Math.max(MAX_HISTORY_POINTS, 5000)
+            if (history.value.length > LIMIT) {
                 history.value.shift()
             }
         })
@@ -69,6 +70,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (socket.value && isConnected.value) {
             console.log('Joining room for:', carId)
             socket.value.emit('join', carId)
+            fetchHistory(carId)
         }
     }
 
@@ -90,16 +92,58 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         history.value = []
     }
 
+    async function fetchHistory(carId) {
+        if (!carId) return
+
+        // 30 minutes ago
+        const start = Date.now() - 30 * 60 * 1000
+
+        try {
+            const response = await axios.get(`http://localhost:3000/api/history/${carId}`, {
+                params: { start }
+            })
+
+            if (response.data && Array.isArray(response.data)) {
+                const dataMap = new Map()
+
+                response.data.forEach(pt => {
+                    // Normalize timestamp: Server uses 'updated', Frontend uses 'timestamp'
+                    // If timestamp is missing, use updated.
+                    const normalized = Object.freeze({
+                        ...pt,
+                        timestamp: pt.timestamp || pt.updated
+                    })
+                    if (normalized.timestamp) {
+                        dataMap.set(normalized.timestamp, normalized)
+                    }
+                })
+
+                // Merge with existing live data
+                history.value.forEach(pt => dataMap.set(pt.timestamp, pt))
+
+                // Convert back to array and sort
+                history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
+
+                console.log(`Loaded ${response.data.length} historical points`)
+            }
+        } catch (error) {
+            console.error('Failed to fetch history:', error)
+        }
+    }
+
     return {
         socket,
         isConnected,
+        lastPacketTime,
         liveData,
         history,
         availableKeys,
         connect,
         joinRoom,
         leaveRoom,
+        leaveRoom,
         disconnect,
-        clearHistory
+        clearHistory,
+        fetchHistory
     }
 })

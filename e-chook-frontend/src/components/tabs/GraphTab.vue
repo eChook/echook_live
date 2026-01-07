@@ -12,7 +12,11 @@ const CHART_GROUP = 'telemetry_sync_group'
 connect(CHART_GROUP)
 
 // State
-const selectedKeys = ref(new Set([])) 
+// Initialize from localStorage if available
+const savedKeys = localStorage.getItem('dashboard_selected_keys')
+const initialKeys = savedKeys ? JSON.parse(savedKeys) : []
+const selectedKeys = ref(new Set(initialKeys)) 
+
 const colors = [
   '#2dd4bf', // teal-400
   '#f472b6', // pink-400
@@ -29,6 +33,8 @@ const toggleKey = (key) => {
   } else {
     selectedKeys.value.add(key)
   }
+  // Save to localStorage
+  localStorage.setItem('dashboard_selected_keys', JSON.stringify(Array.from(selectedKeys.value)))
 }
 
 const getColor = (key) => {
@@ -56,7 +62,7 @@ onMounted(() => {
           >
             <div 
               class="w-4 h-4 rounded border flex items-center justify-center transition"
-              :class="selectedKeys.has(key) ? 'bg-teal-500 border-teal-500' : 'border-neutral-600'"
+              :class="selectedKeys.has(key) ? 'bg-primary border-primary' : 'border-neutral-600'"
             >
               <svg v-if="selectedKeys.has(key)" class="w-3 h-3 text-neutral-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
             </div>

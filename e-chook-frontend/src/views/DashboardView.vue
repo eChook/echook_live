@@ -65,14 +65,14 @@ onUnmounted(() => {
                 :key="tab.id"
                 @click="activeTabId = tab.id"
                 class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group relative"
-                :class="activeTabId === tab.id ? 'bg-teal-500/10 text-teal-400' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
+                :class="activeTabId === tab.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
                 :title="tab.label"
             >
                 <!-- Icon -->
                 <component :is="tab.icon" class="w-6 h-6" />
                 
                 <!-- Active Indicator -->
-                <div v-if="activeTabId === tab.id" class="absolute left-0 w-1 h-6 bg-teal-500 rounded-r-full"></div>
+                <div v-if="activeTabId === tab.id" class="absolute left-0 w-1 h-6 bg-primary rounded-r-full"></div>
             </button>
             
             <div class="flex-1"></div>
@@ -81,7 +81,7 @@ onUnmounted(() => {
             <button 
                 @click="activeTabId = 'settings'"
                 class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group"
-                :class="activeTabId === 'settings' ? 'bg-teal-500/10 text-teal-400' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
+                :class="activeTabId === 'settings' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
                 title="Settings"
             >
                 <CogIcon class="w-6 h-6" />

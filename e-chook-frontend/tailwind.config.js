@@ -5,7 +5,14 @@ export default {
         "./src/**/*.{vue,js,ts,jsx,tsx}",
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                primary: '#cb1557',
+            },
+            fontFamily: {
+                oswald: ['Oswald', 'sans-serif'],
+            }
+        },
     },
     plugins: [],
 }

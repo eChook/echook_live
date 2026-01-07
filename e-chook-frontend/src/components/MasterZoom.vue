@@ -64,14 +64,14 @@ const option = computed(() => {
         bottom: 5,
         borderColor: '#404040',
         textStyle: { color: '#a3a3a3' },
-        handleStyle: { color: '#14b8a6' }, // teal-500
+        handleStyle: { color: '#cb1557' }, // primary
         dataBackground: {
             lineStyle: { color: '#525252' },
             areaStyle: { color: '#262626' }
         },
         selectedDataBackground: {
-            lineStyle: { color: '#2dd4bf' },
-            areaStyle: { color: '#115e59' }
+            lineStyle: { color: '#cb1557' }, // primary
+            areaStyle: { color: '#9f1245' } // darker primary
         }
       }
     ],
