@@ -108,7 +108,6 @@ const option = computed(() => {
       :option="option" 
       autoresize 
       :group="group"
-      :update-options="{ notMerge: true }"
     />
   </div>
 </template>
