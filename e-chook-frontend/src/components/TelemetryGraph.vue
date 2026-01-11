@@ -24,6 +24,8 @@ use([
   DatasetComponent
 ]);
 
+import { formatValue, getUnit } from '../utils/formatting'
+
 const props = defineProps({
   data: {
     type: Array,
@@ -51,7 +53,33 @@ const option = computed(() => {
       trigger: 'axis',
       backgroundColor: 'rgba(23, 23, 23, 0.9)',
       borderColor: '#333',
-      textStyle: { color: '#fff' }
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        if (!params.length) return ''
+        const date = new Date(params[0].axisValue)
+        const timeStr = date.toLocaleTimeString()
+        let result = `<div class="font-bold mb-1">${timeStr}</div>`
+
+        params.forEach(item => {
+          // With dataset/encode, item.value is the whole object { timestamp, key: val, ... }
+          // OR it might be the array depending on how echarts treats it.
+          // Actually with 'dataset', item.data is the object. 
+          // BUT we are using 'encode', so let's be careful.
+          // However, we can also just use item.value[dimension] etc, but item.data is the raw source item.
+
+          const val = item.data[props.dataKey]
+          const formatted = formatValue(props.dataKey, val)
+          const unit = getUnit(props.dataKey)
+
+          result += `
+            <div class="flex items-center justify-between space-x-4">
+              <span style="color: ${item.color}">● ${item.seriesName}</span>
+              <span class="font-mono font-bold">${formatted} <span class="text-xs text-gray-400">${unit}</span></span>
+            </div>
+           `
+        })
+        return result
+      }
     },
     grid: {
       top: 30,
