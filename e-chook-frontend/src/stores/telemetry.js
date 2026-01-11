@@ -10,20 +10,44 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const lastPacketTime = ref(0) // Timestamp of last received packet
     const liveData = ref({}) // Latest packet
     const history = ref([]) // Array of { timestamp, ...data }
+    const lapHistory = ref([]) // Array of lap data
     const auth = useAuthStore()
 
     // Constants
     const MAX_HISTORY_POINTS = 500
 
+    // Allowed keys configuration
+    const REGULAR_KEYS = new Set([
+        'voltage', 'current', 'RPM', 'speed', 'throttle',
+        'temp1', 'temp2', 'ampH', 'currLap',
+        'gear', 'brake', 'Lon', 'Lat'
+    ])
+
+    const LAP_KEYS = new Set([
+        'LL_Time', 'LL_V', 'LL_I',
+        'LL_RPM', 'LL_Spd', 'LL_Ah'
+    ])
+
     // Computed: Get array of keys present in data for UI toggles
+    // NOW FILTERED to only show REGULAR keys
     const availableKeys = computed(() => {
-        // Merge keys from live data and recent history to ensure coverage
-        const keys = new Set(Object.keys(liveData.value))
+        // Collect all keys from liveData
+        const keys = new Set()
+
+        // Add keys from live data if they are in REGULAR_KEYS
+        Object.keys(liveData.value).forEach(k => {
+            if (REGULAR_KEYS.has(k)) keys.add(k)
+        })
+
+        // Also check recent history to ensure we don't drop keys that might be momentarily missing/null
+        // but only if they are allowed
         if (history.value.length > 0) {
-            Object.keys(history.value[history.value.length - 1]).forEach(k => keys.add(k))
+            Object.keys(history.value[history.value.length - 1]).forEach(k => {
+                if (REGULAR_KEYS.has(k)) keys.add(k)
+            })
         }
-        // Filter out internal keys or metadata if any
-        return Array.from(keys).filter(k => k !== 'timestamp')
+
+        return Array.from(keys)
     })
 
     function connect() {
@@ -50,18 +74,56 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         socket.value.on('data', (packet) => {
             // Prefer server/packet timestamp to align with history
             const timestamp = packet.timestamp || packet.updated || Date.now()
-            // freeze to prevent Vue from making this deeply reactive (performance)
-            const processed = Object.freeze({ ...packet, timestamp })
 
-            liveData.value = packet
-            lastPacketTime.value = timestamp
+            // 1. Process Regular Data
+            const regularPacket = {}
+            let hasRegularData = false
 
-            // Buffer history
-            history.value.push(processed)
-            // Limit history size to prevent memory leaks/crash, but allow larger buffer
-            const LIMIT = Math.max(MAX_HISTORY_POINTS, 5000)
-            if (history.value.length > LIMIT) {
-                history.value.shift()
+            REGULAR_KEYS.forEach(key => {
+                if (packet[key] !== undefined) {
+                    regularPacket[key] = packet[key]
+                    hasRegularData = true
+                }
+            })
+
+            // Always preserve timestamp and lat/lon for map if they exist in original packet 
+            // even if not explicitly in REGULAR_KEYS (though Lat/Lon are in there)
+            regularPacket.timestamp = timestamp
+
+            if (hasRegularData) {
+                // freeze to prevent Vue from making this deeply reactive (performance)
+                const processed = Object.freeze(regularPacket)
+
+                liveData.value = processed
+                lastPacketTime.value = timestamp
+
+                // Buffer history
+                history.value.push(processed)
+                // Limit history size
+                const LIMIT = Math.max(MAX_HISTORY_POINTS, 5000)
+                if (history.value.length > LIMIT) {
+                    history.value.shift()
+                }
+            }
+
+            // 2. Process Lap Data
+            const lapPacket = {}
+            let hasLapData = false
+
+            LAP_KEYS.forEach(key => {
+                if (packet[key] !== undefined) {
+                    lapPacket[key] = packet[key]
+                    hasLapData = true
+                }
+            })
+
+            if (hasLapData) {
+                // Add timestamp to lap packet for reference
+                lapPacket.timestamp = timestamp
+                lapPacket.lapNumber = packet['Lap'] || (lapHistory.value.length + 1) // Fallback or use Lap count if available
+
+                lapHistory.value.push(Object.freeze(lapPacket))
+                console.log('Lap data received:', lapPacket)
             }
         })
     }
@@ -137,6 +199,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         lastPacketTime,
         liveData,
         history,
+        lapHistory,
         availableKeys,
         connect,
         joinRoom,
