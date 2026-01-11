@@ -18,7 +18,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     // Allowed keys configuration
     const REGULAR_KEYS = new Set([
-        'voltage', 'current', 'RPM', 'speed', 'throttle',
+        'voltage', 'current', 'voltageLower',
+        'rpm', 'speed', 'throttle',
         'temp1', 'temp2', 'ampH', 'currLap',
         'gear', 'brake', 'Lon', 'Lat'
     ])
@@ -49,6 +50,79 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         return Array.from(keys)
     })
+
+    // Race State
+    const races = ref([]) // Array of { id, startTime, laps: [] }
+    const currentLapIndex = ref(0)
+
+    function processLapData(packet) {
+        // Update current lap index from regular data if present
+        if (packet.currLap !== undefined) {
+            currentLapIndex.value = packet.currLap
+        }
+
+        // Check for Lap Data
+        let hasLapKeys = false
+        const lapData = {}
+        LAP_KEYS.forEach(k => {
+            if (packet[k] !== undefined) {
+                lapData[k] = packet[k]
+                hasLapKeys = true
+            }
+        })
+
+        if (hasLapKeys) {
+            // Logic: Lap Number = currLap - 1
+            const lapNumber = (packet.currLap !== undefined ? packet.currLap : currentLapIndex.value) - 1
+
+            lapData.lapNumber = lapNumber
+            lapData.timestamp = packet.timestamp || Date.now()
+
+            // Race Detection
+            let currentRace = races.value.length > 0 ? races.value[races.value.length - 1] : null
+
+            // Check for duplicate lap
+            const lastRecordedLap = currentRace && currentRace.laps.length > 0
+                ? currentRace.laps[currentRace.laps.length - 1].lapNumber
+                : -1
+
+            // Simple race detection:
+            // 1. If races is empty, start race.
+            // 2. If lapNumber < lastRecordedLap (and not duplicate 1), start new race.
+            // 3. If lapNumber <= 1 and lastRecordedLap > 1, start new race.
+
+            let shouldStartNewRace = false
+            if (!currentRace) shouldStartNewRace = true
+            else if (lapNumber <= 1 && lastRecordedLap > 1) shouldStartNewRace = true
+            else if (lapNumber < lastRecordedLap && lapNumber === 1) shouldStartNewRace = true
+
+            // Ignore duplicates within the same race
+            // If we are getting the SAME lap number as lastRecordedLap, it's a duplicate.
+            const isDuplicate = currentRace && !shouldStartNewRace && (lastRecordedLap === lapNumber)
+
+            if (shouldStartNewRace) {
+                // Calculate Start Time: timestamp - LL_Time (assuming LL_Time is in seconds, converting to ms)
+                const lapDurationMs = (lapData.LL_Time || 0) * 1000
+                const raceStart = lapData.timestamp - lapDurationMs
+
+                currentRace = {
+                    id: Date.now() + Math.random(), // Unique ID
+                    startTime: new Date(raceStart).toISOString(),
+                    startTimeMs: raceStart,
+                    laps: []
+                }
+                races.value.push(currentRace)
+            }
+
+            if (!isDuplicate) {
+                // Add lap to current race
+                currentRace.laps.push(Object.freeze(lapData))
+
+                // Keep flat lapHistory for backward compatibility if needed
+                lapHistory.value.push(Object.freeze(lapData))
+            }
+        }
+    }
 
     function connect() {
         if (socket.value?.connected) return
@@ -106,25 +180,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 }
             }
 
-            // 2. Process Lap Data
-            const lapPacket = {}
-            let hasLapData = false
-
-            LAP_KEYS.forEach(key => {
-                if (packet[key] !== undefined) {
-                    lapPacket[key] = packet[key]
-                    hasLapData = true
-                }
-            })
-
-            if (hasLapData) {
-                // Add timestamp to lap packet for reference
-                lapPacket.timestamp = timestamp
-                lapPacket.lapNumber = packet['Lap'] || (lapHistory.value.length + 1) // Fallback or use Lap count if available
-
-                lapHistory.value.push(Object.freeze(lapPacket))
-                console.log('Lap data received:', lapPacket)
-            }
+            // 2. Process Lap Data (Logic moved to helper)
+            // We pass the RAW packet because processLapData needs to check both currLap and LL_ keys
+            // But ensure we pass the normalized timestamp too
+            processLapData({ ...packet, timestamp })
         })
     }
 
@@ -186,6 +245,16 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 // Convert back to array and sort
                 history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
 
+                // Re-process history for laps/races
+                // Reset races and lapHistory before reprocessing
+                races.value = []
+                lapHistory.value = []
+                currentLapIndex.value = 0
+
+                history.value.forEach(pt => {
+                    processLapData(pt)
+                })
+
                 console.log(`Loaded ${response.data.length} historical points`)
             }
         } catch (error) {
@@ -200,6 +269,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         liveData,
         history,
         lapHistory,
+        races,
         availableKeys,
         connect,
         joinRoom,
