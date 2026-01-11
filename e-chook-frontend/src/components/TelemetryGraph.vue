@@ -9,7 +9,8 @@ import {
   DataZoomComponent,
   LegendComponent,
   TitleComponent,
-  DatasetComponent
+  DatasetComponent,
+  MarkAreaComponent
 } from "echarts/components";
 import VChart from "vue-echarts";
 
@@ -21,7 +22,8 @@ use([
   DataZoomComponent,
   LegendComponent,
   TitleComponent,
-  DatasetComponent
+  DatasetComponent,
+  MarkAreaComponent
 ]);
 
 import { formatValue, getUnit } from '../utils/formatting'
@@ -122,18 +124,73 @@ const option = computed(() => {
           x: 'timestamp',
           y: props.dataKey
         },
-        // areaStyle: {
-        //   // color: {
-        //   //   type: 'linear',
-        //   //   x: 0, y: 0, x2: 0, y2: 1,
-        //   //   colorStops: [
-        //   //     { offset: 0, color: props.color.replace(')', ', 0.5)').replace('rgb', 'rgba') || props.color },
-        //   //     { offset: 1, color: 'transparent' }
-        //   //   ]
-        //   // },
-        //   // opacity: 0.2
-        // },
-        lineStyle: { width: 2 }
+        lineStyle: { width: 2 },
+        // Add markArea for Laps
+        markArea: {
+          silent: true,
+          itemStyle: {
+            opacity: 0.1
+          },
+          label: {
+            show: true,
+            position: 'insideTop',
+            color: '#666',
+            fontFamily: 'monospace',
+            fontSize: 10
+          },
+          data: (() => {
+            if (!props.data || props.data.length === 0) return []
+
+            const areas = []
+            let currentStart = props.data[0].timestamp
+            let currentLap = props.data[0].currLap
+
+            // Iterate through data to find lap changes
+            for (let i = 1; i < props.data.length; i++) {
+              const pt = props.data[i]
+              // If lap changes (and is defined), end previous area and start new one
+              // Check if currLap exists?
+              if (pt.currLap !== undefined && pt.currLap !== currentLap) {
+                // Push previous area
+                areas.push([
+                  {
+                    xAxis: currentStart,
+                    name: currentLap ? `Lap ${currentLap}` : '',
+                    itemStyle: {
+                      color: currentLap % 2 === 0 ? '#ffffff' : 'transparent' // Alternate
+                    }
+                  },
+                  {
+                    xAxis: pt.timestamp
+                  }
+                ])
+
+                // Start new
+                currentStart = pt.timestamp
+                currentLap = pt.currLap
+              }
+            }
+
+            // Push final area
+            if (props.data.length > 0) {
+              const lastPt = props.data[props.data.length - 1]
+              areas.push([
+                {
+                  xAxis: currentStart,
+                  name: currentLap ? `Lap ${currentLap}` : '',
+                  itemStyle: {
+                    color: currentLap % 2 === 0 ? '#ffffff' : 'transparent'
+                  }
+                },
+                {
+                  xAxis: lastPt.timestamp
+                }
+              ])
+            }
+
+            return areas
+          })()
+        }
       }
     ]
   }

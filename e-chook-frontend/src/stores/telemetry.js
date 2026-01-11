@@ -21,7 +21,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'voltage', 'current', 'voltageLower',
         'rpm', 'speed', 'throttle',
         'temp1', 'temp2', 'ampH', 'currLap',
-        'gear', 'brake', 'Lon', 'Lat'
+        'gear', 'brake', 'lon', 'lat'
     ])
 
     const LAP_KEYS = new Set([
@@ -72,8 +72,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         })
 
         if (hasLapKeys) {
-            // Logic: Lap Number = currLap - 1
-            const lapNumber = (packet.currLap !== undefined ? packet.currLap : currentLapIndex.value) - 1
+            // Logic: Lap Number = currLap
+            const lapNumber = (packet.currLap !== undefined ? packet.currLap : currentLapIndex.value)
 
             lapData.lapNumber = lapNumber
             lapData.timestamp = packet.timestamp || Date.now()
@@ -153,7 +153,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             const regularPacket = {}
             let hasRegularData = false
 
+            // Normalize Capitalized Keys if present
+            if (packet['Lon'] !== undefined) packet['lon'] = packet['Lon']
+            if (packet['Lat'] !== undefined) packet['lat'] = packet['Lat']
+
             REGULAR_KEYS.forEach(key => {
+                // Check for key in packet (or normalized versions if needed)
                 if (packet[key] !== undefined) {
                     regularPacket[key] = packet[key]
                     hasRegularData = true
@@ -163,6 +168,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             // Always preserve timestamp and lat/lon for map if they exist in original packet 
             // even if not explicitly in REGULAR_KEYS (though Lat/Lon are in there)
             regularPacket.timestamp = timestamp
+            // Ensure lat/lon are implicitly added if they exist, to ensure map works even if not in REGULAR_KEYS
+            if (packet.lat !== undefined) regularPacket.lat = packet.lat
+            if (packet.lon !== undefined) regularPacket.lon = packet.lon
 
             if (hasRegularData) {
                 // freeze to prevent Vue from making this deeply reactive (performance)

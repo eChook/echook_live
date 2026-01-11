@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import "leaflet/dist/leaflet.css"
-import { LMap, LTileLayer, LMarker, LControl } from "@vue-leaflet/vue-leaflet"
+import { LMap, LTileLayer, LCircleMarker, LControl } from "@vue-leaflet/vue-leaflet"
 import GradientPath from '../../components/GradientPath.vue'
 
 const telemetry = useTelemetryStore()
@@ -100,12 +100,13 @@ const trailRange = computed(() => {
       <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
-      <!-- Car Marker -->
-      <l-marker v-if="telemetry.liveData.lat && telemetry.liveData.lon"
-        :lat-lng="[telemetry.liveData.lat, telemetry.liveData.lon]"></l-marker>
-
       <!-- Gradient Trail -->
       <GradientPath :points="trailData" :min="trailRange.min" :max="trailRange.max" />
+
+      <!-- Car Marker (Dot) -->
+      <l-circle-marker v-if="telemetry.liveData.lat && telemetry.liveData.lon"
+        :lat-lng="[telemetry.liveData.lat, telemetry.liveData.lon]" :radius="8" color="#fff" :weight="2"
+        fill-color="#cb1557" :fill-opacity="1"></l-circle-marker>
 
       <!-- Controls Overlay -->
       <l-control position="topright" class="leaflet-control-layers leaflet-control">
