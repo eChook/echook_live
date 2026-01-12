@@ -14,7 +14,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const auth = useAuthStore()
 
     // Constants
-    const MAX_HISTORY_POINTS = 500
+    const MAX_HISTORY_POINTS = 50000
 
     // Allowed keys configuration
     const REGULAR_KEYS = new Set([
@@ -30,7 +30,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     ])
 
     // Computed: Get array of keys present in data for UI toggles
-    // NOW FILTERED to only show REGULAR keys
     const availableKeys = computed(() => {
         // Collect all keys from liveData
         const keys = new Set()
@@ -146,6 +145,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         })
 
         socket.value.on('data', (packet) => {
+            if (isPaused.value) return
+
             // Prefer server/packet timestamp to align with history
             const timestamp = packet.timestamp || packet.updated || Date.now()
 
@@ -221,40 +222,139 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         history.value = []
     }
 
-    async function fetchHistory(carId) {
+    const isPaused = ref(false)
+    const availableDays = ref(new Set()) // Set of YYYY-MM-DD
+
+    // Getters for header
+    const earliestTime = computed(() => {
+        if (history.value.length === 0) return null
+        return history.value[0].timestamp
+    })
+
+    const latestTime = computed(() => {
+        if (history.value.length === 0) return null
+        return history.value[history.value.length - 1].timestamp
+    })
+
+    async function togglePause() {
+        const wasPaused = isPaused.value
+        isPaused.value = !isPaused.value
+
+        // If we are RESUMING (switching from true to false)
+        if (wasPaused && !isPaused.value) {
+            // Check if we are "Live" (i.e. viewing today's data) or just paused on today
+            // If we are viewing history (different day), we probably shouldn't auto-fill gap 
+            // unless we are sure. But usually 'Reset to Live' handles different days.
+            // So here we assume if we are just toggling pause, we want to fill the gap.
+
+            const lastTime = latestTime.value
+            if (lastTime && auth.user?.id) {
+                const today = new Date().toDateString()
+                const lastDate = new Date(lastTime).toDateString()
+
+                // Only fill gap if we are on the same day
+                if (today === lastDate) {
+                    const now = Date.now()
+                    console.log(`Resuming live... fetching gap from ${new Date(lastTime).toLocaleTimeString()} to ${new Date(now).toLocaleTimeString()}`)
+
+                    // Use prepend=true to force merge strategy in fetchHistory
+                    await fetchHistory(auth.user.id, lastTime, now, true)
+                }
+            }
+        }
+    }
+
+    async function fetchAvailableDays(carId) {
+        if (!carId) return
+        try {
+            const response = await axios.get(`http://localhost:3000/api/history/days/${carId}`)
+            if (Array.isArray(response.data)) {
+                availableDays.value = new Set(response.data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch available days:', error)
+        }
+    }
+
+    // Load extra history BEFORE the current earliest point
+    async function loadExtraHistory(carId, minutes) {
+        if (!carId || !earliestTime.value) return
+
+        const currentStart = earliestTime.value
+        const newStart = currentStart - (minutes * 60 * 1000)
+
+        await fetchHistory(carId, newStart, currentStart, true) // true = prepend
+    }
+
+    // Load a specific day (clears existing)
+    async function loadDay(carId, dateString) {
         if (!carId) return
 
-        // 30 minutes ago
-        const start = Date.now() - 30 * 60 * 1000
+        // Parse dateString (YYYY-MM-DD) to start/end timestamps
+        const start = new Date(dateString).setHours(0, 0, 0, 0)
+        const end = new Date(dateString).setHours(23, 59, 59, 999)
+
+        // Pause live feed implicitly when viewing history? 
+        // User requirements imply separating live vs history mode via the prompt "modal... remove all currently loaded data"
+        isPaused.value = true
+        clearHistory()
+
+        await fetchHistory(carId, start, end)
+    }
+
+    // Reset to Live Mode (Clear history, load recent)
+    async function resetToLive(carId) {
+        if (!carId) return
+
+        isPaused.value = false // Resume live updates
+        clearHistory() // Clear all data
+
+        // Load last 30 mins
+        await fetchHistory(carId)
+    }
+
+    async function fetchHistory(carId, start = null, end = null, prepend = false) {
+        if (!carId) return
+
+        // Default: last 30 mins if no start provided
+        const startTime = start || (Date.now() - 30 * 60 * 1000)
+
+        const params = { start: startTime }
+        if (end) params.end = end
 
         try {
             const response = await axios.get(`http://localhost:3000/api/history/${carId}`, {
-                params: { start }
+                params
             })
 
             if (response.data && Array.isArray(response.data)) {
                 const dataMap = new Map()
 
-                response.data.forEach(pt => {
-                    // Normalize timestamp: Server uses 'updated', Frontend uses 'timestamp'
-                    // If timestamp is missing, use updated.
-                    const normalized = Object.freeze({
-                        ...pt,
-                        timestamp: pt.timestamp || pt.updated
-                    })
-                    if (normalized.timestamp) {
-                        dataMap.set(normalized.timestamp, normalized)
-                    }
-                })
+                // Normalize incoming
+                const incoming = response.data.map(pt => Object.freeze({
+                    ...pt,
+                    timestamp: pt.timestamp || pt.updated
+                })).filter(pt => pt.timestamp) // Ensure timestamp exists
 
-                // Merge with existing live data
-                history.value.forEach(pt => dataMap.set(pt.timestamp, pt))
+                // Merge strategy
+                if (prepend) {
+                    // Combine incoming + existing
+                    // Use Map to dedupe based on timestamp
+                    incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
+                    history.value.forEach(pt => dataMap.set(pt.timestamp, pt))
+                } else {
+                    // Just replace (or initial load)
+                    incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
+                    // If we weren't prepending, we might still want to merge if we didn't clear? 
+                    // But usually fetchHistory called after clear or for specific range.
+                    // If we are strictly loading a range (loadDay), we already cleared.
+                }
 
                 // Convert back to array and sort
                 history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
 
                 // Re-process history for laps/races
-                // Reset races and lapHistory before reprocessing
+                // We must rebuild ALL race logic when history changes to ensure continuity
                 races.value = []
                 lapHistory.value = []
                 currentLapIndex.value = 0
@@ -263,7 +363,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                     processLapData(pt)
                 })
 
-                console.log(`Loaded ${response.data.length} historical points`)
+                console.log(`Loaded ${incoming.length} historical points. Total: ${history.value.length}`)
             }
         } catch (error) {
             console.error('Failed to fetch history:', error)
@@ -279,12 +379,20 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         lapHistory,
         races,
         availableKeys,
+        isPaused, // Export
+        availableDays, // Export
+        earliestTime,
+        latestTime,
         connect,
         joinRoom,
         leaveRoom,
-        leaveRoom,
         disconnect,
         clearHistory,
-        fetchHistory
+        fetchHistory,
+        togglePause,
+        fetchAvailableDays,
+        loadExtraHistory,
+        loadDay,
+        resetToLive
     }
 })

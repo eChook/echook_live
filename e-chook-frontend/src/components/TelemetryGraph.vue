@@ -97,12 +97,12 @@ const option = computed(() => {
     },
     yAxis: {
       type: 'value',
-      scale: true, // Don't start at 0 if data is far from it
+      scale: true,
       axisLine: { lineStyle: { color: '#525252' } },
       splitLine: { lineStyle: { color: '#262626' } } // neutral-800
     },
     large: true,
-    largeThreshold: 1000,
+    largeThreshold: 10000,
     progressive: 500,
     progressiveThreshold: 1000,
     dataZoom: [

@@ -42,7 +42,7 @@ const option = computed(() => {
     xAxis: {
       type: 'time',
       boundaryGap: false,
-      axisLabel: { 
+      axisLabel: {
         show: true,
         formatter: '{HH}:{mm}:{ss}',
         color: '#a3a3a3'
@@ -59,19 +59,19 @@ const option = computed(() => {
       {
         type: 'slider',
         xAxisIndex: 0,
-        filterMode: 'empty', 
+        filterMode: 'empty',
         height: 30,
         bottom: 5,
         borderColor: '#404040',
         textStyle: { color: '#a3a3a3' },
         handleStyle: { color: '#cb1557' }, // primary
         dataBackground: {
-            lineStyle: { color: '#525252' },
-            areaStyle: { color: '#262626' }
+          lineStyle: { color: '#525252' },
+          areaStyle: { color: '#262626' }
         },
         selectedDataBackground: {
-            lineStyle: { color: '#cb1557' }, // primary
-            areaStyle: { color: '#9f1245' } // darker primary
+          lineStyle: { color: '#cb1557' }, // primary
+          areaStyle: { color: '#9f1245' } // darker primary
         }
       }
     ],
@@ -91,12 +91,7 @@ const option = computed(() => {
 <template>
   <div class="h-12 bg-neutral-900 border-b border-neutral-800 flex items-center w-full px-4">
     <div class="w-full h-full">
-         <VChart 
-            class="w-full h-full" 
-            :option="option" 
-            autoresize 
-            :group="group"
-        />
+      <VChart class="w-full h-full" :option="option" autoresize :group="group" />
     </div>
   </div>
 </template>
