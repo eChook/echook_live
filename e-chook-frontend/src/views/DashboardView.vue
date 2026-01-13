@@ -15,6 +15,12 @@ import { ChartBarIcon, MapIcon, FlagIcon, CogIcon } from '@heroicons/vue/24/outl
 
 const telemetry = useTelemetryStore()
 
+const getDisplayUnit = (key) => {
+  if (key === 'speed') return telemetry.unitSettings.speedUnit
+  if (key === 'temp1' || key === 'temp2') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
+  return undefined
+}
+
 // Tab Configuration
 const activeTabId = ref(localStorage.getItem('activeTabId') || 'graph')
 
@@ -51,7 +57,8 @@ onUnmounted(() => {
     <!-- Data Ribbon -->
     <div
       class="h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex items-center justify-start px-6 space-x-4 overflow-x-auto no-scrollbar py-2">
-      <DataCard v-for="key in telemetry.availableKeys" :key="key" :label="key" :value="telemetry.liveData[key]" />
+      <DataCard v-for="key in telemetry.availableKeys" :key="key" :label="key" :value="telemetry.displayLiveData[key]"
+        :unit="getDisplayUnit(key)" />
       <div v-if="telemetry.availableKeys.length === 0" class="text-gray-500 text-sm italic">
         Waiting for telemetry data...
       </div>

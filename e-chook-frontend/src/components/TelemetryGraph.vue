@@ -1,5 +1,6 @@
 <script setup>
 import { computed, defineProps } from 'vue'
+import { useTelemetryStore } from '../stores/telemetry'
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart } from "echarts/charts";
@@ -47,9 +48,21 @@ const props = defineProps({
   }
 })
 
+const telemetry = useTelemetryStore()
+
+// Dynamic Unit Helper
+const getDisplayUnit = (key) => {
+  if (key === 'speed') return telemetry.unitSettings.speedUnit
+  if (key === 'temp1' || key === 'temp2') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
+  return getUnit(key)
+}
+
 const option = computed(() => {
+  const showGrid = telemetry.graphSettings.showGrid
+  const showHighlights = telemetry.graphSettings.showLapHighlights
+
   return {
-    animation: false, // Performance optimization 
+    animation: telemetry.graphSettings.showAnimations,
     color: [props.color],
     tooltip: {
       trigger: 'axis',
@@ -63,15 +76,9 @@ const option = computed(() => {
         let result = `<div class="font-bold mb-1">${timeStr}</div>`
 
         params.forEach(item => {
-          // With dataset/encode, item.value is the whole object { timestamp, key: val, ... }
-          // OR it might be the array depending on how echarts treats it.
-          // Actually with 'dataset', item.data is the object. 
-          // BUT we are using 'encode', so let's be careful.
-          // However, we can also just use item.value[dimension] etc, but item.data is the raw source item.
-
           const val = item.data[props.dataKey]
-          const formatted = formatValue(props.dataKey, val)
-          const unit = getUnit(props.dataKey)
+          const formatted = formatValue(props.dataKey, val) // Assuming formatValue handles generic number formatting well
+          const unit = getDisplayUnit(props.dataKey)
 
           result += `
             <div class="flex items-center justify-between space-x-4">
@@ -85,21 +92,21 @@ const option = computed(() => {
     },
     grid: {
       top: 30,
-      bottom: 20, // Minimal bottom since we sync zoom, but need some space
+      bottom: 20,
       left: 60,
       right: 20
     },
     xAxis: {
       type: 'time',
       boundaryGap: false,
-      axisLine: { lineStyle: { color: '#525252' } }, // neutral-600
-      splitLine: { show: false }
+      axisLine: { lineStyle: { color: '#525252' } },
+      splitLine: { show: showGrid, lineStyle: { color: '#262626' } }
     },
     yAxis: {
       type: 'value',
-      scale: true,
+      scale: true, // Auto-scale
       axisLine: { lineStyle: { color: '#525252' } },
-      splitLine: { lineStyle: { color: '#262626' } } // neutral-800
+      splitLine: { show: showGrid, lineStyle: { color: '#262626' } }
     },
     large: true,
     largeThreshold: 10000,
@@ -107,7 +114,7 @@ const option = computed(() => {
     progressiveThreshold: 1000,
     dataZoom: [
       {
-        type: 'inside', // Allow zooming/panning on the graph itself
+        type: 'inside',
         xAxisIndex: 0
       }
     ],
@@ -138,7 +145,7 @@ const option = computed(() => {
             fontFamily: 'monospace',
             fontSize: 10
           },
-          data: (() => {
+          data: showHighlights ? (() => {
             if (!props.data || props.data.length === 0) return []
 
             const areas = []
@@ -148,8 +155,7 @@ const option = computed(() => {
             // Iterate through data to find lap changes
             for (let i = 1; i < props.data.length; i++) {
               const pt = props.data[i]
-              // If lap changes (and is defined), end previous area and start new one
-              // Check if currLap exists?
+
               if (pt.currLap !== undefined && pt.currLap !== currentLap) {
                 // Push previous area
                 areas.push([
@@ -189,7 +195,7 @@ const option = computed(() => {
             }
 
             return areas
-          })()
+          })() : []
         }
       }
     ]
@@ -199,7 +205,8 @@ const option = computed(() => {
 
 <template>
   <div
-    class="h-64 bg-neutral-800/50 rounded-lg border border-neutral-700/50 backdrop-blur-sm shadow-sm overflow-hidden p-2 relative">
+    class="bg-neutral-800/50 rounded-lg border border-neutral-700/50 backdrop-blur-sm shadow-sm overflow-hidden p-2 relative"
+    :style="{ height: telemetry.graphSettings.graphHeight + 'px' }">
     <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{ dataKey }}</h3>
     <VChart class="w-full h-full" :option="option" autoresize :group="group" />
   </div>

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { io } from 'socket.io-client'
 import axios from 'axios'
 import { useAuthStore } from './auth'
@@ -13,8 +13,46 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const lapHistory = ref([]) // Array of lap data
     const auth = useAuthStore()
 
-    // Constants
-    const MAX_HISTORY_POINTS = 50000
+    // -- Settings State (Persisted) --
+
+    // 1. Max History Points
+    const savedMaxPoints = localStorage.getItem('echook_max_history')
+    const maxHistoryPoints = ref(savedMaxPoints ? parseInt(savedMaxPoints) : 50000)
+
+    watch(maxHistoryPoints, (val) => {
+        localStorage.setItem('echook_max_history', val.toString())
+        // Trim history if needed immediately
+        if (history.value.length > val) {
+            history.value = history.value.slice(history.value.length - val)
+        }
+    })
+
+    // 2. Graph Visual Settings
+    const defaultGraphSettings = {
+        showLapHighlights: true,
+        showAnimations: false,
+        showGrid: true,
+        graphHeight: 320
+    }
+    const savedGraphSettings = localStorage.getItem('echook_graph_settings')
+    const graphSettings = ref(savedGraphSettings ? { ...defaultGraphSettings, ...JSON.parse(savedGraphSettings) } : defaultGraphSettings)
+
+    watch(graphSettings, (val) => {
+        localStorage.setItem('echook_graph_settings', JSON.stringify(val))
+    }, { deep: true })
+
+    // 3. Unit Settings
+    const defaultUnits = {
+        speedUnit: 'mph', // mph, kph, ms
+        tempUnit: 'c'     // c, f
+    }
+    const savedUnits = localStorage.getItem('echook_units')
+    const unitSettings = ref(savedUnits ? { ...defaultUnits, ...JSON.parse(savedUnits) } : defaultUnits)
+
+    watch(unitSettings, (val) => {
+        localStorage.setItem('echook_units', JSON.stringify(val))
+    }, { deep: true })
+
 
     // Allowed keys configuration
     const REGULAR_KEYS = new Set([
@@ -28,6 +66,61 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'LL_Time', 'LL_V', 'LL_I',
         'LL_RPM', 'LL_Spd', 'LL_Ah'
     ])
+
+    // Helper: Unit Conversion
+    const convertSpeed = (valMs) => {
+        if (valMs === undefined || valMs === null) return valMs
+        switch (unitSettings.value.speedUnit) {
+            case 'mph': return valMs * 2.23694
+            case 'kph': return valMs * 3.6
+            default: return valMs // m/s
+        }
+    }
+
+    const convertTemp = (valC) => {
+        if (valC === undefined || valC === null) return valC
+        switch (unitSettings.value.tempUnit) {
+            case 'f': return (valC * 9 / 5) + 32
+            default: return valC // c
+        }
+    }
+
+    // Computed: Display History (Converted Units)
+    // We intentionally do NOT deep watch history for performance. 
+    // This computed will update when history array reference changes or length changes (reactive).
+    // However, for large arrays, mapping every time might be heavy. 
+    // BUT since we are using ECharts 'dataset', we might pass this array directly.
+    // If performance is an issue, we might bubble conversion up to the chart component 
+    // or keep a separate "displayBuffer". For now, computed is cleanest.
+    const displayHistory = computed(() => {
+        return history.value.map(pt => {
+            // Shallow clone to avoid mutating original history
+            const newPt = { ...pt }
+
+            // Convert known fields
+            if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
+            if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
+            if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
+
+            return Object.freeze(newPt)
+        })
+    })
+
+    // Computed: Display Live Data (Converted Units)
+    const displayLiveData = computed(() => {
+        const pt = liveData.value
+        if (!pt) return {}
+
+        const newPt = { ...pt }
+
+        // Convert known fields
+        if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
+        if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
+        if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
+
+        return newPt
+    })
+
 
     // Computed: Get array of keys present in data for UI toggles
     const availableKeys = computed(() => {
@@ -183,8 +276,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 // Buffer history
                 history.value.push(processed)
                 // Limit history size
-                const LIMIT = Math.max(MAX_HISTORY_POINTS, 5000)
-                if (history.value.length > LIMIT) {
+                if (history.value.length > maxHistoryPoints.value) {
                     history.value.shift()
                 }
             }
@@ -393,6 +485,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         fetchAvailableDays,
         loadExtraHistory,
         loadDay,
-        resetToLive
+        resetToLive,
+        // Settings & Computed
+        maxHistoryPoints,
+        graphSettings,
+        unitSettings,
+        displayHistory,
+        displayLiveData
     }
 })

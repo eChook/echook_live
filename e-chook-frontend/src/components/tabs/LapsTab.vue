@@ -5,29 +5,50 @@ import { useTelemetryStore } from '../../stores/telemetry'
 const telemetry = useTelemetryStore()
 
 // Headers for the table
-const headers = ['Lap', 'Time', 'Volts', 'Amps', 'RPM', 'Speed', 'Ah']
+const headers = computed(() => [
+  'Lap',
+  'Time',
+  'Volts',
+  'Amps',
+  'RPM',
+  `Speed (${telemetry.unitSettings.speedUnit.toUpperCase()})`,
+  'Ah'
+])
 const keys = ['lapNumber', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah']
 
 const sortedRaces = computed(() => {
   // Show newest race first
   return [...telemetry.races].reverse().map(race => {
-    // Calculate stats for this race
+    // 1. Create Converted Laps
+    const convertedLaps = race.laps.map(lap => {
+      const newLap = { ...lap }
+
+      // Convert Speed
+      if (newLap.LL_Spd !== undefined) {
+        let val = newLap.LL_Spd
+        if (telemetry.unitSettings.speedUnit === 'mph') val = val * 2.23694
+        if (telemetry.unitSettings.speedUnit === 'kph') val = val * 3.6
+        newLap.LL_Spd = val
+      }
+      return newLap
+    })
+
+    // 2. Calculate stats for this race using convert laps
     const stats = {}
     keys.slice(1).forEach(key => {
       let min = Infinity
       let max = -Infinity
-      race.laps.forEach(lap => {
-        const val = lap[key] || 0 // Handle undefined/null as 0
+      convertedLaps.forEach(lap => {
+        const val = lap[key] || 0
         if (val < min) min = val
         if (val > max) max = val
       })
-      // Avoid division by zero
       if (max === min) max = min + 1
       stats[key] = { min, max }
     })
 
     // Sort laps newest first for display
-    const sortedLaps = [...race.laps].reverse()
+    const sortedLaps = [...convertedLaps].reverse()
 
     return {
       ...race,

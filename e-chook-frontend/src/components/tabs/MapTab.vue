@@ -25,8 +25,8 @@ const onMapReady = () => {
 // Compute Trail
 // Map history to { lat, lon, value }
 const trailData = computed(() => {
-  // Get last N points
-  const slice = telemetry.history.slice(-trailLength.value)
+  // Get last N points (use displayHistory for converted units)
+  const slice = telemetry.displayHistory.slice(-trailLength.value)
 
   // Map to simplified objects
   const mapped = slice
@@ -104,8 +104,8 @@ const trailRange = computed(() => {
       <GradientPath :points="trailData" :min="trailRange.min" :max="trailRange.max" />
 
       <!-- Car Marker (Dot) -->
-      <l-circle-marker v-if="telemetry.liveData.lat && telemetry.liveData.lon"
-        :lat-lng="[telemetry.liveData.lat, telemetry.liveData.lon]" :radius="8" color="#fff" :weight="2"
+      <l-circle-marker v-if="telemetry.displayLiveData.lat && telemetry.displayLiveData.lon"
+        :lat-lng="[telemetry.displayLiveData.lat, telemetry.displayLiveData.lon]" :radius="8" color="#fff" :weight="2"
         fill-color="#cb1557" :fill-opacity="1"></l-circle-marker>
 
       <!-- Controls Overlay -->

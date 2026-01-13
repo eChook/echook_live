@@ -102,13 +102,14 @@ onMounted(() => {
     <main class="flex-1 flex flex-col overflow-hidden bg-neutral-900">
       <!-- Master Zoom Timeline -->
       <div class="flex-shrink-0 z-10 bg-neutral-900">
-        <MasterZoom v-if="telemetry.history.length > 0" :data="telemetry.history" :group="CHART_GROUP" />
+        <MasterZoom v-if="telemetry.history.length > 0" :data="telemetry.displayHistory" :group="CHART_GROUP" />
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-4 p-4">
         <div v-if="selectedKeys.size > 0">
           <div v-for="key in Array.from(selectedKeys)" :key="key" class="w-full">
-            <TelemetryGraph :data="telemetry.history" :data-key="key" :group="CHART_GROUP" :color="getColor(key)" />
+            <TelemetryGraph :data="telemetry.displayHistory" :data-key="key" :group="CHART_GROUP"
+              :color="getColor(key)" />
           </div>
         </div>
         <div v-else class="h-full flex items-center justify-center text-gray-500">
