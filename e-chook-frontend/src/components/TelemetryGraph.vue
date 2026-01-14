@@ -146,52 +146,73 @@ const option = computed(() => {
             fontSize: 10
           },
           data: showHighlights ? (() => {
-            if (!props.data || props.data.length === 0) return []
-
             const areas = []
-            let currentStart = props.data[0].timestamp
-            let currentLap = props.data[0].currLap
+            // Helper: Ensure timestamp is roughly valid (e.g. > year 2000) to avoid scale issues
+            const isValidTs = (ts) => ts && Number.isFinite(ts) && ts > 946684800000
 
-            // Iterate through data to find lap changes
-            for (let i = 1; i < props.data.length; i++) {
-              const pt = props.data[i]
+            // 1. Process Completed Laps from Races (Stable source of truth)
+            if (telemetry.races && telemetry.races.length > 0) {
+              telemetry.races.forEach(race => {
+                let lapStart = race.startTimeMs
+                if (race.laps && race.laps.length > 0) {
+                  race.laps.forEach(lap => {
+                    const lapEnd = lap.timestamp
+                    if (isValidTs(lapStart) && isValidTs(lapEnd)) {
+                      areas.push([
+                        {
+                          xAxis: lapStart,
+                          name: `Lap ${lap.lapNumber}`,
+                          itemStyle: {
+                            color: lap.lapNumber % 2 === 0 ? '#ffffff' : 'transparent'
+                          }
+                        },
+                        {
+                          xAxis: lapEnd
+                        }
+                      ])
+                    }
+                    lapStart = lapEnd
+                  })
+                }
+              })
+            }
 
-              if (pt.currLap !== undefined && pt.currLap !== currentLap) {
-                // Push previous area
+            // 2. Process Current (Incomplete) Lap
+            // It extends from the end of the last known lap (or start of data) to the latest data point
+
+            if (props.data && props.data.length > 0) {
+              const lastPt = props.data[props.data.length - 1]
+              let currentLapStart = null
+
+              // Determine where the current lap started based on races
+              if (telemetry.races.length > 0) {
+                const lastRace = telemetry.races[telemetry.races.length - 1]
+                if (lastRace.laps.length > 0) {
+                  currentLapStart = lastRace.laps[lastRace.laps.length - 1].timestamp
+                } else {
+                  currentLapStart = lastRace.startTimeMs
+                }
+              } else {
+                // No race info, fallback to data start
+                currentLapStart = props.data[0].timestamp
+              }
+
+              // Ensure we draw if valid
+              if (isValidTs(currentLapStart) && isValidTs(lastPt.timestamp) && lastPt.timestamp > currentLapStart) {
+                const currentLapNum = lastPt.currLap
                 areas.push([
                   {
-                    xAxis: currentStart,
-                    name: currentLap ? `Lap ${currentLap}` : '',
+                    xAxis: currentLapStart,
+                    name: currentLapNum ? `Lap ${currentLapNum}` : '',
                     itemStyle: {
-                      color: currentLap % 2 === 0 ? '#ffffff' : 'transparent' // Alternate
+                      color: (currentLapNum && currentLapNum % 2 === 0) ? '#ffffff' : 'transparent'
                     }
                   },
                   {
-                    xAxis: pt.timestamp
+                    xAxis: lastPt.timestamp
                   }
                 ])
-
-                // Start new
-                currentStart = pt.timestamp
-                currentLap = pt.currLap
               }
-            }
-
-            // Push final area
-            if (props.data.length > 0) {
-              const lastPt = props.data[props.data.length - 1]
-              areas.push([
-                {
-                  xAxis: currentStart,
-                  name: currentLap ? `Lap ${currentLap}` : '',
-                  itemStyle: {
-                    color: currentLap % 2 === 0 ? '#ffffff' : 'transparent'
-                  }
-                },
-                {
-                  xAxis: lastPt.timestamp
-                }
-              ])
             }
 
             return areas

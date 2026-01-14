@@ -13,7 +13,15 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const lapHistory = ref([]) // Array of lap data
     const auth = useAuthStore()
 
+    // Admin / Viewing State
+    const viewingCar = ref(null) // { id, carName, teamName, number }
+
     // -- Settings State (Persisted) --
+    // ... (unchanged)
+
+    // ...
+
+
 
     // 1. Max History Points
     const savedMaxPoints = localStorage.getItem('echook_max_history')
@@ -228,7 +236,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             // Note: API doc says emit 'join' with Car ID. 
             // So use auth.user.id
             if (auth.user?.id || auth.user?._id) {
-                joinRoom(auth.user.id || auth.user._id)
+                const userCar = {
+                    id: auth.user.id || auth.user._id,
+                    carName: auth.user.carName || auth.user.car,
+                    teamName: auth.user.teamName || auth.user.team,
+                    number: auth.user.number,
+                    isOwn: true
+                }
+                joinRoom(userCar.id, userCar)
             }
         })
 
@@ -288,10 +303,15 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         })
     }
 
-    function joinRoom(carId) {
+    function joinRoom(carId, carDetails = null) {
         if (socket.value && isConnected.value) {
             console.log('Joining room for:', carId)
             socket.value.emit('join', carId)
+            if (carDetails) {
+                viewingCar.value = carDetails
+            } else {
+                viewingCar.value = { id: carId }
+            }
             fetchHistory(carId)
         }
     }
@@ -368,6 +388,11 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
+    // Computed: Is Truncated?
+    const isHistoryTruncated = computed(() => {
+        return history.value.length >= maxHistoryPoints.value
+    })
+
     // Load extra history BEFORE the current earliest point
     async function loadExtraHistory(carId, minutes) {
         if (!carId || !earliestTime.value) return
@@ -379,12 +404,22 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     // Load a specific day (clears existing)
-    async function loadDay(carId, dateString) {
+    // Optional start/end times (HH:MM strings or timestamps, here assuming timestamps or handling in UI)
+    // Actually, simpler to pass start/end Timestamps if caller calculates them, 
+    // OR pass 00:00 strings. Let's make it flexible: assume timestamps for start/end if provided
+    async function loadDay(carId, dateString, startTimeStr = '00:00', endTimeStr = '23:59') {
         if (!carId) return
 
-        // Parse dateString (YYYY-MM-DD) to start/end timestamps
-        const start = new Date(dateString).setHours(0, 0, 0, 0)
-        const end = new Date(dateString).setHours(23, 59, 59, 999)
+        // Helper to combine date + time string
+        const getTs = (timeStr) => {
+            const [h, m] = timeStr.split(':')
+            const d = new Date(dateString)
+            d.setHours(parseInt(h), parseInt(m), 0, 0)
+            return d.getTime()
+        }
+
+        const start = getTs(startTimeStr)
+        const end = getTs(endTimeStr)
 
         // Pause live feed implicitly when viewing history? 
         // User requirements imply separating live vs history mode via the prompt "modal... remove all currently loaded data"
@@ -405,25 +440,62 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         await fetchHistory(carId)
     }
 
+    function resetState() {
+        disconnect()
+        liveData.value = {}
+        history.value = []
+        lapHistory.value = []
+        races.value = []
+        lastPacketTime.value = 0
+        currentLapIndex.value = 0
+        availableDays.value = new Set()
+        isPaused.value = false
+    }
+
     async function fetchHistory(carId, start = null, end = null, prepend = false) {
         if (!carId) return
 
         // Default: last 30 mins if no start provided
         const startTime = start || (Date.now() - 30 * 60 * 1000)
 
-        const params = { start: startTime }
-        if (end) params.end = end
+        let fullHistory = []
+        let page = 1
+        const limit = 5000 // Max chunk size
+        let fetching = true
 
         try {
-            const response = await axios.get(`http://localhost:3000/api/history/${carId}`, {
-                params
-            })
+            while (fetching) {
+                const params = {
+                    start: startTime,
+                    page,
+                    limit
+                }
+                if (end) params.end = end
 
-            if (response.data && Array.isArray(response.data)) {
+                const response = await axios.get(`http://localhost:3000/api/history/${carId}`, {
+                    params
+                })
+
+                if (response.data && Array.isArray(response.data)) {
+                    const chunk = response.data
+                    fullHistory = fullHistory.concat(chunk)
+
+                    // CHECK: Did we get a full page?
+                    if (chunk.length < limit) {
+                        fetching = false
+                    } else {
+                        page++
+                    }
+                } else {
+                    fetching = false // Error or empty response, stop
+                }
+            }
+
+            if (fullHistory.length > 0) {
                 const dataMap = new Map()
 
                 // Normalize incoming
-                const incoming = response.data.map(pt => Object.freeze({
+                const incoming = fullHistory.map(pt => Object.freeze({
                     ...pt,
                     timestamp: pt.timestamp || pt.updated
                 })).filter(pt => pt.timestamp) // Ensure timestamp exists
@@ -437,9 +509,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 } else {
                     // Just replace (or initial load)
                     incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
-                    // If we weren't prepending, we might still want to merge if we didn't clear? 
-                    // But usually fetchHistory called after clear or for specific range.
-                    // If we are strictly loading a range (loadDay), we already cleared.
                 }
 
                 // Convert back to array and sort
@@ -470,6 +539,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         history,
         lapHistory,
         races,
+        viewingCar,
         availableKeys,
         isPaused, // Export
         availableDays, // Export
@@ -486,11 +556,13 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         loadExtraHistory,
         loadDay,
         resetToLive,
+        resetState,
         // Settings & Computed
         maxHistoryPoints,
         graphSettings,
         unitSettings,
         displayHistory,
-        displayLiveData
+        displayLiveData,
+        isHistoryTruncated
     }
 })

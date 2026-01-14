@@ -11,11 +11,13 @@ import {
   PlayIcon,
   ClockIcon,
   TrashIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
 import logo from '../assets/vue.svg'
 import HistoryCalendar from './HistoryCalendar.vue'
 import ConfirmationModal from './ui/ConfirmationModal.vue'
+
 
 const auth = useAuthStore()
 const telemetry = useTelemetryStore()
@@ -51,7 +53,9 @@ const showHistoryMenu = ref(false)
 const showLoadConfirmModal = ref(false) // For loading history
 const showResumeConfirmModal = ref(false) // For resuming live
 const isLoadingHistory = ref(false)
-const pendingDay = ref(null)
+const selectedDate = ref(null)
+const startTime = ref('00:00')
+const endTime = ref('23:59')
 const dontAskAgain = ref(false)
 
 const formatTime = (ts) => {
@@ -62,9 +66,37 @@ const formatTime = (ts) => {
   })
 }
 
+const displayedCar = computed(() => {
+  // If we are "viewing" a car via Admin features, use that
+  if (telemetry.viewingCar) {
+    return {
+      id: telemetry.viewingCar.id,
+      carName: telemetry.viewingCar.carName || telemetry.viewingCar.car || 'Unknown Car',
+      teamName: telemetry.viewingCar.teamName || telemetry.viewingCar.team || 'Unknown Team',
+      number: telemetry.viewingCar.number
+    }
+  }
+  // Fallback to logged in user
+  if (auth.user) {
+    return {
+      id: auth.user.id || auth.user._id,
+      carName: auth.user.carName || auth.user.car,
+      teamName: auth.user.teamName || auth.user.team,
+      number: auth.user.number
+    }
+  }
+  return null
+})
+
+const isViewingOther = computed(() => {
+  if (!displayedCar.value || !auth.user) return false
+  const userId = auth.user.id || auth.user._id
+  return displayedCar.value.id !== userId
+})
+
 const statusText = computed(() => {
   if (telemetry.history.length === 0) return 'Waiting for Data...'
-
+  // ... rest of logic
   const start = formatTime(telemetry.earliestTime)
   let end = 'Live'
   if (telemetry.isPaused) {
@@ -72,6 +104,8 @@ const statusText = computed(() => {
   }
   return `${start} - ${end}`
 })
+// ... existing code
+
 
 const handleLogout = () => {
   auth.logout()
@@ -81,45 +115,55 @@ const handleLogout = () => {
 // History Actions
 function closeHistoryMenu() {
   showHistoryMenu.value = false
+  selectedDate.value = null
+  startTime.value = '00:00'
+  endTime.value = '23:59'
 }
 
 async function loadExtra(minutes) {
-  if (auth.user?.id) {
+  if (displayedCar.value?.id) {
     isLoadingHistory.value = true
     showHistoryMenu.value = false // Close menu
     try {
-      await telemetry.loadExtraHistory(auth.user.id, minutes)
+      await telemetry.loadExtraHistory(displayedCar.value.id, minutes)
     } finally {
       isLoadingHistory.value = false
     }
   }
 }
 
-function onDaySelected(dateString) {
+function handleDayClick(dateString) {
+  selectedDate.value = dateString
+  // Keep defaults or existing selection
+}
+
+function triggerLoadDay() {
   if (dontAskAgain.value) {
-    confirmLoadDay(dateString)
+    confirmLoadDay()
   } else {
-    pendingDay.value = dateString
     showLoadConfirmModal.value = true
-    showHistoryMenu.value = false // Close menu immediately
   }
 }
 
-async function confirmLoadDay(dateString = pendingDay.value) {
-  if (auth.user?.id) {
+async function confirmLoadDay() {
+  if (displayedCar.value?.id && selectedDate.value) {
     isLoadingHistory.value = true
     try {
-      await telemetry.loadDay(auth.user.id, dateString)
+      await telemetry.loadDay(displayedCar.value.id, selectedDate.value, startTime.value, endTime.value)
     } finally {
       isLoadingHistory.value = false
     }
   }
   closeConfirmModal()
+  showHistoryMenu.value = false
 }
 
 function closeConfirmModal() {
   showLoadConfirmModal.value = false
-  pendingDay.value = null
+  // Don't clear selectedDate here immediately if we want to keep the menu state, 
+  // but usually we want to reset if cancelled. 
+  // For now, let's keep the menu open or closed based on flow.
+  // Actually, if we cancel, we probably just close the modal.
 }
 
 const toggleHistoryMenu = () => {
@@ -196,10 +240,13 @@ async function confirmResetToLive() {
         <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Telemetry</span>
       </div>
       <div class="h-6 w-px bg-neutral-700"></div>
-      <div v-if="auth.user" class="flex flex-col">
-        <span class="text-sm text-white font-semibold">{{ auth.user.carName || auth.user.car }}</span>
-        <span class="text-xs text-gray-400">{{ auth.user.teamName || auth.user.team }} #{{ auth.user.number || '00'
-        }}</span>
+      <!-- Car Info Display -->
+      <div v-if="displayedCar" class="flex flex-col">
+        <span class="text-sm text-white font-semibold flex items-center">
+          {{ displayedCar.carName }}
+          <span v-if="isViewingOther" class="ml-2 text-[10px] text-yellow-500 uppercase tracking-wider">(Viewing)</span>
+        </span>
+        <span class="text-xs text-gray-400">{{ displayedCar.teamName }} #{{ displayedCar.number || '00' }}</span>
       </div>
     </div>
 
@@ -216,44 +263,84 @@ async function confirmResetToLive() {
       <div class="hidden md:flex items-center space-x-3">
 
         <!-- Status Text / History Trigger -->
-        <div class="relative">
+        <!-- Status Text / History Trigger -->
+        <div class="relative flex items-center">
+          <div v-if="telemetry.isHistoryTruncated" class="mr-2 text-yellow-500 cursor-default"
+            title="Data is truncated">
+            <ExclamationTriangleIcon class="w-5 h-5" />
+          </div>
           <div @click="toggleHistoryMenu"
             class="h-8 flex items-center text-xs font-mono text-gray-400 bg-neutral-800 px-3 rounded border border-neutral-700 whitespace-nowrap cursor-pointer hover:bg-neutral-700 hover:text-gray-300 transition select-none"
-            :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''">
-            Loaded Data: <span class="text-white font-bold ml-2">{{ statusText }}</span>
+            :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="Manage Loaded History">
+            Loaded Data:
+            <span class="text-white font-bold ml-2 flex items-center">
+              {{ statusText }}
+            </span>
           </div>
 
           <!-- History Dropdown -->
           <div v-if="showHistoryMenu"
-            class="absolute top-10 right-0 bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg p-4 z-50 flex space-x-4 min-w-[500px]">
+            class="absolute top-10 right-0 bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg p-4 z-50 flex space-x-6 min-w-[700px]">
 
-            <!-- Quick Load -->
-            <div class="flex flex-col space-y-2 w-32">
-              <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Add History</h3>
+            <!-- Column 1: Quick Load -->
+            <div class="flex flex-col space-y-2 w-32 border-r border-neutral-800 pr-4">
+              <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Quick Add</h3>
               <button @click="loadExtra(10)"
                 class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+
-                10 Mins</button>
+                10
+                Mins</button>
               <button @click="loadExtra(30)"
                 class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+
-                30 Mins</button>
+                30
+                Mins</button>
               <button @click="loadExtra(60)"
                 class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+ 1
                 Hour</button>
               <button @click="loadExtra(180)"
                 class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+ 3
                 Hours</button>
-              <div class="mt-auto pt-4">
-                <p class="text-[10px] text-gray-600 leading-tight">Data deleted after 7 days.</p>
-              </div>
             </div>
-            <div class="w-px bg-neutral-700"></div>
-            <!-- Calendar -->
-            <div>
-              <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Day</h3>
-              <HistoryCalendar :available-days="telemetry.availableDays" @select-day="onDaySelected" />
+
+            <!-- Column 2: Calendar -->
+            <div class="flex flex-col">
+              <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
+              <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2">
+                <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
+                Data stored on the server is not permanent. It may be deleted to free up space.
+              </p>
+            </div>
+
+            <!-- Column 3: Time Range & Load Action -->
+            <div class="flex flex-col w-48 border-l border-neutral-800 pl-4 space-y-4">
+              <!-- Selection Status -->
+              <div v-if="selectedDate" class="text-sm font-bold text-primary">
+                {{ selectedDate }}
+              </div>
+              <div v-else class="text-sm font-bold text-gray-500">
+                Select a day...
+              </div>
+
+              <!-- Time Inputs -->
+              <div class="flex flex-col space-y-1">
+                <label class="text-[10px] text-gray-500 uppercase tracking-wider">Start Time</label>
+                <input v-model="startTime" type="time"
+                  class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none w-full">
+              </div>
+
+              <div class="flex flex-col space-y-1">
+                <label class="text-[10px] text-gray-500 uppercase tracking-wider">End Time</label>
+                <input v-model="endTime" type="time"
+                  class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none w-full">
+              </div>
+
+              <!-- Action Button -->
+              <button @click="triggerLoadDay" :disabled="!selectedDate"
+                class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Load Data
+              </button>
             </div>
           </div>
-          <!-- Overlay for dropdown -->
+          <!-- Overlay -->
           <div v-if="showHistoryMenu" class="fixed inset-0 z-40" @click="closeHistoryMenu"></div>
         </div>
 
@@ -282,7 +369,8 @@ async function confirmResetToLive() {
       <div class="flex items-center space-x-2">
         <div class="flex items-center space-x-2 px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700">
           <div class="w-2 h-2 rounded-full"
-            :class="telemetry.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></div>
+            :class="telemetry.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'">
+          </div>
           <span class="text-xs font-medium text-gray-300">SERVER</span>
         </div>
       </div>
@@ -302,8 +390,8 @@ async function confirmResetToLive() {
 
     <!-- Modals -->
     <ConfirmationModal :is-open="showLoadConfirmModal" title="Load Historic Data?"
-      :message="`Loading data for ${pendingDay} will remove all currently loaded data.`" confirm-text="Load Data"
-      @close="closeConfirmModal" @confirm="confirmLoadDay(pendingDay)">
+      :message="`Loading data for ${selectedDate} will remove all currently loaded data.`" confirm-text="Load Data"
+      @close="closeConfirmModal" @confirm="confirmLoadDay()">
       <template #body>
         <div class="flex items-center mt-2">
           <input type="checkbox" id="dontAsk" v-model="dontAskAgain"

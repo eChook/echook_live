@@ -9,9 +9,12 @@ const telemetry = useTelemetryStore()
 const auth = useAuthStore()
 
 // Account
-const carName = computed(() => auth.user ? auth.user.username : 'Guest')
+const carName = computed(() => auth.user ? auth.user.car : 'Guest')
 // Mock car number for now, or link to auth store if avail
-const carNumber = ref('999')
+const carNumber = computed({
+  get: () => auth.user ? auth.user.number : '00',
+  set: (val) => { /* No-op for now unless we add update endpoint */ }
+})
 
 // Copied states
 const copiedId = ref(false)
@@ -64,6 +67,18 @@ const wsUrl = 'ws://localhost:3000'
               class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter car number..." />
           </div>
+        </div>
+
+        <!-- Account Actions -->
+        <div class="mt-6 flex space-x-4">
+          <button
+            class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium">
+            Change Password
+          </button>
+          <button
+            class="px-4 py-2 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-900 rounded transition text-sm font-medium">
+            Delete Account
+          </button>
         </div>
       </section>
 

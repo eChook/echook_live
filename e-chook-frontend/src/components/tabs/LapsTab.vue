@@ -115,6 +115,26 @@ const getBarPercent = (val, min, max) => {
   if (range === 0) return 0
   return Math.min(100, Math.max(0, ((cleanVal - min) / range) * 100))
 }
+
+// Disclaimer Modal Logic
+import DisclaimerModal from '../ui/DisclaimerModal.vue'
+import { onMounted, ref } from 'vue'
+
+const showDisclaimer = ref(false)
+
+onMounted(() => {
+  const hide = localStorage.getItem('echook_hide_laps_disclaimer')
+  if (!hide) {
+    showDisclaimer.value = true
+  }
+})
+
+const handleDisclaimerConfirm = (doNotShow) => {
+  if (doNotShow) {
+    localStorage.setItem('echook_hide_laps_disclaimer', 'true')
+  }
+  showDisclaimer.value = false
+}
 </script>
 
 <template>
@@ -125,8 +145,9 @@ const getBarPercent = (val, min, max) => {
 
     <div class="flex-1 overflow-y-auto space-y-8 pr-2"> <!-- Scrollable container -->
       <div v-for="race in sortedRaces" :key="race.id" class="flex flex-col space-y-4">
+        <!-- Changed z-10 to z-20 for header to stay above table content -->
         <div
-          class="flex items-center justify-between sticky top-0 bg-neutral-900 z-10 py-2 border-b border-neutral-800">
+          class="flex items-center justify-between sticky top-0 bg-neutral-900 z-20 py-2 border-b border-neutral-800">
           <h2 class="text-xl font-bold text-white tracking-tight">
             Race Start Time: <span class="text-primary font-mono">{{ formatDate(race.startTime) }}</span>
           </h2>
@@ -178,5 +199,9 @@ const getBarPercent = (val, min, max) => {
         </div>
       </div>
     </div>
+
+    <DisclaimerModal :is-open="showDisclaimer" title="Disclaimer"
+      message="eChook measured lap times are only accurate to within a few seconds and are no replacement for the official lap times."
+      @confirm="handleDisclaimerConfirm" />
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, shallowRef } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
+import { useAuthStore } from '../stores/auth'
 import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
 
@@ -9,11 +10,13 @@ import GraphTab from '../components/tabs/GraphTab.vue'
 import MapTab from '../components/tabs/MapTab.vue'
 import LapsTab from '../components/tabs/LapsTab.vue'
 import SettingsTab from '../components/tabs/SettingsTab.vue'
+import AdminTab from '../components/tabs/AdminTab.vue'
 
 // Icons
-import { ChartBarIcon, MapIcon, FlagIcon, CogIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
+const auth = useAuthStore()
 
 const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
@@ -29,15 +32,25 @@ watch(activeTabId, (newValue) => {
   localStorage.setItem('activeTabId', newValue)
 })
 
-const tabs = [
-  { id: 'graph', label: 'Graph', icon: ChartBarIcon, component: GraphTab },
-  { id: 'map', label: 'Map', icon: MapIcon, component: MapTab },
-  { id: 'laps', label: 'Laps', icon: FlagIcon, component: LapsTab },
-]
+const tabs = computed(() => {
+  const baseTabs = [
+    { id: 'graph', label: 'Graph', icon: ChartBarIcon, component: GraphTab },
+    { id: 'map', label: 'Map', icon: MapIcon, component: MapTab },
+    { id: 'laps', label: 'Laps', icon: FlagIcon, component: LapsTab },
+  ]
+
+  if (auth.user?.isAdmin) {
+    baseTabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheckIcon, component: AdminTab })
+  }
+
+  console.log('Computing tabs. User:', auth.user, 'IsAdmin:', auth.user?.isAdmin, 'Result:', baseTabs)
+
+  return baseTabs
+})
 
 const activeComponent = computed(() => {
   if (activeTabId.value === 'settings') return SettingsTab
-  const tab = tabs.find(t => t.id === activeTabId.value)
+  const tab = tabs.value.find(t => t.id === activeTabId.value)
   return tab ? tab.component : GraphTab
 })
 
