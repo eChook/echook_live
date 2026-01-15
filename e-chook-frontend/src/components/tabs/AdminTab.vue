@@ -177,6 +177,12 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Maps Panel -->
+            <div v-else-if="currentTab === 'maps'" class="h-full">
+                <!-- Using h-full because MapsTab manages its own scrolling/layout -->
+                <AdminMapsTab />
+            </div>
         </div>
 
         <!-- Edit Modal -->
@@ -202,10 +208,12 @@ import {
     ArrowPathIcon,
     EyeIcon,
     PencilSquareIcon,
-    TrashIcon
+    TrashIcon,
+    MapIcon
 } from '@heroicons/vue/24/outline'
 import UserEditModal from '../UserEditModal.vue'
 import ConfirmationModal from '../ui/ConfirmationModal.vue'
+import AdminMapsTab from './AdminMapsTab.vue'
 
 const adminStore = useAdminStore()
 const telemetry = useTelemetryStore()
@@ -215,6 +223,7 @@ const tabs = [
     { id: 'cars', name: 'Active Cars', icon: TruckIcon },
     { id: 'users', name: 'Users', icon: UsersIcon },
     { id: 'emails', name: 'Emails', icon: EnvelopeIcon },
+    { id: 'maps', name: 'Maps', icon: MapIcon },
 ]
 const currentTab = ref('cars')
 

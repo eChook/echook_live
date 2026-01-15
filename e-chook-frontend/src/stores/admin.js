@@ -7,6 +7,7 @@ export const useAdminStore = defineStore('admin', () => {
     const users = ref([])
     const activeCars = ref([])
     const emails = ref([])
+    const tracks = ref([])
     const isLoading = ref(false)
     const error = ref(null)
 
@@ -80,6 +81,52 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
+    // --- Tracks Management ---
+    async function fetchTracks() {
+        isLoading.value = true
+        try {
+            const res = await api.get('/admin/tracks')
+            tracks.value = res.data
+        } catch (e) {
+            error.value = e.message
+            console.error('Fetch tracks failed', e)
+        } finally {
+            isLoading.value = false
+        }
+    }
+
+    async function addTrack(trackData) {
+        try {
+            const res = await api.post('/admin/tracks/add', trackData)
+            // Refresh list or add to local
+            await fetchTracks()
+            return { success: true }
+        } catch (e) {
+            return { success: false, error: e.response?.data?.message || 'Add track failed' }
+        }
+    }
+
+    async function updateTrack(id, trackData) {
+        try {
+            await api.post(`/admin/tracks/update/${id}`, trackData)
+            // Refresh list or update local
+            await fetchTracks()
+            return { success: true }
+        } catch (e) {
+            return { success: false, error: e.response?.data?.message || 'Update track failed' }
+        }
+    }
+
+    async function deleteTrack(id) {
+        try {
+            await api.delete(`/admin/tracks/delete/${id}`)
+            tracks.value = tracks.value.filter(t => t._id !== id)
+            return { success: true }
+        } catch (e) {
+            return { success: false, error: e.response?.data?.message || 'Delete track failed' }
+        }
+    }
+
     // New: Fetch latest data for JSON view
     async function fetchLatestData(id) {
         try {
@@ -102,6 +149,12 @@ export const useAdminStore = defineStore('admin', () => {
         fetchEmails,
         updateUser,
         deleteUser,
-        fetchLatestData
+        fetchLatestData,
+        // Tracks
+        tracks,
+        fetchTracks,
+        addTrack,
+        updateTrack,
+        deleteTrack
     }
 })

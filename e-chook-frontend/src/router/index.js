@@ -22,6 +22,11 @@ const router = createRouter({
             path: '/register',
             name: 'register',
             component: RegisterView
+        },
+        {
+            path: '/spectate/:trackName',
+            name: 'spectate',
+            component: () => import('../views/SpectatorView.vue')
         }
     ]
 })
