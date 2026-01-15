@@ -43,15 +43,15 @@ export const useSpectatorStore = defineStore('spectator', () => {
         })
 
         publicSocket.value.on('stats', (stats) => {
-            // Updated payload: { activeCars: 5, privateSpectators: 12, publicSpectators: 3 }
             if (stats) serverStats.value = stats
         })
 
         publicSocket.value.on('data', (data) => {
             // data contains { name, number, team, lat, lon, speed, track, updated }
-            // Since ID is missing, we use name-number as a unique key
+            // Use name-number-team as a unique key for better collision avoidance
             if (data && data.name && data.number != null) {
-                const carKey = `${data.name}-${data.number}`
+                const team = data.team || 'NoTeam'
+                const carKey = `${data.name}-${data.number}-${team}`
                 cars.value[carKey] = {
                     ...cars.value[carKey], // Preserve previous state if any
                     ...data,

@@ -109,9 +109,9 @@ const wsUrl = 'ws://localhost:3000'
         </div>
       </section>
 
-      <!-- Graph Settings -->
+      <!-- Performance -->
       <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Graph Settings</h3>
+        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Performance</h3>
 
         <div class="space-y-6">
           <!-- Max History -->
@@ -122,9 +122,29 @@ const wsUrl = 'ws://localhost:3000'
             </div>
             <input type="range" v-model.number="telemetry.maxHistoryPoints" min="5000" max="50000" step="1000"
               class="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
-            <p class="text-xs text-gray-500 mt-1">Lower values improve performance on slower devices.</p>
+            <p class="text-xs text-gray-500 mt-1">Lower values improve performance on slower devices. (Default: 50,000)
+            </p>
           </div>
 
+          <!-- Update Frequency -->
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-sm font-medium text-gray-300">Chart Update Frequency</label>
+              <span class="text-sm font-mono text-primary">{{ telemetry.graphSettings.chartUpdateFreq }} Hz</span>
+            </div>
+            <input type="range" v-model.number="telemetry.graphSettings.chartUpdateFreq" min="0.1" max="5" step="0.1"
+              class="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
+            <p class="text-xs text-gray-500 mt-1">Controls how often the graphs redraw. Lower values (e.g. 1Hz)
+              significantly reduce CPU usage. (Default: 5Hz)</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Graph Settings -->
+      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
+        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Visuals</h3>
+
+        <div class="space-y-6">
           <!-- Graph Height -->
           <div>
             <div class="flex justify-between mb-2">

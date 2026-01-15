@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, shallowRef } from 'vue'
 import { io } from 'socket.io-client'
 import axios from 'axios'
 import { useAuthStore } from './auth'
@@ -9,7 +9,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const isConnected = ref(false)
     const lastPacketTime = ref(0) // Timestamp of last received packet
     const liveData = ref({}) // Latest packet
-    const history = ref([]) // Array of { timestamp, ...data }
+    const history = shallowRef([]) // Array of pre-scaled { timestamp, ...data }
+    const lastChartUpdate = ref(0)
     const lapHistory = ref([]) // Array of lap data
     const auth = useAuthStore()
 
@@ -40,7 +41,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         showLapHighlights: true,
         showAnimations: false,
         showGrid: true,
-        graphHeight: 320
+        graphHeight: 320,
+        chartUpdateFreq: 5
     }
     const savedGraphSettings = localStorage.getItem('echook_graph_settings')
     const graphSettings = ref(savedGraphSettings ? { ...defaultGraphSettings, ...JSON.parse(savedGraphSettings) } : defaultGraphSettings)
@@ -59,6 +61,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     watch(unitSettings, (val) => {
         localStorage.setItem('echook_units', JSON.stringify(val))
+        console.log('Units changed, clearing history to refresh data...')
+        clearHistory()
     }, { deep: true })
 
 
@@ -71,9 +75,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     ])
 
     const LAP_KEYS = new Set([
-        'LL_Time', 'LL_V', 'LL_I',
-        'LL_RPM', 'LL_Spd', 'LL_Ah'
+        'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff'
     ])
+
 
     // Helper: Unit Conversion
     const convertSpeed = (valMs) => {
@@ -93,40 +97,20 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
-    // Computed: Display History (Converted Units)
-    // We intentionally do NOT deep watch history for performance. 
-    // This computed will update when history array reference changes or length changes (reactive).
-    // However, for large arrays, mapping every time might be heavy. 
-    // BUT since we are using ECharts 'dataset', we might pass this array directly.
-    // If performance is an issue, we might bubble conversion up to the chart component 
-    // or keep a separate "displayBuffer". For now, computed is cleanest.
-    const displayHistory = computed(() => {
-        return history.value.map(pt => {
-            // Shallow clone to avoid mutating original history
-            const newPt = { ...pt }
-
-            // Convert known fields
-            if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
-            if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
-            if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
-
-            return Object.freeze(newPt)
-        })
-    })
+    // Helper: Scale a packet for display
+    const scalePacket = (pt) => {
+        const newPt = { ...pt }
+        if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
+        if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
+        if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
+        return Object.freeze(newPt)
+    }
 
     // Computed: Display Live Data (Converted Units)
     const displayLiveData = computed(() => {
         const pt = liveData.value
         if (!pt) return {}
-
-        const newPt = { ...pt }
-
-        // Convert known fields
-        if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
-        if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
-        if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
-
-        return newPt
+        return scalePacket(pt)
     })
 
 
@@ -151,17 +135,76 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         return Array.from(keys)
     })
 
+    // Computed: Generate markArea data for ECharts lap highlights
+    const lapMarkAreas = computed(() => {
+        const areas = []
+        const isValidTs = (ts) => ts && Number.isFinite(ts) && ts > 946684800000
+
+        let lapStart = null
+        if (races.value && races.value.length > 0) {
+
+            races.value.forEach(race => {
+                race.laps.forEach(lap => {
+                    if (isValidTs(lap.startTime) && isValidTs(lap.finishTime)) {
+                        areas.push([
+                            {
+                                xAxis: lap.startTime,
+                                itemStyle: {
+                                    color: lap.lapNumber % 2 === 0 ? 'transparent' : '#ffffff',
+                                    opacity: 0.1
+                                }
+                            },
+                            {
+                                xAxis: lap.finishTime,
+                                name: `Lap ${lap.lapNumber}`
+                            }
+                        ])
+                        lapStart = lap.finishTime
+                    }
+                })
+            })
+
+        }
+
+        // 2. Process Current (Incomplete) Lap
+        // The start time of the active lap is the finish time of the last recorded lap
+        if (lapStart && history.value.length > 0) {
+            const lastPt = history.value[history.value.length - 1]
+            if (isValidTs(lapStart) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lapStart) {
+                const currentLapNum = lastPt.currLap || (lapHistory.value.length + 1)
+                areas.push([
+                    {
+                        xAxis: lapStart,
+                        itemStyle: {
+                            color: currentLapNum % 2 === 0 ? '#ffffff' : 'transparent',
+                            opacity: 0.1
+                        }
+                    },
+                    {
+                        xAxis: lastPt.timestamp,
+                        name: `Lap ${currentLapNum}`
+                    }
+                ])
+            }
+        }
+
+        return areas
+    })
+
     // Race State
     const races = ref([]) // Array of { id, startTime, laps: [] }
     const currentLapIndex = ref(0)
 
-    function processLapData(packet) {
-        // Update current lap index from regular data if present
-        if (packet.currLap !== undefined) {
-            currentLapIndex.value = packet.currLap
-        }
+    /**
+     * Processes incoming telemetry packets to update the current lap index and extract lap timing information.
+     * It manages race detection by identifying lap number resets and maintains a continuous timeline of laps.
+     * 
+     * @param {Object} packet - The telemetry data packet containing lap and timing information.
+     */
 
-        // Check for Lap Data
+    function processLapData(packet) {
+
+        // Check for and extract any Last Lap data - most packets won't have any.
         let hasLapKeys = false
         const lapData = {}
         LAP_KEYS.forEach(k => {
@@ -171,55 +214,58 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             }
         })
 
-        if (hasLapKeys) {
-            // Logic: Lap Number = currLap
-            const lapNumber = (packet.currLap !== undefined ? packet.currLap : currentLapIndex.value)
+        // Update current lap index REF if available. Leaving it above return in case it triggers an update.
+        if (packet.currLap !== undefined) {
+            currentLapIndex.value = packet.currLap
+        }
 
+        if (hasLapKeys && packet.currLap !== 0) {
+
+            // console.log('New Lap Data Packet', packet)
+
+
+            // Code below only runs at the start of a new lap
+
+            const timestamp = packet.timestamp || Date.now() // Use packet timestamp if available, otherwise use current time
+            const currentLapIdx = packet.currLap !== undefined ? packet.currLap : currentLapIndex.value // Protect against undefined current lap
+
+            const lapNumber = currentLapIdx //Math.max(1, currentLapIdx - 1)
             lapData.lapNumber = lapNumber
-            lapData.timestamp = packet.timestamp || Date.now()
+            lapData.finishTime = timestamp
 
-            // Race Detection
             let currentRace = races.value.length > 0 ? races.value[races.value.length - 1] : null
 
-            // Check for duplicate lap
-            const lastRecordedLap = currentRace && currentRace.laps.length > 0
-                ? currentRace.laps[currentRace.laps.length - 1].lapNumber
-                : -1
+            // Check for Reset (New Race)
+            // If lap number drops back to 1 (from higher) or if we don't have a race yet
+            const lastLap = (currentRace && currentRace.laps.length > 0) ? currentRace.laps[currentRace.laps.length - 1] : null
+            const lastLapNum = lastLap ? lastLap.lapNumber : 0
 
-            // Simple race detection:
-            // 1. If races is empty, start race.
-            // 2. If lapNumber < lastRecordedLap (and not duplicate 1), start new race.
-            // 3. If lapNumber <= 1 and lastRecordedLap > 1, start new race.
+            let isNewRace = !currentRace || (lapNumber < lastLapNum) || (lapNumber === 1 && lastLapNum > 1)
 
-            let shouldStartNewRace = false
-            if (!currentRace) shouldStartNewRace = true
-            else if (lapNumber <= 1 && lastRecordedLap > 1) shouldStartNewRace = true
-            else if (lapNumber < lastRecordedLap && lapNumber === 1) shouldStartNewRace = true
-
-            // Ignore duplicates within the same race
-            // If we are getting the SAME lap number as lastRecordedLap, it's a duplicate.
-            const isDuplicate = currentRace && !shouldStartNewRace && (lastRecordedLap === lapNumber)
-
-            if (shouldStartNewRace) {
-                // Calculate Start Time: timestamp - LL_Time (assuming LL_Time is in seconds, converting to ms)
-                const lapDurationMs = (lapData.LL_Time || 0) * 1000
-                const raceStart = lapData.timestamp - lapDurationMs
+            if (isNewRace) {
+                // Induction of a new race
+                const durationMs = Number((lapData.LL_Time || 0) * 1000)
+                const startTime = Number(timestamp - durationMs)
 
                 currentRace = {
-                    id: Date.now() + Math.random(), // Unique ID
-                    startTime: new Date(raceStart).toISOString(),
-                    startTimeMs: raceStart,
+                    id: startTime,
+                    startTimeMs: startTime, //Identify by Start time
+                    startTime: new Date(startTime).toISOString(),
                     laps: []
                 }
                 races.value.push(currentRace)
+                lapData.startTime = startTime
+            } else {
+                // Chain to previous lap
+                lapData.startTime = lastLap ? lastLap.finishTime : currentRace.startTimeMs
             }
 
+            // Guard against duplicates
+            const isDuplicate = currentRace.laps.some(l => l.lapNumber === lapNumber)
             if (!isDuplicate) {
-                // Add lap to current race
                 currentRace.laps.push(Object.freeze(lapData))
-
-                // Keep flat lapHistory for backward compatibility if needed
                 lapHistory.value.push(Object.freeze(lapData))
+                races.value = [...races.value]
             }
         }
     }
@@ -254,11 +300,15 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         socket.value.on('data', (packet) => {
             if (isPaused.value) return
-
+            // console.log('New Data Packet', packet)
             // Prefer server/packet timestamp to align with history
             const timestamp = packet.timestamp || packet.updated || Date.now()
 
-            // 1. Process Regular Data
+            // 1. Process Lap Data FIRST
+            // This ensures races.value is updated before history triggers the chart redraw logic
+            processLapData({ ...packet, timestamp })
+
+            // 2. Process Regular Data
             const regularPacket = {}
             let hasRegularData = false
 
@@ -282,24 +332,28 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             if (packet.lon !== undefined) regularPacket.lon = packet.lon
 
             if (hasRegularData) {
-                // freeze to prevent Vue from making this deeply reactive (performance)
-                const processed = Object.freeze(regularPacket)
+                // SCALE ON INGESTION: Store pre-scaled data in history for max performance
+                const processed = scalePacket(regularPacket)
 
                 liveData.value = processed
                 lastPacketTime.value = timestamp
 
-                // Buffer history
+                // Buffer history (Push to array directly)
                 history.value.push(processed)
+
                 // Limit history size
                 if (history.value.length > maxHistoryPoints.value) {
                     history.value.shift()
                 }
-            }
 
-            // 2. Process Lap Data (Logic moved to helper)
-            // We pass the RAW packet because processLapData needs to check both currLap and LL_ keys
-            // But ensure we pass the normalized timestamp too
-            processLapData({ ...packet, timestamp })
+                // Throttled Redraw based on user setting
+                const nowMs = Date.now()
+                const throttleInterval = 1000 / (graphSettings.value.chartUpdateFreq || 5)
+                if (nowMs - lastChartUpdate.value > throttleInterval) {
+                    history.value = [...history.value]
+                    lastChartUpdate.value = nowMs
+                }
+            }
         })
     }
 
@@ -332,6 +386,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     function clearHistory() {
         history.value = []
+        races.value = []
+        lapHistory.value = []
+        currentLapIndex.value = 0
     }
 
     const isPaused = ref(false)
@@ -514,6 +571,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 // Convert back to array and sort
                 history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
 
+                // Scale whole history for initial load
+                history.value = history.value.map(pt => scalePacket(pt))
+
                 // Re-process history for laps/races
                 // We must rebuild ALL race logic when history changes to ensure continuity
                 races.value = []
@@ -537,12 +597,13 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         lastPacketTime,
         liveData,
         history,
+        displayHistory: history, // Compatibility: Alias history as displayHistory
         lapHistory,
         races,
         viewingCar,
         availableKeys,
-        isPaused, // Export
-        availableDays, // Export
+        isPaused,
+        availableDays,
         earliestTime,
         latestTime,
         connect,
@@ -561,8 +622,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         maxHistoryPoints,
         graphSettings,
         unitSettings,
-        displayHistory,
         displayLiveData,
-        isHistoryTruncated
+        isHistoryTruncated,
+        lapMarkAreas
     }
 })
