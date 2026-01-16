@@ -27,12 +27,18 @@ const router = useRouter()
 const now = ref(Date.now())
 let timer = null
 
+const lastUpdatedText = computed(() => {
+  if (!telemetry.lastPacketTime) return 'No Data'
+  const diff = Math.floor((now.value - telemetry.lastPacketTime) / 1000)
+  if (diff < 2) return 'Just Now'
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  return '>1h ago'
+})
+
 const carStatusColor = computed(() => {
-  if (!telemetry.lastPacketTime) return 'bg-red-500' // No data yet
-
-  const diffStr = now.value - telemetry.lastPacketTime
-  const diff = diffStr / 1000 // seconds
-
+  if (!telemetry.lastPacketTime || !telemetry.isConnected) return 'bg-red-500'
+  const diff = (now.value - telemetry.lastPacketTime) / 1000
   if (diff > 10) return 'bg-red-500'
   if (diff > 5) return 'bg-orange-500'
   return 'bg-green-500 animate-pulse'
@@ -379,7 +385,8 @@ async function confirmResetToLive() {
       <div class="flex items-center space-x-2">
         <div class="flex items-center space-x-2 px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700">
           <div class="w-2 h-2 rounded-full transition-colors duration-300" :class="carStatusColor"></div>
-          <span class="text-xs font-medium text-gray-300">CAR</span>
+          <span class="text-xs font-medium text-gray-300 uppercase tracking-wider">Car:</span>
+          <span class="text-[10px] font-bold text-white whitespace-nowrap">{{ lastUpdatedText }}</span>
         </div>
       </div>
 

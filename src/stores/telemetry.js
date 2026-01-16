@@ -1,66 +1,58 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch, shallowRef } from 'vue'
 import { io } from 'socket.io-client'
-import axios from 'axios'
 import { useAuthStore } from './auth'
+import { useSettingsStore } from './settings'
+import { API_BASE_URL, WS_URL } from '../config'
+import { updateRaceSessions } from '../utils/raceAnalytics'
+import { api, decodeMsgpack, socketMsgpackOptions } from '../utils/msgpack'
 
 export const useTelemetryStore = defineStore('telemetry', () => {
     const socket = ref(null)
     const isConnected = ref(false)
-    const lastPacketTime = ref(0) // Timestamp of last received packet
+    const now = ref(Date.now()) // Reactive time for staleness tracking
+
+    // Update 'now' every second
+    setInterval(() => {
+        now.value = Date.now()
+    }, 1000)
+    const lastPacketTime = ref(0)
+
+    const isDataStale = computed(() => {
+        if (!isConnected.value) return true
+        if (lastPacketTime.value === 0) return true
+        return (now.value - lastPacketTime.value) > 5000
+    })
     const liveData = ref({}) // Latest packet
     const history = shallowRef([]) // Array of pre-scaled { timestamp, ...data }
     const lastChartUpdate = ref(0)
-    const lapHistory = ref([]) // Array of lap data
-    const auth = useAuthStore()
+    const lapHistory = ref([]) // Array of lap data (sequential for backup)
 
-    // Admin / Viewing State
+    // 3. Admin / Viewing State
     const viewingCar = ref(null) // { id, carName, teamName, number }
 
-    // -- Settings State (Persisted) --
-    // ... (unchanged)
+    // -- Persistent Settings Proxy --
+    const settings = useSettingsStore()
 
-    // ...
+    // We proxy these so we don't have to update every component immediately
+    const maxHistoryPoints = computed({
+        get: () => settings.maxHistoryPoints,
+        set: (val) => { settings.maxHistoryPoints = val }
+    })
+    const graphSettings = computed(() => settings.graphSettings)
+    const unitSettings = computed(() => settings.unitSettings)
+    const races = computed({
+        get: () => settings.races,
+        set: (val) => { settings.races = val }
+    })
 
-
-
-    // 1. Max History Points
-    const savedMaxPoints = localStorage.getItem('echook_max_history')
-    const maxHistoryPoints = ref(savedMaxPoints ? parseInt(savedMaxPoints) : 50000)
-
-    watch(maxHistoryPoints, (val) => {
-        localStorage.setItem('echook_max_history', val.toString())
-        // Trim history if needed immediately
+    watch(() => settings.maxHistoryPoints, (val) => {
         if (history.value.length > val) {
             history.value = history.value.slice(history.value.length - val)
         }
     })
 
-    // 2. Graph Visual Settings
-    const defaultGraphSettings = {
-        showLapHighlights: true,
-        showAnimations: false,
-        showGrid: true,
-        graphHeight: 320,
-        chartUpdateFreq: 5
-    }
-    const savedGraphSettings = localStorage.getItem('echook_graph_settings')
-    const graphSettings = ref(savedGraphSettings ? { ...defaultGraphSettings, ...JSON.parse(savedGraphSettings) } : defaultGraphSettings)
-
-    watch(graphSettings, (val) => {
-        localStorage.setItem('echook_graph_settings', JSON.stringify(val))
-    }, { deep: true })
-
-    // 3. Unit Settings
-    const defaultUnits = {
-        speedUnit: 'mph', // mph, kph, ms
-        tempUnit: 'c'     // c, f
-    }
-    const savedUnits = localStorage.getItem('echook_units')
-    const unitSettings = ref(savedUnits ? { ...defaultUnits, ...JSON.parse(savedUnits) } : defaultUnits)
-
-    watch(unitSettings, (val) => {
-        localStorage.setItem('echook_units', JSON.stringify(val))
+    watch(() => settings.unitSettings, () => {
         console.log('Units changed, clearing history to refresh data...')
         clearHistory()
     }, { deep: true })
@@ -140,41 +132,43 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const areas = []
         const isValidTs = (ts) => ts && Number.isFinite(ts) && ts > 946684800000
 
-        let lapStart = null
-        if (races.value && races.value.length > 0) {
+        let lastFinish = null
 
-            races.value.forEach(race => {
-                race.laps.forEach(lap => {
-                    if (isValidTs(lap.startTime) && isValidTs(lap.finishTime)) {
-                        areas.push([
-                            {
-                                xAxis: lap.startTime,
-                                itemStyle: {
-                                    color: lap.lapNumber % 2 === 0 ? 'transparent' : '#ffffff',
-                                    opacity: 0.1
-                                }
-                            },
-                            {
-                                xAxis: lap.finishTime,
-                                name: `Lap ${lap.lapNumber}`
+        // Sort races by start time for visual consistency
+        const sortedRaces = Object.values(races.value).sort((a, b) => a.startTimeMs - b.startTimeMs)
+
+        sortedRaces.forEach(race => {
+            // Sort laps by number
+            const sortedLaps = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
+
+            sortedLaps.forEach(lap => {
+                if (isValidTs(lap.startTime) && isValidTs(lap.finishTime)) {
+                    areas.push([
+                        {
+                            xAxis: lap.startTime,
+                            itemStyle: {
+                                color: lap.lapNumber % 2 === 0 ? '#360a31ff' : '#ffffff',
+                                opacity: 0.1
                             }
-                        ])
-                        lapStart = lap.finishTime
-                    }
-                })
+                        },
+                        {
+                            xAxis: lap.finishTime,
+                            name: `Lap ${lap.lapNumber}`
+                        }
+                    ])
+                    lastFinish = lap.finishTime
+                }
             })
-
-        }
+        })
 
         // 2. Process Current (Incomplete) Lap
-        // The start time of the active lap is the finish time of the last recorded lap
-        if (lapStart && history.value.length > 0) {
+        if (lastFinish && history.value.length > 0) {
             const lastPt = history.value[history.value.length - 1]
-            if (isValidTs(lapStart) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lapStart) {
-                const currentLapNum = lastPt.currLap || (lapHistory.value.length + 1)
+            if (isValidTs(lastFinish) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lastFinish) {
+                const currentLapNum = lastPt.currLap || (Object.keys(lapHistory.value).length + 1)
                 areas.push([
                     {
-                        xAxis: lapStart,
+                        xAxis: lastFinish,
                         itemStyle: {
                             color: currentLapNum % 2 === 0 ? '#ffffff' : 'transparent',
                             opacity: 0.1
@@ -191,8 +185,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         return areas
     })
 
-    // Race State
-    const races = ref([]) // Array of { id, startTime, laps: [] }
+    const auth = useAuthStore()
     const currentLapIndex = ref(0)
 
     /**
@@ -203,77 +196,24 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
 
     function processLapData(packet) {
-
-        // Check for and extract any Last Lap data - most packets won't have any.
-        let hasLapKeys = false
-        const lapData = {}
-        LAP_KEYS.forEach(k => {
-            if (packet[k] !== undefined) {
-                lapData[k] = packet[k]
-                hasLapKeys = true
-            }
-        })
-
-        // Update current lap index REF if available. Leaving it above return in case it triggers an update.
         if (packet.currLap !== undefined) {
             currentLapIndex.value = packet.currLap
         }
 
-        if (hasLapKeys && packet.currLap !== 0) {
+        // Use utility to update races structure
+        races.value = updateRaceSessions({ ...races.value }, packet, currentLapIndex.value)
 
-            // console.log('New Lap Data Packet', packet)
-
-
-            // Code below only runs at the start of a new lap
-
-            const timestamp = packet.timestamp || Date.now() // Use packet timestamp if available, otherwise use current time
-            const currentLapIdx = packet.currLap !== undefined ? packet.currLap : currentLapIndex.value // Protect against undefined current lap
-
-            const lapNumber = currentLapIdx //Math.max(1, currentLapIdx - 1)
-            lapData.lapNumber = lapNumber
-            lapData.finishTime = timestamp
-
-            let currentRace = races.value.length > 0 ? races.value[races.value.length - 1] : null
-
-            // Check for Reset (New Race)
-            // If lap number drops back to 1 (from higher) or if we don't have a race yet
-            const lastLap = (currentRace && currentRace.laps.length > 0) ? currentRace.laps[currentRace.laps.length - 1] : null
-            const lastLapNum = lastLap ? lastLap.lapNumber : 0
-
-            let isNewRace = !currentRace || (lapNumber < lastLapNum) || (lapNumber === 1 && lastLapNum > 1)
-
-            if (isNewRace) {
-                // Induction of a new race
-                const durationMs = Number((lapData.LL_Time || 0) * 1000)
-                const startTime = Number(timestamp - durationMs)
-
-                currentRace = {
-                    id: startTime,
-                    startTimeMs: startTime, //Identify by Start time
-                    startTime: new Date(startTime).toISOString(),
-                    laps: []
-                }
-                races.value.push(currentRace)
-                lapData.startTime = startTime
-            } else {
-                // Chain to previous lap
-                lapData.startTime = lastLap ? lastLap.finishTime : currentRace.startTimeMs
-            }
-
-            // Guard against duplicates
-            const isDuplicate = currentRace.laps.some(l => l.lapNumber === lapNumber)
-            if (!isDuplicate) {
-                currentRace.laps.push(Object.freeze(lapData))
-                lapHistory.value.push(Object.freeze(lapData))
-                races.value = [...races.value]
-            }
+        // Update lapHistory array for potential legacy consumers
+        const latestRace = Object.values(races.value).sort((a, b) => b.startTimeMs - a.startTimeMs)[0]
+        if (latestRace) {
+            lapHistory.value = Object.values(latestRace.laps).sort((a, b) => a.lapNumber - b.lapNumber)
         }
     }
 
     function connect() {
         if (socket.value?.connected) return
 
-        socket.value = io('http://localhost:3000')
+        socket.value = io(WS_URL, socketMsgpackOptions)
 
         socket.value.on('connect', () => {
             isConnected.value = true
@@ -298,8 +238,11 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             console.log('Socket disconnected')
         })
 
-        socket.value.on('data', (packet) => {
+        socket.value.on('data', (rawData) => {
             if (isPaused.value) return
+
+            // Decode MessagePack buffer
+            const packet = decodeMsgpack(rawData)
             // console.log('New Data Packet', packet)
             // Prefer server/packet timestamp to align with history
             const timestamp = packet.timestamp || packet.updated || Date.now()
@@ -436,7 +379,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     async function fetchAvailableDays(carId) {
         if (!carId) return
         try {
-            const response = await axios.get(`http://localhost:3000/api/history/days/${carId}`)
+            const response = await api.get(`/api/history/days/${carId}`)
             if (Array.isArray(response.data)) {
                 availableDays.value = new Set(response.data)
             }
@@ -529,8 +472,16 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 }
                 if (end) params.end = end
 
-                const response = await axios.get(`http://localhost:3000/api/history/${carId}`, {
+                const response = await api.get(`/api/history/${carId}`, {
                     params
+                })
+
+                console.log('History API response:', {
+                    status: response.status,
+                    dataType: typeof response.data,
+                    isArray: Array.isArray(response.data),
+                    dataLength: response.data?.length,
+                    dataSample: response.data?.slice?.(0, 2)
                 })
 
                 if (response.data && Array.isArray(response.data)) {
@@ -549,6 +500,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             }
 
             if (fullHistory.length > 0) {
+                console.log('Processing fullHistory:', {
+                    length: fullHistory.length,
+                    sample: fullHistory.slice(0, 2),
+                    sampleKeys: fullHistory[0] ? Object.keys(fullHistory[0]) : []
+                })
+
                 const dataMap = new Map()
 
                 // Normalize incoming
@@ -556,6 +513,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                     ...pt,
                     timestamp: pt.timestamp || pt.updated
                 })).filter(pt => pt.timestamp) // Ensure timestamp exists
+
+                console.log('After normalization:', {
+                    incomingLength: incoming.length,
+                    filteredOut: fullHistory.length - incoming.length,
+                    sampleTimestamps: incoming.slice(0, 3).map(p => p.timestamp)
+                })
 
                 // Merge strategy
                 if (prepend) {
@@ -624,6 +587,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         unitSettings,
         displayLiveData,
         isHistoryTruncated,
-        lapMarkAreas
+        lapMarkAreas,
+        isDataStale,
+        isConnected,
+        races,
+        maxHistoryPoints,
+        graphSettings,
+        unitSettings
     }
 })

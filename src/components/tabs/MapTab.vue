@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LCircleMarker, LControl } from "@vue-leaflet/vue-leaflet"
+import { ChevronDownIcon, AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline'
 import GradientPath from '../../components/GradientPath.vue'
 
 const telemetry = useTelemetryStore()
@@ -12,8 +13,9 @@ const map = ref(null)
 const isAutoFitEnabled = ref(true)
 
 // Controls State
-const trailLength = ref(200)
+const trailTimeSeconds = ref(300) // Default 5 minutes
 const selectedMetric = ref('speed')
+const isSettingsExpanded = ref(false)
 
 // Update center to follow car ONLY if user hasn't panned away
 // For simplicity, let's just re-center if we have data and maybe add a "Recenter" button later
@@ -23,21 +25,21 @@ const onMapReady = () => {
 }
 
 // Compute Trail
-// Map history to { lat, lon, value }
+// Map history to { lat, lon, value } within the selected time window
 const trailData = computed(() => {
-  // Get last N points (use displayHistory for converted units)
-  const slice = telemetry.displayHistory.slice(-trailLength.value)
+  if (telemetry.displayHistory.length === 0) return []
 
-  // Map to simplified objects
-  const mapped = slice
-    .filter(p => p.lat != null && p.lon != null) // Filter invalid GPS
+  const latestTs = telemetry.displayHistory[telemetry.displayHistory.length - 1].timestamp
+  const startTime = latestTs - (trailTimeSeconds.value * 1000)
+
+  // Filter history for points within time range and map to simplified objects
+  return telemetry.displayHistory
+    .filter(p => p.timestamp >= startTime && p.lat != null && p.lon != null)
     .map(p => ({
       lat: p.lat,
       lon: p.lon,
       value: typeof p[selectedMetric.value] === 'number' ? p[selectedMetric.value] : 0
     }))
-
-  return mapped
 })
 
 const fitToTrail = () => {
@@ -109,40 +111,65 @@ const trailRange = computed(() => {
         fill-color="#cb1557" :fill-opacity="1"></l-circle-marker>
 
       <!-- Controls Overlay -->
-      <l-control position="topright" class="leaflet-control-layers leaflet-control">
-        <div
-          class="bg-neutral-900/80 backdrop-blur border border-neutral-700 p-4 rounded shadow-xl text-white w-64 max-h-[80vh] overflow-y-auto">
-          <h3 class="font-bold text-sm uppercase tracking-wider text-gray-400 mb-4">Map Settings</h3>
+      <l-control position="topright" class="leaflet-control-layers leaflet-control !border-none !bg-transparent">
+        <div class="flex flex-col items-end space-y-2">
+          <!-- Toggle Button -->
+          <button @click="isSettingsExpanded = !isSettingsExpanded"
+            class="bg-neutral-900 border border-neutral-700 p-2 rounded-lg shadow-xl text-white hover:bg-neutral-800 transition-colors flex items-center space-x-2 z-[1000]">
+            <AdjustmentsHorizontalIcon class="w-5 h-5 text-primary" />
+            <span class="text-xs font-bold uppercase tracking-wider hidden md:inline">Map Settings</span>
+            <ChevronDownIcon class="w-4 h-4 transition-transform duration-300"
+              :class="{ 'rotate-180': isSettingsExpanded }" />
+          </button>
 
-          <!-- Auto Fit Toggle -->
-          <div class="mb-6 flex items-center justify-between">
-            <label class="text-xs font-bold">Auto-Fit Map</label>
-            <div class="flex items-center">
-              <input type="checkbox" v-model="isAutoFitEnabled"
-                class="w-4 h-4 text-primary bg-neutral-700 border-neutral-600 rounded focus:ring-primary focus:ring-2">
+          <!-- Settings Panel -->
+          <Transition enter-active-class="transition duration-300 ease-out"
+            enter-from-class="opacity-0 scale-95 -translate-y-2" enter-to-class="opacity-100 scale-100 translate-y-0"
+            leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 scale-100 translate-y-0"
+            leave-to-class="opacity-0 scale-95 -translate-y-2">
+            <div v-if="isSettingsExpanded"
+              class="bg-neutral-900/90 backdrop-blur-md border border-neutral-700 p-4 rounded-xl shadow-2xl text-white w-64 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <h3
+                class="font-bold text-xs uppercase tracking-widest text-gray-500 mb-4 pb-2 border-b border-neutral-800">
+                Configuration</h3>
+
+              <!-- Auto Fit Toggle -->
+              <div class="mb-6 flex items-center justify-between">
+                <label class="text-xs font-bold text-gray-300 uppercase">Auto-Fit Map</label>
+                <div @click="isAutoFitEnabled = !isAutoFitEnabled"
+                  class="w-10 h-5 rounded-full relative cursor-pointer transition-colors duration-300"
+                  :class="isAutoFitEnabled ? 'bg-primary' : 'bg-neutral-700'">
+                  <div class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-300"
+                    :style="{ transform: isAutoFitEnabled ? 'translateX(20px)' : 'translateX(0)' }"></div>
+                </div>
+              </div>
+
+              <!-- Trail Length (Time Based) -->
+              <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                  <label class="text-xs font-bold text-gray-300 uppercase">Trail History</label>
+                  <span class="text-[10px] font-mono text-primary">{{ trailTimeSeconds >= 60 ?
+                    Math.floor(trailTimeSeconds / 60) + 'm' : trailTimeSeconds + 's' }}</span>
+                </div>
+                <input type="range" min="10" max="600" step="10" v-model.number="trailTimeSeconds"
+                  class="w-full accent-primary h-1.5 bg-neutral-700 rounded-lg appearance-none cursor-pointer">
+              </div>
+
+              <!-- Metric Selection -->
+              <div>
+                <label class="block text-xs font-bold text-gray-300 uppercase mb-3">Color Trail By</label>
+                <div class="grid grid-cols-1 gap-1">
+                  <button v-for="key in telemetry.availableKeys" :key="key" @click="selectedMetric = key"
+                    class="flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all text-xs font-medium"
+                    :class="selectedMetric === key ? 'bg-primary/20 text-primary border border-primary/30' : 'text-gray-400 hover:bg-neutral-800 hover:text-white border border-transparent'">
+                    <span>{{ key }}</span>
+                    <div v-if="selectedMetric === key"
+                      class="w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(203,21,87,0.8)]"></div>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <!-- Trail Length -->
-          <div class="mb-6">
-            <label class="block text-xs font-bold mb-2">Trail History: <span class="text-primary">{{ trailLength }}
-                pts</span></label>
-            <input type="range" min="10" max="2000" step="10" v-model.number="trailLength"
-              class="w-full accent-primary h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer">
-          </div>
-
-          <!-- Metric Selection -->
-          <div>
-            <label class="block text-xs font-bold mb-2">Color Trail By:</label>
-            <div class="space-y-1">
-              <label v-for="key in telemetry.availableKeys" :key="key"
-                class="flex items-center space-x-2 cursor-pointer hover:bg-neutral-800 p-1 rounded">
-                <input type="radio" :value="key" v-model="selectedMetric"
-                  class="text-primary focus:ring-primary bg-neutral-700 border-neutral-600">
-                <span class="text-sm" :class="selectedMetric === key ? 'text-white' : 'text-gray-400'">{{ key }}</span>
-              </label>
-            </div>
-          </div>
+          </Transition>
         </div>
       </l-control>
 

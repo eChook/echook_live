@@ -1,30 +1,32 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
+import { useSettingsStore } from '../../stores/settings'
 import { connect } from 'echarts/core'
 import TelemetryGraph from '../../components/TelemetryGraph.vue'
 import MasterZoom from '../../components/MasterZoom.vue'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 
 // Chart Sync
 const CHART_GROUP = 'telemetry_sync_group'
 connect(CHART_GROUP)
 
-// State
-// Initialize from localStorage if available
-const savedKeys = localStorage.getItem('dashboard_selected_keys')
-const initialKeys = savedKeys ? JSON.parse(savedKeys) : []
-const selectedKeys = ref(new Set(initialKeys))
-
 // Metrics Visibility State
-const savedMetricsParams = localStorage.getItem('dashboard_show_metrics')
-const showMetrics = ref(savedMetricsParams !== null ? JSON.parse(savedMetricsParams) : true)
+const showMetrics = computed({
+  get: () => settings.showDashboardMetrics,
+  set: (val) => { settings.showDashboardMetrics = val }
+})
+
+const selectedKeys = computed({
+  get: () => new Set(settings.selectedDashboardKeys),
+  set: (val) => { settings.selectedDashboardKeys = Array.from(val) }
+})
 
 const toggleMetrics = () => {
   showMetrics.value = !showMetrics.value
-  localStorage.setItem('dashboard_show_metrics', JSON.stringify(showMetrics.value))
 }
 
 const colors = [
@@ -38,13 +40,13 @@ const colors = [
 ]
 
 const toggleKey = (key) => {
-  if (selectedKeys.value.has(key)) {
-    selectedKeys.value.delete(key)
+  const newSet = new Set(selectedKeys.value)
+  if (newSet.has(key)) {
+    newSet.delete(key)
   } else {
-    selectedKeys.value.add(key)
+    newSet.add(key)
   }
-  // Save to localStorage
-  localStorage.setItem('dashboard_selected_keys', JSON.stringify(Array.from(selectedKeys.value)))
+  selectedKeys.value = newSet
 }
 
 const getColor = (key) => {

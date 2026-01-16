@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, computed, shallowRef } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
 import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
 
@@ -17,6 +18,7 @@ import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon } from '@hero
 
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
+const settings = useSettingsStore()
 
 const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
@@ -25,11 +27,9 @@ const getDisplayUnit = (key) => {
 }
 
 // Tab Configuration
-const activeTabId = ref(localStorage.getItem('activeTabId') || 'graph')
-
-import { watch } from 'vue'
-watch(activeTabId, (newValue) => {
-  localStorage.setItem('activeTabId', newValue)
+const activeTabId = computed({
+  get: () => settings.activeTabId,
+  set: (val) => { settings.activeTabId = val }
 })
 
 const tabs = computed(() => {
@@ -69,9 +69,9 @@ onUnmounted(() => {
 
     <!-- Data Ribbon -->
     <div
-      class="h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex items-center justify-start px-6 space-x-4 overflow-x-auto no-scrollbar py-2">
+      class="h-auto md:h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex flex-wrap md:flex-nowrap items-center justify-start px-6 gap-4 overflow-x-auto no-scrollbar py-4 md:py-2">
       <DataCard v-for="key in telemetry.availableKeys" :key="key" :label="key" :value="telemetry.displayLiveData[key]"
-        :unit="getDisplayUnit(key)" />
+        :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" />
       <div v-if="telemetry.availableKeys.length === 0" class="text-gray-500 text-sm italic">
         Waiting for telemetry data...
       </div>
@@ -80,13 +80,14 @@ onUnmounted(() => {
     <!-- Main Content -->
     <div class="flex-1 flex overflow-hidden">
       <!-- Vertical Tab Sidebar -->
-      <aside class="w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 space-y-4 z-40">
+      <aside
+        class="w-14 md:w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 space-y-4 z-40 transition-all duration-300">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTabId = tab.id"
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group relative"
           :class="activeTabId === tab.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
           :title="tab.label">
           <!-- Icon -->
-          <component :is="tab.icon" class="w-6 h-6" />
+          <component :is="tab.icon" class="w-5 h-5 md:w-6 md:h-6" />
 
           <!-- Active Indicator -->
           <div v-if="activeTabId === tab.id" class="absolute left-0 w-1 h-6 bg-primary rounded-r-full"></div>
@@ -99,7 +100,7 @@ onUnmounted(() => {
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group"
           :class="activeTabId === 'settings' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
           title="Settings">
-          <CogIcon class="w-6 h-6" />
+          <CogIcon class="w-5 h-5 md:w-6 md:h-6" />
         </button>
       </aside>
 
@@ -108,6 +109,17 @@ onUnmounted(() => {
         <KeepAlive>
           <component :is="activeComponent" />
         </KeepAlive>
+
+        <!-- Connection Overlay -->
+        <Transition enter-active-class="transition duration-500 ease-out" enter-from-class="opacity-0 translate-y-4"
+          enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-300 ease-in"
+          leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
+          <div v-if="!telemetry.isConnected"
+            class="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-red-900/90 backdrop-blur-md border border-red-500/50 rounded-full shadow-2xl flex items-center space-x-3 z-50 pointer-events-none">
+            <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span class="text-red-100 font-bold text-sm tracking-wide">Connection Lost - Reconnecting...</span>
+          </div>
+        </Transition>
       </main>
     </div>
   </div>

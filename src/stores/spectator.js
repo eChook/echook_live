@@ -2,6 +2,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { io } from 'socket.io-client'
+import { decodeMsgpack, socketMsgpackOptions } from '../utils/msgpack'
+import { WS_URL } from '../config'
 
 export const useSpectatorStore = defineStore('spectator', () => {
     // State
@@ -24,8 +26,9 @@ export const useSpectatorStore = defineStore('spectator', () => {
         if (publicSocket.value) return
 
         isConnecting.value = true
-        publicSocket.value = io('http://localhost:3000/public', {
-            transports: ['websocket']
+        publicSocket.value = io(`${WS_URL}/public`, {
+            transports: ['websocket'],
+            ...socketMsgpackOptions
         })
 
         publicSocket.value.on('connect', () => {
@@ -37,16 +40,19 @@ export const useSpectatorStore = defineStore('spectator', () => {
             }
         })
 
-        publicSocket.value.on('trackList', (tracks) => {
+        publicSocket.value.on('trackList', (rawData) => {
+            const tracks = decodeMsgpack(rawData)
             console.log('Received track list:', tracks)
             activeTracks.value = tracks
         })
 
-        publicSocket.value.on('stats', (stats) => {
+        publicSocket.value.on('stats', (rawData) => {
+            const stats = decodeMsgpack(rawData)
             if (stats) serverStats.value = stats
         })
 
-        publicSocket.value.on('data', (data) => {
+        publicSocket.value.on('data', (rawData) => {
+            const data = decodeMsgpack(rawData)
             // data contains { name, number, team, lat, lon, speed, track, updated }
             // Use name-number-team as a unique key for better collision avoidance
             if (data && data.name && data.number != null) {

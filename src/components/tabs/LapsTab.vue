@@ -1,26 +1,35 @@
 <script setup>
 import { computed } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
+import { useSettingsStore } from '../../stores/settings'
 
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 
 // Headers for the table
 const headers = computed(() => [
   'Lap',
+  'Start',
+  'Finish',
   'Time',
   'Volts',
   'Amps',
   'RPM',
   `Speed (${telemetry.unitSettings.speedUnit.toUpperCase()})`,
-  'Ah'
+  'Ah',
+  'Eff'
 ])
-const keys = ['lapNumber', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah']
+const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Eff']
 
 const sortedRaces = computed(() => {
   // Show newest race first
-  return [...telemetry.races].reverse().map(race => {
+  const raceList = Object.values(telemetry.races).sort((a, b) => b.startTimeMs - a.startTimeMs)
+
+  return raceList.map(race => {
+    const lapList = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
+
     // 1. Create Converted Laps
-    const convertedLaps = race.laps.map(lap => {
+    const convertedLaps = lapList.map(lap => {
       const newLap = { ...lap }
 
       // Convert Speed
@@ -52,6 +61,7 @@ const sortedRaces = computed(() => {
 
     return {
       ...race,
+      startTime: race.startTimeMs, // Ensure formatDate can use this
       sortedLaps,
       stats
     }
@@ -63,6 +73,11 @@ const formatValue = (val) => {
     return val.toFixed(2)
   }
   return val
+}
+
+const formatTime = (ms) => {
+  if (!ms || !Number.isFinite(ms)) return '-'
+  return new Date(ms).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 const formatDate = (isoStringOrMs) => {
@@ -79,7 +94,8 @@ const metricDirection = {
   'LL_I': -1, // Assume lower amps is better efficiency? Or Neutral? Let's go efficiency.
   'LL_V': 1,  // Higher voltage is better (less sag)
   'LL_RPM': 1, // Higher RPM/Speed usually "better" performance
-  'LL_Spd': 1
+  'LL_Spd': 1,
+  'LL_Eff': 1  // Higher efficiency is better
 }
 
 const getDiff = (currentLap, sortedLaps, key, currentIndex) => {
@@ -123,15 +139,14 @@ import { onMounted, ref } from 'vue'
 const showDisclaimer = ref(false)
 
 onMounted(() => {
-  const hide = localStorage.getItem('echook_hide_laps_disclaimer')
-  if (!hide) {
+  if (!settings.hideLapsDisclaimer) {
     showDisclaimer.value = true
   }
 })
 
 const handleDisclaimerConfirm = (doNotShow) => {
   if (doNotShow) {
-    localStorage.setItem('echook_hide_laps_disclaimer', 'true')
+    settings.hideLapsDisclaimer = true
   }
   showDisclaimer.value = false
 }
@@ -156,8 +171,8 @@ const handleDisclaimerConfirm = (doNotShow) => {
           </div>
         </div>
 
-        <div class="bg-neutral-800 rounded-lg border border-neutral-700 shadow-xl overflow-hidden">
-          <table class="w-full text-left border-collapse">
+        <div class="bg-neutral-800 rounded-lg border border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
+          <table class="w-full min-w-[1000px] text-left border-collapse">
             <thead class="bg-neutral-900">
               <tr>
                 <th v-for="(header, i) in headers" :key="header"
@@ -174,7 +189,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
                 </td>
                 <td v-for="key in keys.slice(1)" :key="key" class="px-8 py-4 font-mono text-sm text-gray-300 relative">
                   <!-- Background Bar Container -->
-                  <div class="absolute inset-y-1 left-2 right-2 z-0">
+                  <div v-if="!['startTime', 'finishTime'].includes(key)" class="absolute inset-y-1 left-2 right-2 z-0">
                     <!-- Animated Bar -->
                     <div class="h-full rounded bg-white/10 transition-all duration-700 ease-out"
                       :style="{ width: getBarPercent(lap[key], race.stats[key].min, race.stats[key].max) + '%' }">
@@ -183,11 +198,13 @@ const handleDisclaimerConfirm = (doNotShow) => {
 
                   <!-- Content -->
                   <div class="relative z-10 flex justify-between items-center space-x-2">
-                    <span>{{ formatValue(lap[key]) }}</span>
+                    <span v-if="['startTime', 'finishTime'].includes(key)">{{ formatTime(lap[key]) }}</span>
+                    <span v-else>{{ formatValue(lap[key]) }}</span>
 
                     <!-- Diff -->
-                    <span v-if="getDiff(lap, race.sortedLaps, key, idx) !== null" class="text-xs font-bold"
-                      :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
+                    <span
+                      v-if="!['startTime', 'finishTime'].includes(key) && getDiff(lap, race.sortedLaps, key, idx) !== null"
+                      class="text-xs font-bold" :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
                       {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatValue(getDiff(lap,
                         race.sortedLaps, key, idx)) }}
                     </span>

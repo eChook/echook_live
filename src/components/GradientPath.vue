@@ -17,35 +17,56 @@ const props = defineProps({
     }
 })
 
-// Generate segments. Each segment is a line between point[i] and point[i+1].
-// Color is determined by point[i].value
+// Generate segments. Each segment is a line between points.
+// Optimized: Merges adjacent points with similar colors into a single polyline.
 const segments = computed(() => {
     const segs = []
     if (props.points.length < 2) return segs
 
-    for (let i = 0; i < props.points.length - 1; i++) {
-        const p1 = props.points[i]
-        const p2 = props.points[i + 1]
+    let currentLatLngs = []
+    let currentColor = null
 
-        // Normalize value 0..1
+    for (let i = 0; i < props.points.length; i++) {
+        const p = props.points[i]
+
+        // Calculate color for this point
         let t = 0
         if (props.max > props.min) {
-            t = (p1.value - props.min) / (props.max - props.min)
+            t = (p.value - props.min) / (props.max - props.min)
         } else {
-            t = 1 // Default to max color if flat range
+            t = 1
         }
-        // Clamp
         t = Math.max(0, Math.min(1, t))
-
-        // Map to Hue: 0 (Red) -> 120 (Green)
-        const hue = t * 120
+        const hue = Math.floor(t * 120) // Quantize hue to improve merging
         const color = `hsl(${hue}, 100%, 50%)`
 
+        if (currentColor === null) {
+            currentColor = color
+            currentLatLngs.push([p.lat, p.lon])
+        } else if (color === currentColor) {
+            currentLatLngs.push([p.lat, p.lon])
+        } else {
+            // Color changed. Save previous segment and start new one.
+            // Segment must include the current point to be continuous
+            currentLatLngs.push([p.lat, p.lon])
+            segs.push({
+                latLngs: [...currentLatLngs],
+                color: currentColor
+            })
+            // Start new segment from the same point to maintain continuity
+            currentLatLngs = [[p.lat, p.lon]]
+            currentColor = color
+        }
+    }
+
+    // Push last segment
+    if (currentLatLngs.length > 1) {
         segs.push({
-            latLngs: [[p1.lat, p1.lon], [p2.lat, p2.lon]],
-            color
+            latLngs: currentLatLngs,
+            color: currentColor
         })
     }
+
     return segs
 })
 </script>
