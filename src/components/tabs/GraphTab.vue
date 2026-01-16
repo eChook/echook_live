@@ -85,7 +85,7 @@ onMounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <span :class="selectedKeys.has(key) ? 'text-white' : 'text-gray-400'">{{ key }}</span>
+            <span :class="selectedKeys.has(key) ? 'text-white' : 'text-gray-400'">{{ telemetry.getDisplayName(key) }}</span>
           </div>
         </div>
       </div>
@@ -107,7 +107,7 @@ onMounted(() => {
         <MasterZoom v-if="telemetry.history.length > 0" :data="telemetry.displayHistory" :group="CHART_GROUP" />
       </div>
 
-      <div class="flex-1 overflow-y-auto space-y-4 p-4">
+      <div class="flex-1 overflow-y-auto space-y-2 px-2 py-2">
         <div v-if="selectedKeys.size > 0">
           <div v-for="key in Array.from(selectedKeys)" :key="key" class="w-full">
             <TelemetryGraph :data="telemetry.displayHistory" :data-key="key" :group="CHART_GROUP"

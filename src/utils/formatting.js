@@ -20,7 +20,7 @@ export const formatValue = (key, value) => {
     const k = key.toLowerCase()
 
     // Integers
-    if (k.includes('rpm') || k.includes('gear') || k.includes('lap')) {
+    if (k.includes('rpm') || k.includes('gear') || k.includes('lap') || k.includes('brake')) {
         return value.toFixed(0)
     }
 

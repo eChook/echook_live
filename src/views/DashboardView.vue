@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
+import draggable from 'vuedraggable'
 
 // Tabs
 import GraphTab from '../components/tabs/GraphTab.vue'
@@ -22,9 +23,22 @@ const settings = useSettingsStore()
 
 const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
-  if (key === 'temp1' || key === 'temp2') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
+  if (key === 'temp1' || key === 'temp2' || key === 'tempDiff') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
   return undefined
 }
+
+// Ordered keys: merge user order with available keys
+const orderedKeys = computed({
+  get: () => {
+    const available = new Set(telemetry.availableKeys)
+    const userOrder = settings.dataCardOrder.filter(k => available.has(k))
+    const newKeys = telemetry.availableKeys.filter(k => !settings.dataCardOrder.includes(k))
+    return [...userOrder, ...newKeys]
+  },
+  set: (newOrder) => {
+    settings.dataCardOrder = newOrder
+  }
+})
 
 // Tab Configuration
 const activeTabId = computed({
@@ -70,9 +84,13 @@ onUnmounted(() => {
     <!-- Data Ribbon -->
     <div
       class="h-auto md:h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex flex-wrap md:flex-nowrap items-center justify-start px-6 gap-4 overflow-x-auto no-scrollbar py-4 md:py-2">
-      <DataCard v-for="key in telemetry.availableKeys" :key="key" :label="key" :value="telemetry.displayLiveData[key]"
-        :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" />
-      <div v-if="telemetry.availableKeys.length === 0" class="text-gray-500 text-sm italic">
+      <draggable v-model="orderedKeys" item-key="key" class="flex flex-wrap md:flex-nowrap gap-4" :animation="200">
+        <template #item="{ element: key }">
+          <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
+            :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" :tooltip="telemetry.getDescription(key)" />
+        </template>
+      </draggable>
+      <div v-if="orderedKeys.length === 0" class="text-gray-500 text-sm italic">
         Waiting for telemetry data...
       </div>
     </div>

@@ -25,6 +25,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const selectedDashboardKeys = ref(['voltage', 'current', 'speed', 'rpm']) // Default keys
     const showDashboardMetrics = ref(true)
     const hideLapsDisclaimer = ref(false)
+    const dataCardOrder = ref([]) // User's custom order for data cards
 
     // 5. Race Records (Historical Lap Data)
     const races = ref({}) // { [raceStartTime]: { startTimeMs, laps: { [lapNum]: data } } }
@@ -40,6 +41,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (newData.selectedDashboardKeys) selectedDashboardKeys.value = newData.selectedDashboardKeys
         if (newData.showDashboardMetrics !== undefined) showDashboardMetrics.value = newData.showDashboardMetrics
         if (newData.hideLapsDisclaimer !== undefined) hideLapsDisclaimer.value = newData.hideLapsDisclaimer
+        if (newData.dataCardOrder) dataCardOrder.value = newData.dataCardOrder
         if (newData.races) races.value = { ...races.value, ...newData.races }
     }
 
@@ -51,6 +53,7 @@ export const useSettingsStore = defineStore('settings', () => {
         selectedDashboardKeys,
         showDashboardMetrics,
         hideLapsDisclaimer,
+        dataCardOrder,
         races,
         importSettings
     }

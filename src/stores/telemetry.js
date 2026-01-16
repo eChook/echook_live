@@ -60,9 +60,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     // Allowed keys configuration
     const REGULAR_KEYS = new Set([
-        'voltage', 'current', 'voltageLower',
+        'voltage', 'current', 'voltageLower', 'voltageHigh', 'voltageDiff',
         'rpm', 'speed', 'throttle',
-        'temp1', 'temp2', 'ampH', 'currLap',
+        'temp1', 'temp2', 'tempDiff', 'ampH', 'currLap',
         'gear', 'brake', 'lon', 'lat'
     ])
 
@@ -70,6 +70,51 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff'
     ])
 
+    // Human-readable display names for telemetry keys
+    const KEY_DISPLAY_NAMES = {
+        voltage: 'Voltage',
+        current: 'Current',
+        voltageLower: 'V_Batt Low',
+        voltageHigh: 'V_Batt High',
+        voltageDiff: 'V_Batt Diff',
+        rpm: 'RPM',
+        speed: 'Speed',
+        throttle: 'Throttle',
+        temp1: 'Temp 1',
+        temp2: 'Temp 2',
+        tempDiff: 'Temp Diff',
+        ampH: 'Amp Hours',
+        currLap: 'Current Lap',
+        gear: 'Gear',
+        brake: 'Brake',
+        lat: 'Latitude',
+        lon: 'Longitude'
+    }
+
+    // Descriptions for tooltips
+    const KEY_DESCRIPTIONS = {
+        voltage: 'Total battery voltage (24V Nominal)',
+        current: 'Current draw from the battery',
+        voltageLower: 'Lower battery voltage (The GND-12V battery)',
+        voltageHigh: 'Upper battery voltage (The 12v-24v battery)',
+        voltageDiff: 'Difference between Upper and Lower batteries (+ve if Upper > Lower)',
+        rpm: 'Motor revolutions per minute',
+        speed: 'Vehicle speed',
+        throttle: 'Throttle position (0-100%)',
+        temp1: 'Primary temperature sensor (typically motor)',
+        temp2: 'Secondary temperature sensor',
+        tempDiff: 'Absolute difference between the two temperatures',
+        ampH: 'Cumulative amp-hours consumed this session',
+        currLap: 'Current lap number',
+        gear: 'Current gear selection',
+        brake: 'Brake status (1 = engaged, 0 = released)',
+        lat: 'GPS latitude coordinate',
+        lon: 'GPS longitude coordinate'
+    }
+
+    // Helper: Get display name for a key
+    const getDisplayName = (key) => KEY_DISPLAY_NAMES[key] || key
+    const getDescription = (key) => KEY_DESCRIPTIONS[key] || ''
 
     // Helper: Unit Conversion
     const convertSpeed = (valMs) => {
@@ -95,6 +140,19 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
         if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
         if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
+
+        // Calculate V_Batt High = Voltage - V_Batt Low
+        if (newPt.voltage !== undefined && newPt.voltageLower !== undefined) {
+            newPt.voltageHigh = newPt.voltage - newPt.voltageLower
+            // V_Batt Diff = High - Low (positive if H > L)
+            newPt.voltageDiff = newPt.voltageHigh - newPt.voltageLower
+        }
+
+        // Calculate Temp Diff = |temp1 - temp2|
+        if (newPt.temp1 !== undefined && newPt.temp2 !== undefined) {
+            newPt.tempDiff = Math.abs(newPt.temp1 - newPt.temp2)
+        }
+
         return Object.freeze(newPt)
     }
 
@@ -105,6 +163,15 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         return scalePacket(pt)
     })
 
+
+    // Display order for keys
+    const KEY_ORDER = [
+        'voltage', 'current', 'ampH',
+        'speed', 'rpm', 'throttle', 'voltageLower',
+        'voltageHigh', 'voltageDiff', 'gear', 'brake',
+        'temp1', 'temp2', 'tempDiff',
+        'currLap', 'lat', 'lon'
+    ]
 
     // Computed: Get array of keys present in data for UI toggles
     const availableKeys = computed(() => {
@@ -124,7 +191,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             })
         }
 
-        return Array.from(keys)
+        // Return in preferred order, filtering to only available keys
+        return KEY_ORDER.filter(k => keys.has(k))
     })
 
     // Computed: Generate markArea data for ECharts lap highlights
@@ -593,6 +661,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         races,
         maxHistoryPoints,
         graphSettings,
-        unitSettings
+        unitSettings,
+        getDisplayName,
+        getDescription
     }
 })

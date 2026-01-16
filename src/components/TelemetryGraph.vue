@@ -158,9 +158,9 @@ const option = computed(() => {
 
 <template>
   <div
-    class="bg-neutral-800/50 rounded-lg border border-neutral-700/50 backdrop-blur-sm shadow-sm overflow-hidden p-2 relative"
+    class="relative overflow-hidden"
     :style="{ height: telemetry.graphSettings.graphHeight + 'px' }">
-    <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{ dataKey }}</h3>
+    <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{ telemetry.getDisplayName(dataKey) }}</h3>
     <VChart class="w-full h-full" :option="option" autoresize :group="group" />
   </div>
 </template>
