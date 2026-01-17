@@ -91,7 +91,7 @@ const option = computed(() => {
       }
     },
     grid: {
-      top: 30,
+      top: 40,
       bottom: 20,
       left: 60,
       right: 20

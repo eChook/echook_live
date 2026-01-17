@@ -85,17 +85,16 @@ onMounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <span :class="selectedKeys.has(key) ? 'text-white' : 'text-gray-400'">{{ telemetry.getDisplayName(key) }}</span>
+            <span :class="selectedKeys.has(key) ? 'text-white' : 'text-gray-400'">{{ telemetry.getDisplayName(key)
+            }}</span>
           </div>
         </div>
       </div>
     </aside>
 
-    <!-- Collapsed Toggle Button (Absolute) -->
-    <div v-if="!showMetrics" class="absolute top-1 left-4 z-20">
-      <button @click="toggleMetrics"
-        class="p-2 rounded bg-neutral-800 border border-neutral-700 text-gray-400 hover:text-white hover:bg-neutral-700 transition shadow-lg"
-        title="Show Metrics">
+    <!-- Collapsed Toggle Button (aligned with MasterZoom) -->
+    <div v-if="!showMetrics" class="absolute top-[calc(0.75rem)] left-1 z-20">
+      <button @click="toggleMetrics" class="p-1 text-gray-500 hover:text-white transition" title="Show Metrics">
         <ChevronRightIcon class="w-5 h-5" />
       </button>
     </div>

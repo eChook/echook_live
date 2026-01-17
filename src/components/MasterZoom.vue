@@ -37,7 +37,7 @@ const option = computed(() => {
       right: 20,
       top: 0,
       bottom: 0,
-      height: 40 // Minimal height for just the slider
+      height: 40
     },
     xAxis: {
       type: 'time',
@@ -64,22 +64,21 @@ const option = computed(() => {
         bottom: 5,
         borderColor: '#404040',
         textStyle: { color: '#a3a3a3' },
-        handleStyle: { color: '#cb1557' }, // primary
+        handleStyle: { color: '#cb1557' },
         dataBackground: {
           lineStyle: { color: '#525252' },
           areaStyle: { color: '#262626' }
         },
         selectedDataBackground: {
-          lineStyle: { color: '#cb1557' }, // primary
-          areaStyle: { color: '#9f1245' } // darker primary
+          lineStyle: { color: '#cb1557' },
+          areaStyle: { color: '#9f1245' }
         }
       }
     ],
     series: [
       {
-        // Dummy series to establish the time range for the slider
         type: 'line',
-        data: props.data.map(item => [item.timestamp, 0]), // Just timestamp matters
+        data: props.data.map(item => [item.timestamp, 0]),
         showSymbol: false,
         lineStyle: { opacity: 0 }
       }
