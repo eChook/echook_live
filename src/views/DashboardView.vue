@@ -81,10 +81,10 @@ onUnmounted(() => {
   <div class="h-screen overflow-hidden bg-neutral-900 flex flex-col">
     <DashboardHeader />
 
-    <!-- Data Ribbon -->
+    <!-- Data Ribbon - horizontal scroll on mobile -->
     <div
-      class="h-auto md:h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex flex-wrap md:flex-nowrap items-center justify-start px-6 gap-4 overflow-x-auto no-scrollbar py-4 md:py-2">
-      <draggable v-model="orderedKeys" item-key="key" class="flex flex-wrap md:flex-nowrap gap-4" :animation="200">
+      class="h-20 md:h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
+      <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
         <template #item="{ element: key }">
           <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
             :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" :tooltip="telemetry.getDescription(key)" />
@@ -96,29 +96,25 @@ onUnmounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Vertical Tab Sidebar -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <!-- Desktop: Vertical Tab Sidebar (hidden on mobile) -->
       <aside
-        class="w-14 md:w-16 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-4 space-y-4 z-40 transition-all duration-300">
+        class="hidden md:flex w-16 bg-neutral-900 border-r border-neutral-800 flex-col items-center py-4 space-y-4 z-40">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTabId = tab.id"
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group relative"
           :class="activeTabId === tab.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
           :title="tab.label">
-          <!-- Icon -->
-          <component :is="tab.icon" class="w-5 h-5 md:w-6 md:h-6" />
-
-          <!-- Active Indicator -->
+          <component :is="tab.icon" class="w-6 h-6" />
           <div v-if="activeTabId === tab.id" class="absolute left-0 w-1 h-6 bg-primary rounded-r-full"></div>
         </button>
 
         <div class="flex-1"></div>
 
-        <!-- Settings Tab at bottom -->
         <button @click="activeTabId = 'settings'"
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group"
           :class="activeTabId === 'settings' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
           title="Settings">
-          <CogIcon class="w-5 h-5 md:w-6 md:h-6" />
+          <CogIcon class="w-6 h-6" />
         </button>
       </aside>
 
@@ -133,12 +129,27 @@ onUnmounted(() => {
           enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-300 ease-in"
           leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
           <div v-if="!telemetry.isConnected"
-            class="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-red-900/90 backdrop-blur-md border border-red-500/50 rounded-full shadow-2xl flex items-center space-x-3 z-50 pointer-events-none">
+            class="absolute bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 px-4 md:px-6 py-2 md:py-3 bg-red-900/90 backdrop-blur-md border border-red-500/50 rounded-full shadow-2xl flex items-center space-x-2 md:space-x-3 z-50 pointer-events-none">
             <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            <span class="text-red-100 font-bold text-sm tracking-wide">Connection Lost - Reconnecting...</span>
+            <span class="text-red-100 font-bold text-xs md:text-sm tracking-wide">Reconnecting...</span>
           </div>
         </Transition>
       </main>
+
+      <!-- Mobile: Bottom Tab Bar (hidden on desktop) -->
+      <nav class="md:hidden h-14 bg-neutral-900 border-t border-neutral-800 flex items-center justify-around px-2 z-50">
+        <button v-for="tab in tabs" :key="tab.id" @click="activeTabId = tab.id"
+          class="flex-1 h-full flex items-center justify-center relative"
+          :class="activeTabId === tab.id ? 'text-primary' : 'text-gray-500'">
+          <component :is="tab.icon" class="w-6 h-6" />
+          <div v-if="activeTabId === tab.id" class="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full"></div>
+        </button>
+        <button @click="activeTabId = 'settings'" class="flex-1 h-full flex items-center justify-center relative"
+          :class="activeTabId === 'settings' ? 'text-primary' : 'text-gray-500'">
+          <CogIcon class="w-6 h-6" />
+          <div v-if="activeTabId === 'settings'" class="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full"></div>
+        </button>
+      </nav>
     </div>
   </div>
 </template>

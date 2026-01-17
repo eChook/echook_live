@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useTelemetryStore } from '../stores/telemetry'
+import { useSettingsStore } from '../stores/settings'
 import { useRouter } from 'vue-router'
 import {
   SignalIcon,
@@ -12,7 +13,11 @@ import {
   ClockIcon,
   TrashIcon,
   ArrowPathIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  ServerIcon,
+  TruckIcon
 } from '@heroicons/vue/24/outline'
 import logo from '../assets/vue.svg'
 import HistoryCalendar from './HistoryCalendar.vue'
@@ -21,6 +26,7 @@ import ConfirmationModal from './ui/ConfirmationModal.vue'
 
 const auth = useAuthStore()
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 const router = useRouter()
 
 // -- Original Logic --
@@ -128,8 +134,8 @@ function closeHistoryMenu() {
 
 async function loadExtra(minutes) {
   if (displayedCar.value?.id) {
+    showHistoryMenu.value = false // Close menu first for better UX
     isLoadingHistory.value = true
-    showHistoryMenu.value = false // Close menu
     try {
       await telemetry.loadExtraHistory(displayedCar.value.id, minutes)
     } finally {
@@ -144,14 +150,27 @@ function handleDayClick(dateString) {
 }
 
 function triggerLoadDay() {
-  if (dontAskAgain.value) {
-    confirmLoadDay()
+  if (settings.hideHistoryClearConfirmation) {
+    // If setting is enabled, skip modal
+    confirmLoadDay(true)
   } else {
+    // Reset check state
+    dontAskAgain.value = false
     showLoadConfirmModal.value = true
   }
 }
 
-async function confirmLoadDay() {
+async function confirmLoadDay(skipModal = false) {
+  // 1. Update setting if checkbox was checked
+  if (!skipModal && dontAskAgain.value) {
+    settings.hideHistoryClearConfirmation = true
+  }
+
+  // 2. Close UI immediately
+  closeConfirmModal()
+  showHistoryMenu.value = false
+
+  // 3. Start Loading
   if (displayedCar.value?.id && selectedDate.value) {
     isLoadingHistory.value = true
     try {
@@ -160,16 +179,10 @@ async function confirmLoadDay() {
       isLoadingHistory.value = false
     }
   }
-  closeConfirmModal()
-  showHistoryMenu.value = false
 }
 
 function closeConfirmModal() {
   showLoadConfirmModal.value = false
-  // Don't clear selectedDate here immediately if we want to keep the menu state, 
-  // but usually we want to reset if cancelled. 
-  // For now, let's keep the menu open or closed based on flow.
-  // Actually, if we cancel, we probably just close the modal.
 }
 
 const toggleHistoryMenu = () => {
@@ -239,34 +252,58 @@ async function confirmResetToLive() {
 
 <template>
   <header
-    class="h-16 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-6 sticky top-0 z-50">
+    class="h-14 md:h-16 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-3 md:px-6 sticky top-0 z-50">
     <!-- Brand / Left Side -->
-    <div class="flex items-center space-x-4">
-      <div class="font-bold text-xl text-white tracking-tight">
+    <div class="flex items-center space-x-2 md:space-x-4">
+      <!-- Mobile/Tablet: eC -->
+      <div class="block lg:hidden font-oswald text-2xl font-bold text-primary tracking-tight">
+        eC
+      </div>
+      <!-- Desktop: Full logo -->
+      <div class="hidden lg:block font-bold text-xl text-white tracking-tight">
         <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Telemetry</span>
       </div>
-      <div class="h-6 w-px bg-neutral-700"></div>
-      <!-- Car Info Display -->
+      <div class="h-6 w-px bg-neutral-700 hidden lg:block"></div>
+      <!-- Car Info Display - condensed on mobile -->
       <div v-if="displayedCar" class="flex flex-col">
-        <span class="text-sm text-white font-semibold flex items-center">
+        <span
+          class="text-xs md:text-sm text-white font-semibold flex items-center truncate max-w-[100px] md:max-w-none">
           {{ displayedCar.carName }}
-          <span v-if="isViewingOther" class="ml-2 text-[10px] text-yellow-500 uppercase tracking-wider">(Viewing)</span>
+          <span v-if="isViewingOther"
+            class="ml-1 md:ml-2 text-[8px] md:text-[10px] text-yellow-500 uppercase tracking-wider">(V)</span>
         </span>
-        <span class="text-xs text-gray-400">{{ displayedCar.teamName }} #{{ displayedCar.number || '00' }}</span>
+        <span class="text-[10px] md:text-xs text-gray-400 truncate max-w-[100px] md:max-w-none">{{ displayedCar.teamName
+        }} #{{ displayedCar.number || '00' }}</span>
       </div>
     </div>
 
     <!-- Right Side Controls & Info -->
-    <div class="flex items-center space-x-6">
+    <div class="flex items-center space-x-2 md:space-x-6">
 
       <!-- Loading Indicator -->
-      <div v-if="isLoadingHistory" class="flex items-center space-x-2 text-primary animate-pulse">
+      <div v-if="isLoadingHistory" class="flex items-center space-x-1 md:space-x-2 text-primary animate-pulse">
         <ArrowPathIcon class="w-4 h-4 animate-spin" />
-        <span class="text-xs font-bold uppercase">Loading...</span>
+        <span class="text-xs font-bold uppercase hidden md:inline">Loading...</span>
       </div>
 
-      <!-- History Controls Group -->
-      <div class="hidden md:flex items-center space-x-3">
+      <!-- Mobile/Tablet: History dropdown trigger + Play/Pause -->
+      <div class="lg:hidden flex items-center space-x-2">
+        <button @click="toggleHistoryMenu"
+          class="flex items-center justify-center w-8 h-8 rounded bg-neutral-800 border border-neutral-700 text-gray-300 hover:bg-neutral-700 transition"
+          :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="History">
+          <ClockIcon class="w-5 h-5" />
+        </button>
+        <!-- Pause/Resume -->
+        <button @click="handlePlayButton" class="flex items-center justify-center w-8 h-8 rounded border transition"
+          :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' : 'bg-neutral-800 border-neutral-700 text-gray-300'"
+          :title="playButtonTitle">
+          <PlayIcon v-if="telemetry.isPaused" class="w-5 h-5" />
+          <PauseIcon v-else class="w-5 h-5" />
+        </button>
+      </div>
+
+      <!-- Desktop: History Controls Group -->
+      <div class="hidden lg:flex items-center space-x-3">
 
         <!-- Status Text / History Trigger -->
         <!-- Status Text / History Trigger -->
@@ -283,71 +320,6 @@ async function confirmResetToLive() {
               {{ statusText }}
             </span>
           </div>
-
-          <!-- History Dropdown -->
-          <div v-if="showHistoryMenu"
-            class="absolute top-10 right-0 bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg p-4 z-50 flex space-x-6 min-w-[700px]">
-
-            <!-- Column 1: Quick Load -->
-            <div class="flex flex-col space-y-2 w-32 border-r border-neutral-800 pr-4">
-              <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Quick Add</h3>
-              <button @click="loadExtra(10)"
-                class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+
-                10
-                Mins</button>
-              <button @click="loadExtra(30)"
-                class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+
-                30
-                Mins</button>
-              <button @click="loadExtra(60)"
-                class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+ 1
-                Hour</button>
-              <button @click="loadExtra(180)"
-                class="text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+ 3
-                Hours</button>
-            </div>
-
-            <!-- Column 2: Calendar -->
-            <div class="flex flex-col">
-              <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
-              <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2">
-                <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
-                Data stored on the server is not permanent. It may be deleted to free up space.
-              </p>
-            </div>
-
-            <!-- Column 3: Time Range & Load Action -->
-            <div class="flex flex-col w-48 border-l border-neutral-800 pl-4 space-y-4">
-              <!-- Selection Status -->
-              <div v-if="selectedDate" class="text-sm font-bold text-primary">
-                {{ selectedDate }}
-              </div>
-              <div v-else class="text-sm font-bold text-gray-500">
-                Select a day...
-              </div>
-
-              <!-- Time Inputs -->
-              <div class="flex flex-col space-y-1">
-                <label class="text-[10px] text-gray-500 uppercase tracking-wider">Start Time</label>
-                <input v-model="startTime" type="time"
-                  class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none w-full">
-              </div>
-
-              <div class="flex flex-col space-y-1">
-                <label class="text-[10px] text-gray-500 uppercase tracking-wider">End Time</label>
-                <input v-model="endTime" type="time"
-                  class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1 text-white text-sm focus:border-primary outline-none w-full">
-              </div>
-
-              <!-- Action Button -->
-              <button @click="triggerLoadDay" :disabled="!selectedDate"
-                class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
-                Load Data
-              </button>
-            </div>
-          </div>
-          <!-- Overlay -->
-          <div v-if="showHistoryMenu" class="fixed inset-0 z-40" @click="closeHistoryMenu"></div>
         </div>
 
 
@@ -368,30 +340,156 @@ async function confirmResetToLive() {
         </button>
       </div>
 
-      <!-- Divider -->
-      <div class="h-8 w-px bg-neutral-800 hidden md:block"></div>
+      <!-- History Dropdown (shared by mobile and desktop triggers) -->
+      <div v-if="showHistoryMenu"
+        class="fixed lg:absolute top-14 lg:top-16 right-0 lg:right-6 bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg p-3 lg:p-4 z-[60] flex flex-col lg:flex-row space-y-3 lg:space-y-0 lg:space-x-6 w-[calc(100vw-1rem)] max-w-md lg:max-w-none lg:w-auto lg:min-w-[700px] mx-auto lg:mx-0 max-h-[70vh] overflow-y-auto">
 
-      <!-- Server Status -->
-      <div class="flex items-center space-x-2">
-        <div class="flex items-center space-x-2 px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700">
+        <!-- Mobile: Loaded Data Status Header -->
+        <div class="lg:hidden flex items-center justify-between pb-3 border-b border-neutral-700">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs text-gray-400">Loaded:</span>
+            <span class="text-xs font-mono text-white font-bold">{{ statusText }}</span>
+            <div v-if="telemetry.isHistoryTruncated" class="text-yellow-500" title="Data is truncated">
+              <ExclamationTriangleIcon class="w-4 h-4" />
+            </div>
+          </div>
+          <button @click="telemetry.clearHistory()"
+            class="flex items-center space-x-1 text-xs text-gray-400 hover:text-rose-500 transition"
+            title="Clear All Data">
+            <TrashIcon class="w-4 h-4" />
+            <span>Clear</span>
+          </button>
+        </div>
+
+        <!-- Quick Load Buttons (horizontal row on mobile) -->
+        <div
+          class="flex flex-col lg:flex-row lg:flex-col space-y-2 lg:space-y-0 lg:w-32 lg:border-r lg:border-neutral-800 lg:pr-4">
+          <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Quick Add</h3>
+          <div class="flex flex-row space-x-2 lg:flex-col lg:space-x-0 lg:space-y-2">
+            <button @click="loadExtra(10)"
+              class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+10m</button>
+            <button @click="loadExtra(30)"
+              class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+30m</button>
+            <button @click="loadExtra(60)"
+              class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+1h</button>
+            <button @click="loadExtra(180)"
+              class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+3h</button>
+          </div>
+        </div>
+
+        <!-- Mobile: Load History section (calendar + selection side by side) -->
+        <div class="flex lg:hidden space-x-3">
+          <!-- Calendar -->
+          <div class="flex-1">
+            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Load History</h3>
+            <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
+          </div>
+
+          <!-- Date Selection & Time -->
+          <div class="flex flex-col space-y-2 w-28">
+            <div v-if="selectedDate" class="text-sm font-bold text-primary">{{ selectedDate }}</div>
+            <div v-else class="text-xs text-gray-500">Select a day</div>
+
+            <div class="flex flex-col space-y-1">
+              <label class="text-[10px] text-gray-500">Start</label>
+              <input v-model="startTime" type="time"
+                class="bg-neutral-800 border border-neutral-600 rounded px-1 py-0.5 text-white text-xs focus:border-primary outline-none w-full">
+            </div>
+            <div class="flex flex-col space-y-1">
+              <label class="text-[10px] text-gray-500">End</label>
+              <input v-model="endTime" type="time"
+                class="bg-neutral-800 border border-neutral-600 rounded px-1 py-0.5 text-white text-xs focus:border-primary outline-none w-full">
+            </div>
+
+            <button @click="triggerLoadDay" :disabled="!selectedDate"
+              class="bg-primary hover:bg-primary/90 text-white font-bold py-1.5 rounded text-xs transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Load
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop: Load History Section (Calendar + Time + Load button) -->
+        <div class="hidden lg:flex flex-col border-l border-neutral-800 pl-4 space-y-3">
+          <h3 class="text-sm font-bold text-gray-400">Load History</h3>
+
+          <div class="flex space-x-4">
+            <!-- Calendar -->
+            <div class="flex flex-col">
+              <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
+              <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2">
+                <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
+                Data stored on the server is not permanent.
+              </p>
+            </div>
+
+            <!-- Date & Time Selection -->
+            <div class="flex flex-col space-y-3 w-40">
+              <!-- Selected Date -->
+              <div v-if="selectedDate" class="text-sm font-bold text-primary">
+                {{ selectedDate }}
+              </div>
+              <div v-else class="text-sm text-gray-500 italic">
+                Select a day...
+              </div>
+
+              <!-- Time Inputs -->
+              <div class="flex flex-col space-y-2">
+                <div class="flex flex-col space-y-1">
+                  <label class="text-[10px] text-gray-500 uppercase tracking-wider">Start Time</label>
+                  <input v-model="startTime" type="time"
+                    class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1.5 text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
+                </div>
+                <div class="flex flex-col space-y-1">
+                  <label class="text-[10px] text-gray-500 uppercase tracking-wider">End Time</label>
+                  <input v-model="endTime" type="time"
+                    class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1.5 text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
+                </div>
+              </div>
+
+              <!-- Action Button -->
+              <button @click="triggerLoadDay" :disabled="!selectedDate"
+                class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Load Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Overlay -->
+      <div v-if="showHistoryMenu" class="fixed inset-0 z-50" @click="closeHistoryMenu"></div>
+
+      <!-- Divider -->
+      <div class="h-8 w-px bg-neutral-800 hidden lg:block"></div>
+
+      <!-- Server Status - Icons only on mobile/tablet -->
+      <div class="flex items-center">
+        <div
+          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700"
+          title="Server Status">
           <div class="w-2 h-2 rounded-full"
             :class="telemetry.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'">
           </div>
-          <span class="text-xs font-medium text-gray-300">SERVER</span>
+          <ServerIcon class="w-4 h-4 text-gray-400 lg:hidden" />
+          <span class="text-xs font-medium text-gray-300 hidden lg:inline">SERVER</span>
         </div>
       </div>
 
-      <!-- Car Status -->
-      <div class="flex items-center space-x-2">
-        <div class="flex items-center space-x-2 px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700">
+      <!-- Car Status - Icons only on mobile/tablet -->
+      <div class="flex items-center">
+        <div
+          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700"
+          title="Car Status">
           <div class="w-2 h-2 rounded-full transition-colors duration-300" :class="carStatusColor"></div>
-          <span class="text-xs font-medium text-gray-300 uppercase tracking-wider">Car:</span>
-          <span class="text-[10px] font-bold text-white whitespace-nowrap">{{ lastUpdatedText }}</span>
+          <TruckIcon class="w-4 h-4 text-gray-400 lg:hidden" />
+          <span class="text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:inline">Car:</span>
+          <span class="text-[10px] font-bold text-white whitespace-nowrap hidden lg:inline">{{ lastUpdatedText }}</span>
         </div>
       </div>
 
-      <button @click="handleLogout" class="text-sm text-gray-400 hover:text-white transition cursor-pointer">
-        Logout
+      <!-- Logout: Icon on mobile/tablet, text on desktop -->
+      <button @click="handleLogout" class="text-gray-400 hover:text-white transition cursor-pointer" title="Logout">
+        <ArrowRightOnRectangleIcon class="w-5 h-5 lg:hidden" />
+        <span class="text-sm hidden lg:inline">Logout</span>
       </button>
     </div>
 

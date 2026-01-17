@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
+import { ChartBarIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
@@ -85,6 +86,26 @@ const formatDate = (isoStringOrMs) => {
   return new Date(isoStringOrMs).toLocaleString()
 }
 
+// Navigation / Graph Logic
+const viewSessionOnGraph = (race) => {
+  telemetry.requestChartZoom(
+    race.startTime - 30000,
+    (race.sortedLaps[0]?.finishTime || Date.now()) + 30000
+  )
+  if (!telemetry.isPaused) telemetry.togglePause()
+  settings.activeTabId = 'graph'
+}
+
+const viewLapOnGraph = (lap) => {
+  if (!lap.startTime || !lap.finishTime) return
+  telemetry.requestChartZoom(
+    lap.startTime - 10000,
+    lap.finishTime + 10000
+  )
+  if (!telemetry.isPaused) telemetry.togglePause()
+  settings.activeTabId = 'graph'
+}
+
 // Comparison Logic
 // Define "Good" direction for each key. 
 // -1 means Lower is Better (Green). 1 means Higher is Better (Green).
@@ -153,58 +174,76 @@ const handleDisclaimerConfirm = (doNotShow) => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-6 overflow-hidden space-y-8">
-    <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-gray-500 italic">
+  <div class="h-full flex flex-col p-2 md:p-6 overflow-hidden space-y-4 md:space-y-8">
+    <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-gray-500 italic text-sm">
       No lap data recorded yet.
     </div>
 
-    <div class="flex-1 overflow-y-auto space-y-8 pr-2"> <!-- Scrollable container -->
-      <div v-for="race in sortedRaces" :key="race.id" class="flex flex-col space-y-4">
-        <!-- Changed z-10 to z-20 for header to stay above table content -->
+    <div class="flex-1 overflow-y-auto space-y-4 md:space-y-8 pr-1 md:pr-2"> <!-- Scrollable container -->
+      <div v-for="race in sortedRaces" :key="race.id" class="flex flex-col space-y-2 md:space-y-4">
+        <!-- Race Header -->
         <div
-          class="flex items-center justify-between sticky top-0 bg-neutral-900 z-20 py-2 border-b border-neutral-800">
-          <h2 class="text-xl font-bold text-white tracking-tight">
-            Race Start Time: <span class="text-primary font-mono">{{ formatDate(race.startTime) }}</span>
-          </h2>
-          <div class="text-sm text-gray-400">
+          class="flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 bg-neutral-900 z-20 py-1 md:py-2 border-b border-neutral-800">
+          <div class="flex items-center space-x-3">
+            <h2 class="text-sm md:text-xl font-bold text-white tracking-tight flex items-center flex-wrap gap-2">
+              <span>Race:</span>
+              <span class="text-primary font-mono text-xs md:text-base">{{ formatDate(race.startTime) }}</span>
+              <span v-if="race.trackName" class="text-gray-400 text-xs md:text-base border-l border-neutral-700 pl-2">{{
+                race.trackName }}</span>
+            </h2>
+            <button @click="viewSessionOnGraph(race)"
+              class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
+              title="View Race on Graph">
+              <ChartBarIcon class="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+          </div>
+          <div class="text-xs md:text-sm text-gray-400 mt-1 md:mt-0">
             Laps: <span class="text-white font-mono font-bold">{{ race.sortedLaps.length }}</span>
           </div>
         </div>
 
         <div class="bg-neutral-800 rounded-lg border border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
-          <table class="w-full min-w-[1000px] text-left border-collapse">
+          <table class="w-full min-w-[600px] md:min-w-[1000px] text-left border-collapse">
             <thead class="bg-neutral-900">
               <tr>
                 <th v-for="(header, i) in headers" :key="header"
-                  class="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-neutral-700">
+                  class="px-2 md:px-8 py-2 md:py-4 text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-neutral-700">
                   {{ header }}
                 </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-neutral-700">
-              <!-- Show laps in race REVERSED (newest first) -->
               <tr v-for="(lap, idx) in race.sortedLaps" :key="lap.lapNumber" class="hover:bg-neutral-700/50 transition">
-                <td class="px-8 py-4 font-mono text-primary font-bold">
-                  {{ lap.lapNumber ?? '-' }}
+                <td class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-xs md:text-base text-primary font-bold">
+                  <div class="flex items-center space-x-2">
+                    <span>{{ lap.lapNumber ?? '-' }}</span>
+                    <button @click="viewLapOnGraph(lap)"
+                      class="text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
+                      title="View Lap on Graph">
+                      <ChartBarIcon class="w-3 h-3 md:w-4 md:h-4" />
+                    </button>
+                  </div>
                 </td>
-                <td v-for="key in keys.slice(1)" :key="key" class="px-8 py-4 font-mono text-sm text-gray-300 relative">
+                <td v-for="key in keys.slice(1)" :key="key"
+                  class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-[11px] md:text-sm text-gray-300 relative">
                   <!-- Background Bar Container -->
-                  <div v-if="!['startTime', 'finishTime'].includes(key)" class="absolute inset-y-1 left-2 right-2 z-0">
-                    <!-- Animated Bar -->
+                  <div v-if="!['startTime', 'finishTime'].includes(key)"
+                    class="absolute inset-y-0.5 left-1 right-1 z-0">
                     <div class="h-full rounded bg-white/10 transition-all duration-700 ease-out"
                       :style="{ width: getBarPercent(lap[key], race.stats[key].min, race.stats[key].max) + '%' }">
                     </div>
                   </div>
 
                   <!-- Content -->
-                  <div class="relative z-10 flex justify-between items-center space-x-2">
+                  <div class="relative z-10 flex justify-between items-center space-x-1 md:space-x-2">
                     <span v-if="['startTime', 'finishTime'].includes(key)">{{ formatTime(lap[key]) }}</span>
                     <span v-else>{{ formatValue(lap[key]) }}</span>
 
                     <!-- Diff -->
                     <span
                       v-if="!['startTime', 'finishTime'].includes(key) && getDiff(lap, race.sortedLaps, key, idx) !== null"
-                      class="text-xs font-bold" :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
+                      class="text-[9px] md:text-xs font-bold"
+                      :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
                       {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatValue(getDiff(lap,
                         race.sortedLaps, key, idx)) }}
                     </span>

@@ -6,6 +6,7 @@ import { useSettingsStore } from './settings'
 import { API_BASE_URL, WS_URL } from '../config'
 import { updateRaceSessions } from '../utils/raceAnalytics'
 import { api, decodeMsgpack, socketMsgpackOptions } from '../utils/msgpack'
+import { scalePacket } from '../utils/unitConversions'
 
 export const useTelemetryStore = defineStore('telemetry', () => {
     const socket = ref(null)
@@ -27,6 +28,11 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const history = shallowRef([]) // Array of pre-scaled { timestamp, ...data }
     const lastChartUpdate = ref(0)
     const lapHistory = ref([]) // Array of lap data (sequential for backup)
+    const chartZoomRequest = ref(null) // { start: ms, end: ms, id: number }
+
+    function requestChartZoom(start, end) {
+        chartZoomRequest.value = { start, end, id: Date.now() }
+    }
 
     // 3. Admin / Viewing State
     const viewingCar = ref(null) // { id, carName, teamName, number }
@@ -116,51 +122,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const getDisplayName = (key) => KEY_DISPLAY_NAMES[key] || key
     const getDescription = (key) => KEY_DESCRIPTIONS[key] || ''
 
-    // Helper: Unit Conversion
-    const convertSpeed = (valMs) => {
-        if (valMs === undefined || valMs === null) return valMs
-        switch (unitSettings.value.speedUnit) {
-            case 'mph': return valMs * 2.23694
-            case 'kph': return valMs * 3.6
-            default: return valMs // m/s
-        }
-    }
-
-    const convertTemp = (valC) => {
-        if (valC === undefined || valC === null) return valC
-        switch (unitSettings.value.tempUnit) {
-            case 'f': return (valC * 9 / 5) + 32
-            default: return valC // c
-        }
-    }
-
-    // Helper: Scale a packet for display
-    const scalePacket = (pt) => {
-        const newPt = { ...pt }
-        if (newPt.speed !== undefined) newPt.speed = convertSpeed(pt.speed)
-        if (newPt.temp1 !== undefined) newPt.temp1 = convertTemp(pt.temp1)
-        if (newPt.temp2 !== undefined) newPt.temp2 = convertTemp(pt.temp2)
-
-        // Calculate V_Batt High = Voltage - V_Batt Low
-        if (newPt.voltage !== undefined && newPt.voltageLower !== undefined) {
-            newPt.voltageHigh = newPt.voltage - newPt.voltageLower
-            // V_Batt Diff = High - Low (positive if H > L)
-            newPt.voltageDiff = newPt.voltageHigh - newPt.voltageLower
-        }
-
-        // Calculate Temp Diff = |temp1 - temp2|
-        if (newPt.temp1 !== undefined && newPt.temp2 !== undefined) {
-            newPt.tempDiff = Math.abs(newPt.temp1 - newPt.temp2)
-        }
-
-        return Object.freeze(newPt)
-    }
+    // Wrapper to inject current unitSettings into scalePacket
+    const scalePacketWithUnits = (pt) => scalePacket(pt, unitSettings.value)
 
     // Computed: Display Live Data (Converted Units)
     const displayLiveData = computed(() => {
         const pt = liveData.value
         if (!pt) return {}
-        return scalePacket(pt)
+        return scalePacketWithUnits(pt)
     })
 
 
@@ -344,7 +313,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
             if (hasRegularData) {
                 // SCALE ON INGESTION: Store pre-scaled data in history for max performance
-                const processed = scalePacket(regularPacket)
+                const processed = scalePacketWithUnits(regularPacket)
 
                 liveData.value = processed
                 lastPacketTime.value = timestamp
@@ -603,7 +572,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
 
                 // Scale whole history for initial load
-                history.value = history.value.map(pt => scalePacket(pt))
+                history.value = history.value.map(pt => scalePacketWithUnits(pt))
 
                 // Re-process history for laps/races
                 // We must rebuild ALL race logic when history changes to ensure continuity
@@ -663,6 +632,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         graphSettings,
         unitSettings,
         getDisplayName,
-        getDescription
+        getDescription,
+        chartZoomRequest,
+        requestChartZoom
     }
 })

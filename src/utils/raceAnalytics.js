@@ -32,6 +32,9 @@ export function updateRaceSessions(sessions, packet, lastLapIndex) {
 
     const isNewRace = !currentRace || (lapNumber < lastRecordedLap) || (lapNumber === 1 && lastRecordedLap > 1)
 
+    // Helper to find track name
+    const trackName = packet.Track || packet.TrackName || packet.Course || packet.Circuit || null
+
     if (isNewRace) {
         const durationMs = Number((lapData.LL_Time || 0) * 1000)
         const startTime = Number(timestamp - durationMs)
@@ -40,6 +43,7 @@ export function updateRaceSessions(sessions, packet, lastLapIndex) {
             id: startTime,
             startTimeMs: startTime,
             startTimeIso: new Date(startTime).toISOString(),
+            trackName: trackName, // Store track name if available
             laps: {}
         }
         currentRace = sessions[startTime]
@@ -48,6 +52,11 @@ export function updateRaceSessions(sessions, packet, lastLapIndex) {
         // Chain to previous lap finish time
         const prevLap = currentRace.laps[lapNumber - 1]
         lapData.startTime = prevLap ? prevLap.finishTime : currentRace.startTimeMs
+
+        // Update track name if it was missing and now appears
+        if (!currentRace.trackName && trackName) {
+            currentRace.trackName = trackName
+        }
     }
 
     // Store lap

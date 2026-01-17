@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
+import { useTelemetryStore } from '../stores/telemetry'
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart } from "echarts/charts";
@@ -27,6 +28,35 @@ const props = defineProps({
     type: String,
     required: true
   }
+})
+
+const telemetry = useTelemetryStore()
+const chartRef = ref(null)
+
+const processZoom = () => {
+  const req = telemetry.chartZoomRequest
+  if (req && chartRef.value) {
+    chartRef.value.dispatchAction({
+      type: 'dataZoom',
+      startValue: req.start,
+      endValue: req.end
+    })
+    telemetry.chartZoomRequest = null // Consume request
+  }
+}
+
+// Watch for zoom requests from other components
+watch(() => telemetry.chartZoomRequest, (req) => {
+  if (req) {
+    // specific check to avoid loops or errors if ref not ready
+    processZoom()
+  }
+})
+
+
+onMounted(() => {
+  // Check for pending request on mount
+  processZoom()
 })
 
 const option = computed(() => {
@@ -90,7 +120,7 @@ const option = computed(() => {
 <template>
   <div class="h-12 bg-neutral-900 border-b border-neutral-800 flex items-center w-full px-4">
     <div class="w-full h-full">
-      <VChart class="w-full h-full" :option="option" autoresize :group="group" />
+      <VChart ref="chartRef" class="w-full h-full" :option="option" autoresize :group="group" />
     </div>
   </div>
 </template>
