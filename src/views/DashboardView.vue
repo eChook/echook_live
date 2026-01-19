@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, computed, shallowRef } from 'vue'
+import { onMounted, onUnmounted, ref, computed, shallowRef, defineAsyncComponent } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
@@ -7,12 +7,12 @@ import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
 import draggable from 'vuedraggable'
 
-// Tabs
-import GraphTab from '../components/tabs/GraphTab.vue'
-import MapTab from '../components/tabs/MapTab.vue'
-import LapsTab from '../components/tabs/LapsTab.vue'
-import SettingsTab from '../components/tabs/SettingsTab.vue'
-import AdminTab from '../components/tabs/AdminTab.vue'
+// Tabs (Lazy Loaded)
+const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.vue'))
+const MapTab = defineAsyncComponent(() => import('../components/tabs/MapTab.vue'))
+const LapsTab = defineAsyncComponent(() => import('../components/tabs/LapsTab.vue'))
+const SettingsTab = defineAsyncComponent(() => import('../components/tabs/SettingsTab.vue'))
+const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.vue'))
 
 // Icons
 import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'

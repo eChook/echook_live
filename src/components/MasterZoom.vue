@@ -56,7 +56,10 @@ watch(() => telemetry.chartZoomRequest, (req) => {
 
 onMounted(() => {
   // Check for pending request on mount
-  processZoom()
+  // Use requestAnimationFrame to avoid "Layout was forced" warnings by ensuring DOM is ready
+  requestAnimationFrame(() => {
+    processZoom()
+  })
 })
 
 const option = computed(() => {

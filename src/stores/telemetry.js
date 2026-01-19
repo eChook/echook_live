@@ -280,6 +280,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
             // Decode MessagePack buffer
             const packet = decodeMsgpack(rawData)
+
+            // Auto-cast all numeric-like strings to numbers
+            Object.keys(packet).forEach(key => {
+                const val = packet[key]
+                if (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '') {
+                    packet[key] = Number(val)
+                }
+            })
             // console.log('New Data Packet', packet)
             // Prefer server/packet timestamp to align with history
             const timestamp = packet.timestamp || packet.updated || Date.now()

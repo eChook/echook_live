@@ -18,9 +18,9 @@
         </div>
 
         <!-- Main Content Area -->
-        <div class="flex-1 overflow-y-auto p-8">
+        <div class="flex-1 flex flex-col overflow-hidden relative">
             <!-- Active Cars Panel -->
-            <div v-if="currentTab === 'cars'" class="space-y-6">
+            <div v-if="currentTab === 'cars'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-medium text-white">Active Cars ({{ adminStore.activeCars.length }})</h3>
                     <button @click="refreshCars" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
@@ -70,7 +70,7 @@
             </div>
 
             <!-- Users Panel -->
-            <div v-else-if="currentTab === 'users'" class="space-y-6">
+            <div v-else-if="currentTab === 'users'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-medium text-white">All Users ({{ adminStore.users.length }})</h3>
                     <button @click="refreshUsers" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
@@ -122,7 +122,7 @@
                         <tbody class="divide-y divide-neutral-700">
                             <tr v-for="user in sortedUsers" :key="user.id || user._id">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">{{ user.number
-                                    }}</td>
+                                }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{{ user.car }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{{ user.team }}</td>
@@ -158,7 +158,7 @@
             </div>
 
             <!-- Emails Panel -->
-            <div v-else-if="currentTab === 'emails'" class="space-y-6">
+            <div v-else-if="currentTab === 'emails'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-medium text-white">Unique Emails</h3>
                     <button @click="refreshEmails" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
@@ -179,9 +179,14 @@
             </div>
 
             <!-- Maps Panel -->
-            <div v-else-if="currentTab === 'maps'" class="h-full">
+            <div v-else-if="currentTab === 'maps'" class="flex-1 h-full overflow-hidden">
                 <!-- Using h-full because MapsTab manages its own scrolling/layout -->
                 <AdminMapsTab />
+            </div>
+
+            <!-- Server Stats Panel -->
+            <div v-else-if="currentTab === 'stats'" class="flex-1 h-full overflow-hidden">
+                <ServerStatsTab />
             </div>
         </div>
 
@@ -209,11 +214,13 @@ import {
     EyeIcon,
     PencilSquareIcon,
     TrashIcon,
-    MapIcon
+    MapIcon,
+    ChartBarIcon
 } from '@heroicons/vue/24/outline'
 import UserEditModal from '../UserEditModal.vue'
 import ConfirmationModal from '../ui/ConfirmationModal.vue'
 import AdminMapsTab from './AdminMapsTab.vue'
+import ServerStatsTab from './ServerStatsTab.vue'
 
 const adminStore = useAdminStore()
 const telemetry = useTelemetryStore()
@@ -224,6 +231,7 @@ const tabs = [
     { id: 'users', name: 'Users', icon: UsersIcon },
     { id: 'emails', name: 'Emails', icon: EnvelopeIcon },
     { id: 'maps', name: 'Maps', icon: MapIcon },
+    { id: 'stats', name: 'Server Stats', icon: ChartBarIcon },
 ]
 const currentTab = ref('cars')
 

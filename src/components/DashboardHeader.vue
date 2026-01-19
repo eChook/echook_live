@@ -72,7 +72,13 @@ const dontAskAgain = ref(false)
 
 const formatTime = (ts) => {
   if (!ts) return '--/--'
-  return new Date(ts).toLocaleString('en-GB', {
+  // Ensure ts is a number (Date constructor with string timestamp like "123456" is invalid)
+  const date = new Date(Number(ts))
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid timestamp for header:', ts)
+    return '--/--'
+  }
+  return date.toLocaleString('en-GB', {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit'
   })
@@ -416,7 +422,8 @@ async function confirmResetToLive() {
             <!-- Calendar -->
             <div class="flex flex-col">
               <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
-              <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2">
+              <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2 cursor-help"
+                title="After 10 days the data resolution is reduced to 10s. Depending on database size and server storage, it will be deleted at a later date.">
                 <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
                 Data stored on the server is not permanent.
               </p>

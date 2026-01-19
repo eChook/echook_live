@@ -45,6 +45,10 @@ const props = defineProps({
   group: {
     type: String,
     default: 'telemetry'
+  },
+  showLaps: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -59,7 +63,7 @@ const getDisplayUnit = (key) => {
 
 const option = computed(() => {
   const showGrid = telemetry.graphSettings.showGrid
-  const showHighlights = telemetry.graphSettings.showLapHighlights
+  const showHighlights = props.showLaps && telemetry.graphSettings.showLapHighlights
 
   return {
     animation: telemetry.graphSettings.showAnimations,
@@ -157,10 +161,9 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div
-    class="relative overflow-hidden"
-    :style="{ height: telemetry.graphSettings.graphHeight + 'px' }">
-    <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{ telemetry.getDisplayName(dataKey) }}</h3>
+  <div class="relative overflow-hidden" :style="{ height: telemetry.graphSettings.graphHeight + 'px' }">
+    <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{
+      telemetry.getDisplayName(dataKey) }}</h3>
     <VChart class="w-full h-full" :option="option" autoresize :group="group" />
   </div>
 </template>

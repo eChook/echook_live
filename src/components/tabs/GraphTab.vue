@@ -29,14 +29,26 @@ const toggleMetrics = () => {
   showMetrics.value = !showMetrics.value
 }
 
-const colors = [
-  '#2dd4bf', // teal-400
-  '#f472b6', // pink-400
-  '#fbbf24', // amber-400
-  '#60a5fa', // blue-400
-  '#a78bfa', // violet-400
-  '#34d399', // emerald-400
-  '#f87171', // red-400
+const metricColors = {
+  speed: '#2dd4bf', // teal-400
+  rpm: '#fbbf24', // amber-400
+  current: '#f87171', // red-400
+  voltage: '#34d399', // emerald-400
+  throttle: '#60a5fa', // blue-400
+  temp1: '#fb923c', // orange-400
+  temp2: '#f97316', // orange-500
+  ampH: '#a78bfa', // violet-400
+  gear: '#818cf8', // indigo-400
+  brake: '#f43f5e', // rose-500
+  voltageLower: '#10b981', // emerald-500
+  voltageHigh: '#059669', // emerald-600
+  voltageDiff: '#047857', // emerald-700
+  tempDiff: '#c2410c' // orange-700
+}
+
+const fallbackColors = [
+  '#2dd4bf', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa',
+  '#34d399', '#f87171', '#818cf8', '#fb923c'
 ]
 
 const toggleKey = (key) => {
@@ -50,13 +62,22 @@ const toggleKey = (key) => {
 }
 
 const getColor = (key) => {
-  const index = telemetry.availableKeys.indexOf(key)
-  return colors[index % colors.length]
+  if (metricColors[key]) return metricColors[key]
+
+  // Deterministic fallback based on key string
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % fallbackColors.length
+  return fallbackColors[index]
 }
 
 // Ensure charts are connected when this tab mounts
 onMounted(() => {
-  connect(CHART_GROUP)
+  requestAnimationFrame(() => {
+    connect(CHART_GROUP)
+  })
 })
 </script>
 

@@ -8,6 +8,9 @@ export const useAdminStore = defineStore('admin', () => {
     const activeCars = ref([])
     const emails = ref([])
     const tracks = ref([])
+    const serverStats = ref(null)
+    const serverStatsHistory = ref([])
+    const isStatsLoading = ref(false)
     const isLoading = ref(false)
     const error = ref(null)
 
@@ -138,12 +141,32 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
+    async function fetchServerStats(limit = 100) {
+        isStatsLoading.value = true
+        try {
+            const res = await api.get('/admin/stats', { params: { limit } })
+            console.log('Server Stats Response:', res.data) // Debug log
+            // Separate history from current/uptime
+            const { history, ...rest } = res.data
+            serverStats.value = rest
+            serverStatsHistory.value = history
+        } catch (e) {
+            error.value = e.message
+            console.error('Fetch server stats failed', e)
+        } finally {
+            isStatsLoading.value = false
+        }
+    }
+
     return {
         users,
         activeCars,
         emails,
         isLoading,
         error,
+        serverStats,
+        serverStatsHistory,
+        isStatsLoading,
         fetchUsers,
         fetchActiveCars,
         fetchEmails,
@@ -155,6 +178,7 @@ export const useAdminStore = defineStore('admin', () => {
         fetchTracks,
         addTrack,
         updateTrack,
-        deleteTrack
+        deleteTrack,
+        fetchServerStats
     }
 })
