@@ -30,6 +30,9 @@ const props = defineProps({
   }
 })
 
+// Import connect REMOVED (reverting to handle in parent)
+// import { connect } from 'echarts/core'
+
 const telemetry = useTelemetryStore()
 const chartRef = ref(null)
 
@@ -53,7 +56,6 @@ watch(() => telemetry.chartZoomRequest, (req) => {
   }
 })
 
-
 onMounted(() => {
   // Check for pending request on mount
   // Use requestAnimationFrame to avoid "Layout was forced" warnings by ensuring DOM is ready
@@ -68,9 +70,9 @@ const option = computed(() => {
     grid: {
       left: 60,
       right: 20,
-      top: 0,
-      bottom: 0,
-      height: 40
+      top: 5,
+      bottom: 35, // Space for slider
+      // height: 40 // Let it auto-calculate
     },
     xAxis: {
       type: 'time',
@@ -78,7 +80,8 @@ const option = computed(() => {
       axisLabel: {
         show: true,
         formatter: '{HH}:{mm}:{ss}',
-        color: '#a3a3a3'
+        color: '#a3a3a3',
+        margin: 8
       },
       axisTick: { show: false },
       axisLine: { show: false },
@@ -86,14 +89,16 @@ const option = computed(() => {
     },
     yAxis: {
       type: 'value',
-      show: false
+      show: false,
+      min: 0,
+      max: 1
     },
     dataZoom: [
       {
         type: 'slider',
         xAxisIndex: 0,
         filterMode: 'empty',
-        height: 30,
+        height: 30, // Restored height
         bottom: 5,
         borderColor: '#404040',
         textStyle: { color: '#a3a3a3' },
@@ -121,7 +126,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div class="h-12 bg-neutral-900 border-b border-neutral-800 flex items-center w-full px-4">
+  <div class="h-16 bg-neutral-900 border-b border-neutral-800 flex items-center w-full px-4">
     <div class="w-full h-full">
       <VChart ref="chartRef" class="w-full h-full" :option="option" autoresize :group="group" />
     </div>

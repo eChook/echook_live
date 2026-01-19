@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import { connect } from 'echarts/core'
@@ -75,6 +75,22 @@ const getColor = (key) => {
 
 // Ensure charts are connected when this tab mounts
 onMounted(() => {
+  requestAnimationFrame(() => {
+    connect(CHART_GROUP)
+  })
+})
+
+// Re-connect when MasterZoom mounts (when history > 0)
+watch(() => telemetry.history.length > 0, (hasHistory) => {
+  if (hasHistory) {
+    requestAnimationFrame(() => {
+      connect(CHART_GROUP)
+    })
+  }
+})
+
+// Re-establish connection when tab becomes active
+onActivated(() => {
   requestAnimationFrame(() => {
     connect(CHART_GROUP)
   })

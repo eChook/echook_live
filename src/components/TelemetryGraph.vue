@@ -34,6 +34,10 @@ const props = defineProps({
     type: Array,
     required: true
   },
+  height: {
+    type: [String, Number],
+    default: null
+  },
   dataKey: {
     type: String,
     required: true
@@ -47,6 +51,10 @@ const props = defineProps({
     default: 'telemetry'
   },
   showLaps: {
+    type: Boolean,
+    default: true
+  },
+  showTitle: {
     type: Boolean,
     default: true
   }
@@ -161,8 +169,9 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden" :style="{ height: telemetry.graphSettings.graphHeight + 'px' }">
-    <h3 class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{
+  <div class="relative overflow-hidden"
+    :style="{ height: height ? (typeof height === 'number' ? height + 'px' : height) : telemetry.graphSettings.graphHeight + 'px' }">
+    <h3 v-if="showTitle" class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{
       telemetry.getDisplayName(dataKey) }}</h3>
     <VChart class="w-full h-full" :option="option" autoresize :group="group" />
   </div>

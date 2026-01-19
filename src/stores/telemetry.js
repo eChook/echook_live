@@ -554,10 +554,21 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 const dataMap = new Map()
 
                 // Normalize incoming
-                const incoming = fullHistory.map(pt => Object.freeze({
-                    ...pt,
-                    timestamp: pt.timestamp || pt.updated
-                })).filter(pt => pt.timestamp) // Ensure timestamp exists
+                const incoming = fullHistory.map(pt => {
+                    // Auto-cast strings to numbers (same as websocket)
+                    const castPt = { ...pt }
+                    Object.keys(castPt).forEach(key => {
+                        const val = castPt[key]
+                        if (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '') {
+                            castPt[key] = Number(val)
+                        }
+                    })
+
+                    return Object.freeze({
+                        ...castPt,
+                        timestamp: castPt.timestamp || castPt.updated
+                    })
+                }).filter(pt => pt.timestamp) // Ensure timestamp exists
 
                 console.log('After normalization:', {
                     incomingLength: incoming.length,

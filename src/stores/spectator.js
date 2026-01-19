@@ -35,7 +35,8 @@ export const useSpectatorStore = defineStore('spectator', () => {
             console.log('Connected to /public namespace')
             isConnecting.value = false
             // If we were supposed to be joined to a track, re-join on reconnect
-            if (currentTrack.value) {
+            if (currentTrack.value && currentTrack.value !== null) {
+                console.log(`Attempting to join track: ${currentTrack.value}`)
                 publicSocket.value.emit('joinTrack', currentTrack.value)
             }
         })
