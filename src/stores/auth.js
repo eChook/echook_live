@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authApi } from '../utils/msgpack'
+import { authApi, api } from '../utils/msgpack'
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref(null)
@@ -47,11 +47,37 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function requestVerificationCode() {
+        try {
+            const response = await api.post('/account/request-code', null, { withCredentials: true })
+            if (response.data.success) {
+                return { success: true, message: response.data.message }
+            }
+            return { success: false, error: response.data.message || 'Failed to request code' }
+        } catch (error) {
+            return { success: false, error: error.response?.data?.message || 'Request failed' }
+        }
+    }
+
+    async function updateProfile(data) {
+        try {
+            const response = await api.post('/account/update', data, { withCredentials: true })
+            if (response.data.success && response.data.user) {
+                user.value = response.data.user
+                return { success: true }
+            }
+            return { success: false, error: response.data.message || 'Update failed' }
+        } catch (error) {
+            console.error('Update profile failed', error)
+            return { success: false, error: error.response?.data?.message || 'Update failed' }
+        }
+    }
+
     function logout() {
         user.value = null
     }
 
-    return { user, isAuthenticated, login, register, logout, checkSession }
+    return { user, isAuthenticated, login, register, logout, checkSession, updateProfile, requestVerificationCode }
 }, {
     persist: true
 })

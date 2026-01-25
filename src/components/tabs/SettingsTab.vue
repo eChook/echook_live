@@ -3,14 +3,18 @@ import { computed, ref } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
-import { Switch, SwitchGroup, SwitchLabel, Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
+import { Switch, SwitchGroup, SwitchLabel, Menu, MenuButton, MenuItems, MenuItem, Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import {
   ClipboardDocumentCheckIcon,
   ClipboardDocumentIcon,
   EllipsisVerticalIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ArrowPathIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
@@ -51,12 +55,80 @@ const handleFileLoad = (event) => {
 }
 
 // Account
-const carName = computed(() => auth.user ? auth.user.car : 'Guest')
-// Mock car number for now, or link to auth store if avail
-const carNumber = computed({
-  get: () => auth.user ? auth.user.number : '00',
-  set: (val) => { /* No-op for now unless we add update endpoint */ }
+// Account Form
+const isSaving = ref(false)
+const form = ref({
+  car: '',
+  number: '',
+  team: '',
+  email: '',
+  publicOptOut: false
 })
+
+// Initialize form from auth store
+import { watchEffect } from 'vue'
+watchEffect(() => {
+  if (auth.user) {
+    form.value.car = auth.user.car || ''
+    form.value.number = auth.user.number || ''
+    form.value.team = auth.user.team || ''
+    form.value.email = auth.user.email || ''
+    form.value.publicOptOut = auth.user.publicOptOut || false
+  }
+})
+
+const saveProfile = async () => {
+  isSaving.value = true
+  const res = await auth.requestVerificationCode()
+  isSaving.value = false
+
+  if (res.success) {
+    isVerificationModalOpen.value = true
+    verificationError.value = ''
+    verificationCode.value = ''
+  } else {
+    showMessage('Request Failed', 'Failed to request code: ' + res.error, 'error')
+  }
+}
+
+// Verification Modal
+const isVerificationModalOpen = ref(false)
+const verificationCode = ref('')
+const verificationError = ref('')
+const isVerifying = ref(false)
+
+const submitVerification = async () => {
+  if (!verificationCode.value || verificationCode.value.length < 6) {
+    verificationError.value = 'Please enter a valid 6-digit code.'
+    return
+  }
+
+  isVerifying.value = true
+  const updateData = { ...form.value, code: verificationCode.value }
+
+  const res = await auth.updateProfile(updateData)
+  isVerifying.value = false
+
+  if (res.success) {
+    isVerificationModalOpen.value = false
+    showMessage('Success', 'Profile updated successfully!', 'success')
+  } else {
+    verificationError.value = res.error
+  }
+}
+
+// Message Modal
+const isMessageModalOpen = ref(false)
+const messageTitle = ref('')
+const messageBody = ref('')
+const messageType = ref('info') // success, error, info
+
+const showMessage = (title, message, type = 'info') => {
+  messageTitle.value = title
+  messageBody.value = message
+  messageType.value = type
+  isMessageModalOpen.value = true
+}
 
 // Copied states
 const copiedId = ref(false)
@@ -135,23 +207,62 @@ const wsUrl = 'ws://localhost:3000'
       <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
         <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Account</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Car Name -->
           <div>
             <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Car Name</label>
-            <div
-              class="text-white font-mono bg-neutral-900 px-3 py-2 rounded border border-neutral-700 opacity-75 cursor-not-allowed">
-              {{ carName }}
-            </div>
+            <input v-model="form.car" type="text"
+              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              placeholder="Enter car name..." />
           </div>
+          <!-- Car Number -->
           <div>
             <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Car Number</label>
-            <input v-model="carNumber" type="text"
+            <input v-model="form.number" type="text"
               class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter car number..." />
+          </div>
+          <!-- Team Name -->
+          <div>
+            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Team Name</label>
+            <input v-model="form.team" type="text"
+              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              placeholder="Enter team name..." />
+          </div>
+
+          <!-- Opt-Out Toggle -->
+          <div class="col-span-1 md:col-span-2">
+            <SwitchGroup>
+              <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                  <SwitchLabel class="text-sm font-medium text-gray-300">Spectator View Opt-Out</SwitchLabel>
+                  <span class="text-s text-gray-500 mt-1">
+                    {{ form.publicOptOut ? 'Opted Out :(' : 'Opted In :)' }}
+                  </span>
+                  <span class="text-xs text-gray-500 mt-1 max-w-lg">
+                    If there are three or more cars opted in on the same known track, their speed and location will be
+                    visible in the public spectator view. This is no more than would be visible to a spectator at the
+                    track. (We'd really appreciate it if you don't opt out!)
+                  </span>
+                </div>
+                <Switch v-model="form.publicOptOut"
+                  :class="form.publicOptOut ? 'bg-red-900 ring-1 ring-red-500' : 'bg-neutral-600'"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-neutral-900">
+                  <span :class="form.publicOptOut ? 'translate-x-6' : 'translate-x-1'"
+                    class="inline-block h-4 w-4 transform rounded-full bg-white transition" />
+                </Switch>
+              </div>
+            </SwitchGroup>
           </div>
         </div>
 
         <!-- Account Actions -->
-        <div class="mt-6 flex space-x-4">
+        <div class="mt-6 flex space-x-4 border-t border-neutral-700 pt-4">
+          <button @click="saveProfile" :disabled="isSaving"
+            class="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded transition text-sm font-bold flex items-center">
+            <ArrowPathIcon v-if="isSaving" class="mr-2 h-4 w-4 animate-spin" />
+            {{ isSaving ? 'Saving...' : 'Save Changes' }}
+          </button>
+          <div class="flex-1"></div>
           <button
             class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium">
             Change Password
@@ -353,5 +464,112 @@ const wsUrl = 'ws://localhost:3000'
       </section>
 
     </div>
+
+    <!-- Verification Modal -->
+    <TransitionRoot appear :show="isVerificationModalOpen" as="template">
+      <Dialog as="div" @close="isVerificationModalOpen = false" class="relative z-50">
+        <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0" enter-to="opacity-100"
+          leave="duration-200 ease-in" leave-from="opacity-100" leave-to="opacity-0">
+          <div class="fixed inset-0 bg-black/75" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 overflow-y-auto">
+          <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0 scale-95"
+              enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
+              leave-to="opacity-0 scale-95">
+              <DialogPanel
+                class="w-full max-w-md transform overflow-hidden rounded-2xl bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-neutral-700">
+                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-white mb-2">
+                  Verify Account Update
+                </DialogTitle>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-300 mb-4">
+                    A 6-digit verification code has been sent to your email address. Please enter it below to confirm
+                    your
+                    changes. This code is valid for 10 minutes.
+                  </p>
+
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Verification Code</label>
+                      <input v-model="verificationCode" type="text" maxlength="6"
+                        class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none tracking-widest text-center text-lg font-mono"
+                        placeholder="000000" />
+                    </div>
+                    <p v-if="verificationError" class="text-sm text-red-400 font-medium animate-pulse">
+                      {{ verificationError }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                  <button type="button" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition"
+                    @click="isVerificationModalOpen = false">
+                    Cancel
+                  </button>
+                  <button type="button"
+                    class="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded transition text-sm font-bold flex items-center"
+                    @click="submitVerification" :disabled="isVerifying">
+                    <ArrowPathIcon v-if="isVerifying" class="mr-2 h-4 w-4 animate-spin" />
+                    {{ isVerifying ? 'Verifying...' : 'Submit' }}
+                  </button>
+                </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
+
+    <!-- Message Modal -->
+    <TransitionRoot appear :show="isMessageModalOpen" as="template">
+      <Dialog as="div" @close="isMessageModalOpen = false" class="relative z-50">
+        <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0" enter-to="opacity-100"
+          leave="duration-200 ease-in" leave-from="opacity-100" leave-to="opacity-0">
+          <div class="fixed inset-0 bg-black/75" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 overflow-y-auto">
+          <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0 scale-95"
+              enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
+              leave-to="opacity-0 scale-95">
+              <DialogPanel
+                class="w-full max-w-sm transform overflow-hidden rounded-2xl bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-neutral-700">
+                <div class="flex items-center space-x-3 mb-4">
+                  <div v-if="messageType === 'success'" class="p-2 bg-green-500/20 rounded-full">
+                    <CheckCircleIcon class="w-6 h-6 text-green-500" />
+                  </div>
+                  <div v-else-if="messageType === 'error'" class="p-2 bg-red-500/20 rounded-full">
+                    <XCircleIcon class="w-6 h-6 text-red-500" />
+                  </div>
+                  <div v-else class="p-2 bg-primary/20 rounded-full">
+                    <InformationCircleIcon class="w-6 h-6 text-primary" />
+                  </div>
+                  <DialogTitle as="h3" class="text-lg font-medium leading-6 text-white">
+                    {{ messageTitle }}
+                  </DialogTitle>
+                </div>
+
+                <div class="mt-2">
+                  <p class="text-sm text-gray-300">
+                    {{ messageBody }}
+                  </p>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                  <button type="button"
+                    class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium"
+                    @click="isMessageModalOpen = false">
+                    Close
+                  </button>
+                </div>
+              </DialogPanel>
+            </TransitionChild>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </div>
 </template>

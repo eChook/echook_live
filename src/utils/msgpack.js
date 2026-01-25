@@ -48,6 +48,18 @@ export const api = axios.create({
         if (data.byteLength === 0) return null
 
         try {
+            // Check for JSON-like start bytes: '{' (123) or '[' (91)
+            // msgpack-lite treats these as positive fixints, so we must check for JSON first
+            const firstByte = new Uint8Array(data, 0, 1)[0]
+            if (firstByte === 123 || firstByte === 91) {
+                try {
+                    const text = new TextDecoder().decode(data)
+                    return JSON.parse(text)
+                } catch {
+                    // Not valid JSON, continue to msgpack decode
+                }
+            }
+
             const decoded = decodeMsgpack(data)
             return decoded
         } catch (e) {
@@ -82,6 +94,14 @@ export const authApi = axios.create({
     transformResponse: [(data) => {
         if (!data || data.byteLength === 0) return null
         try {
+            const firstByte = new Uint8Array(data, 0, 1)[0]
+            if (firstByte === 123 || firstByte === 91) {
+                try {
+                    return JSON.parse(new TextDecoder().decode(data))
+                } catch {
+                    // ignore
+                }
+            }
             return decodeMsgpack(data)
         } catch {
             return JSON.parse(new TextDecoder().decode(data))
