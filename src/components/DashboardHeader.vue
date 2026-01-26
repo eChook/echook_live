@@ -113,7 +113,7 @@ const isViewingOther = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (telemetry.history.length === 0) return 'Waiting for Data...'
+  if (telemetry.history.length === 0) return 'Waiting for Data... '
   // ... rest of logic
   const start = formatTime(telemetry.earliestTime)
   let end = 'Live'
@@ -266,9 +266,10 @@ async function confirmResetToLive() {
         eC
       </div>
       <!-- Desktop: Full logo -->
-      <div class="hidden lg:block font-bold text-xl text-white tracking-tight">
+      <router-link to="/login"
+        class="hidden lg:block font-bold text-xl text-white tracking-tight hover:opacity-80 transition cursor-pointer">
         <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Telemetry</span>
-      </div>
+      </router-link>
       <div class="h-6 w-px bg-neutral-700 hidden lg:block"></div>
       <!-- Car Info Display - condensed on mobile -->
       <div v-if="displayedCar" class="flex flex-col">

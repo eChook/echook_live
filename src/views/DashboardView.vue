@@ -91,7 +91,7 @@ onUnmounted(() => {
         </template>
       </draggable>
       <div v-if="orderedKeys.length === 0" class="text-gray-500 text-sm italic">
-        Waiting for telemetry data...
+        Waiting for telemetry data... (You can load historic data from the "Loaded Data" box)
       </div>
     </div>
 

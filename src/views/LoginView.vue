@@ -55,7 +55,21 @@ const handleLogin = async () => {
     backgroundRepeat: 'no-repeat'
   }">
     <PublicHeader />
-    <div class="flex-1 flex items-center justify-center pt-16 px-4">
+    <div class="flex-1 flex flex-col items-center justify-center pt-16 px-4">
+
+      <!-- Welcome Card -->
+      <div class="bg-neutral-800 rounded-xl shadow-2xl border border-neutral-700 p-8 w-full max-w-4xl mb-8 text-center">
+        <h2 class="text-2xl font-bold text-white mb-4">Welcome to the new eChook Live Telemetry Portal</h2>
+        <p class="text-gray-300 mb-6 max-w-2xl mx-auto">
+          This service is in beta and we hope to iron out any bugs before the season start. To that end, if you have any
+          feedback, positive or negative, we'd really appreciate it.
+        </p>
+        <a href="https://forms.gle/gdL29NHoqkQCFUPw8" target="_blank"
+          class="inline-block px-6 py-3 bg-neutral-700 hover:bg-neutral-600 border border-neutral-600 text-white font-medium rounded-lg transition transform active:scale-95 text-sm">
+          Give Feedback
+        </a>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
 
         <!-- Login Panel -->
@@ -67,7 +81,21 @@ const handleLogin = async () => {
             {{ error }}
           </div>
 
-          <form @submit.prevent="handleLogin" class="space-y-5">
+          <div v-if="auth.isAuthenticated" class="text-center py-8">
+            <p class="text-gray-300 mb-6">
+              You are currently logged in as <span class="text-primary font-bold">{{ auth.user?.carName ||
+                auth.user?.car || 'Unknown' }}</span>.
+            </p>
+            <router-link to="/"
+              class="inline-block w-full bg-primary hover:opacity-90 text-white font-bold py-3 rounded-lg transition transform active:scale-95">
+              View Data
+            </router-link>
+            <button @click="auth.logout()" class="mt-4 text-sm text-gray-500 hover:text-white transition">
+              Log Out
+            </button>
+          </div>
+
+          <form v-else @submit.prevent="handleLogin" class="space-y-5">
             <div>
               <label class="block mb-2 text-sm font-medium text-gray-400">Car Name</label>
               <input v-model="car" type="text" required
@@ -109,6 +137,11 @@ const handleLogin = async () => {
               <span class="font-bold text-white group-hover:text-blue-400 transition">{{ track }}</span>
               <span class="text-xs px-2 py-1 bg-green-900 text-green-200 rounded-full animate-pulse">LIVE</span>
             </button>
+          </div>
+
+          <div class="mt-4 pt-4 border-t border-neutral-700 text-xs text-gray-500 text-center leading-relaxed">
+            Spectate is available if 3 or more cars are at the same track, and shows competitors location and speed. Opt
+            out is available in the settings tab.
           </div>
         </div>
 

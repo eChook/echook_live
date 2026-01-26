@@ -22,8 +22,7 @@ onMounted(() => {
         <div class="flex items-center space-x-4">
             <router-link to="/login"
                 class="font-bold text-xl text-white tracking-tight hover:opacity-80 transition cursor-pointer">
-                <span class="font-oswald tracking-normal text-2xl">eChook</span><span
-                    class="text-primary">Telemetry</span>
+                <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Live</span>
             </router-link>
         </div>
 
@@ -32,17 +31,17 @@ onMounted(() => {
             <div class="flex items-center space-x-2">
                 <BoltIcon class="w-5 h-5 text-primary" />
                 <span>Active Cars: <span class="text-white font-bold">{{ spectatorStore.serverStats.activeCars
-                }}</span></span>
+                        }}</span></span>
             </div>
             <div class="flex items-center space-x-2">
                 <UsersIcon class="w-5 h-5 text-blue-400" />
                 <span>Pit Crews: <span class="text-white font-bold">{{ spectatorStore.serverStats.privateSpectators
-                }}</span></span>
+                        }}</span></span>
             </div>
             <div class="flex items-center space-x-2">
                 <EyeIcon class="w-5 h-5 text-green-400" />
                 <span>Spectators: <span class="text-white font-bold">{{ spectatorStore.serverStats.publicSpectators
-                }}</span></span>
+                        }}</span></span>
             </div>
         </div>
     </header>
