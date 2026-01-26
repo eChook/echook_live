@@ -150,8 +150,9 @@ const handleCopy = async (text, type) => {
 }
 
 // URLs
-const apiUrl = computed(() => `http://localhost:3000/api/get/${auth.user ? auth.user.id : ':id'}`)
-const wsUrl = 'ws://localhost:3000'
+import { API_BASE_URL, WS_URL } from '../../config'
+const apiUrl = computed(() => `${API_BASE_URL}/api/get/${auth.user ? auth.user.id : ':id'}`)
+const wsUrl = WS_URL
 
 </script>
 

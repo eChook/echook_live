@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
+import { API_BASE_URL } from '../config'
 
 export const useAdminStore = defineStore('admin', () => {
     // State
@@ -16,7 +17,7 @@ export const useAdminStore = defineStore('admin', () => {
 
     // Axios instance (reuse base but add admin prefix if needed, or just full paths)
     const api = axios.create({
-        baseURL: 'http://localhost:3000',
+        baseURL: API_BASE_URL,
         withCredentials: true
     })
 
@@ -28,7 +29,7 @@ export const useAdminStore = defineStore('admin', () => {
             users.value = res.data
         } catch (e) {
             error.value = e.message
-            console.error('Fetch users failed', e)
+            // console.error('Fetch users failed', e)
         } finally {
             isLoading.value = false
         }
@@ -41,7 +42,7 @@ export const useAdminStore = defineStore('admin', () => {
             activeCars.value = res.data
         } catch (e) {
             error.value = e.message
-            console.error('Fetch active cars failed', e)
+            // console.error('Fetch active cars failed', e)
         } finally {
             isLoading.value = false
         }
@@ -54,7 +55,7 @@ export const useAdminStore = defineStore('admin', () => {
             emails.value = res.data
         } catch (e) {
             error.value = e.message
-            console.error('Fetch emails failed', e)
+            // console.error('Fetch emails failed', e)
         } finally {
             isLoading.value = false
         }
@@ -92,11 +93,13 @@ export const useAdminStore = defineStore('admin', () => {
             tracks.value = res.data
         } catch (e) {
             error.value = e.message
-            console.error('Fetch tracks failed', e)
+            // console.error('Fetch tracks failed', e)
         } finally {
             isLoading.value = false
         }
     }
+    // ... (imports are top level, ensuring replace works)
+
 
     async function addTrack(trackData) {
         try {
@@ -145,7 +148,7 @@ export const useAdminStore = defineStore('admin', () => {
         isStatsLoading.value = true
         try {
             const res = await api.get('/admin/stats', { params: { limit } })
-            console.log('Server Stats Response:', res.data) // Debug log
+            // console.log('Server Stats Response:', res.data) // Debug log
             // Separate history from current/uptime
             const { history, ...rest } = res.data
             serverStats.value = rest

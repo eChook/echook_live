@@ -32,7 +32,7 @@ export const useSpectatorStore = defineStore('spectator', () => {
         })
 
         publicSocket.value.on('connect', () => {
-            console.log('Connected to /public namespace')
+            // console.log('Connected to /public namespace')
             isConnecting.value = false
             // If we were supposed to be joined to a track, re-join on reconnect
             if (currentTrack.value && currentTrack.value !== null) {
@@ -43,7 +43,7 @@ export const useSpectatorStore = defineStore('spectator', () => {
 
         publicSocket.value.on('trackList', (rawData) => {
             const tracks = decodeMsgpack(rawData)
-            console.log('Received track list:', tracks)
+            // console.log('Received track list:', tracks)
             activeTracks.value = tracks
         })
 

@@ -59,7 +59,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     })
 
     watch(() => settings.unitSettings, () => {
-        console.log('Units changed, clearing history to refresh data...')
+        // console.log('Units changed, clearing history to refresh data...')
         clearHistory()
     }, { deep: true })
 
@@ -254,7 +254,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         socket.value.on('connect', () => {
             isConnected.value = true
-            console.log('Socket connected')
+            // console.log('Socket connected')
             // Join the room for the specific car if user is valid
             // Note: API doc says emit 'join' with Car ID. 
             // So use auth.user.id
