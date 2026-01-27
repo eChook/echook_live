@@ -146,6 +146,51 @@ const handleLogin = async () => {
         </div>
 
       </div>
+
+      <!-- What's New Section -->
+      <div class="mt-8 bg-neutral-800 rounded-xl shadow-2xl border border-neutral-700 p-8 w-full max-w-4xl">
+        <h2 class="text-2xl font-bold text-white mb-6 border-b border-neutral-700 pb-4">What's New?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300 text-sm">
+          <ul class="space-y-3">
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Completely rewritten UI</strong> and data management for better analysis.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Data Retention</strong> - Your car data is stored by the server and history can be
+                retrieved.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Multiple synced graphs</strong> - Select and view multiple data points
+                simultaneously.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Lap Table</strong> - Detailed breakdown of each lap.</span>
+            </li>
+          </ul>
+          <ul class="space-y-3">
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Map View</strong> - Live tracking with gradient trails showing a selectable metric.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Settings</strong> - customizable UI and account settings.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Status Monitoring</strong> - Real-time connection status for car and server.</span>
+            </li>
+            <li class="flex items-start">
+              <span class="text-primary mr-2">+</span>
+              <span><strong>Spectator Mode</strong> - Share a public Birdseye view of the race.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>
