@@ -1,6 +1,6 @@
 # eChook Live
 
-Real-time telemetry dashboard for [eChook](https://github.com/eChook) electric racing cars. Built with Vue 3 and designed for Greenpower racing teams to monitor car performance during races.
+Real-time telemetry dashboard for Greenpower electric racing cars using the eChook telemetry boards. Built with Vue 3 and designed for teams to monitor car performance during races, and analyze race data after the race.
 
 ![Vue 3](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js)
 ![Vite](https://img.shields.io/badge/Vite-7.x-646CFF?logo=vite)
