@@ -34,15 +34,17 @@ const now = ref(Date.now())
 let timer = null
 
 const lastUpdatedText = computed(() => {
+  if (telemetry.isPaused) return ''
   if (!telemetry.lastPacketTime) return 'No Data'
   const diff = Math.floor((now.value - telemetry.lastPacketTime) / 1000)
-  if (diff < 2) return 'Just Now'
+  if (diff < 10) return ''
   if (diff < 60) return `${diff}s ago`
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
   return '>1h ago'
 })
 
 const carStatusColor = computed(() => {
+  if (telemetry.isPaused) return 'bg-orange-500'
   if (!telemetry.lastPacketTime || !telemetry.isConnected) return 'bg-red-500'
   const diff = (now.value - telemetry.lastPacketTime) / 1000
   if (diff > 10) return 'bg-red-500'

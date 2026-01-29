@@ -112,7 +112,7 @@ onActivated(() => {
         </div>
 
         <div class="space-y-2">
-          <div v-for="key in telemetry.availableKeys" :key="key"
+          <div v-for="key in telemetry.graphKeys" :key="key"
             class="flex items-center space-x-3 cursor-pointer hover:bg-neutral-800 p-2 rounded transition"
             @click="toggleKey(key)">
             <div class="w-4 h-4 rounded border flex items-center justify-center transition"

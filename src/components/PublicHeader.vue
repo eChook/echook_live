@@ -27,21 +27,27 @@ onMounted(() => {
         </div>
 
         <!-- Right Side Stats -->
-        <div class="flex items-center space-x-6 text-sm text-gray-400">
-            <div class="flex items-center space-x-2">
-                <BoltIcon class="w-5 h-5 text-primary" />
-                <span>Active Cars: <span class="text-white font-bold">{{ spectatorStore.serverStats.activeCars
-                        }}</span></span>
+        <div class="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-400">
+            <div class="flex items-center space-x-1 md:space-x-2" title="Active Cars">
+                <BoltIcon class="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <span>
+                    <span class="hidden md:inline">Active Cars: </span>
+                    <span class="text-white font-bold">{{ spectatorStore.serverStats.activeCars }}</span>
+                </span>
             </div>
-            <div class="flex items-center space-x-2">
-                <UsersIcon class="w-5 h-5 text-blue-400" />
-                <span>Pit Crews: <span class="text-white font-bold">{{ spectatorStore.serverStats.privateSpectators
-                        }}</span></span>
+            <div class="flex items-center space-x-1 md:space-x-2" title="Pit Crews">
+                <UsersIcon class="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+                <span>
+                    <span class="hidden md:inline">Pit Crews: </span>
+                    <span class="text-white font-bold">{{ spectatorStore.serverStats.privateSpectators }}</span>
+                </span>
             </div>
-            <div class="flex items-center space-x-2">
-                <EyeIcon class="w-5 h-5 text-green-400" />
-                <span>Spectators: <span class="text-white font-bold">{{ spectatorStore.serverStats.publicSpectators
-                        }}</span></span>
+            <div class="flex items-center space-x-1 md:space-x-2" title="Spectators">
+                <EyeIcon class="w-4 h-4 md:w-5 md:h-5 text-green-400" />
+                <span>
+                    <span class="hidden md:inline">Spectators: </span>
+                    <span class="text-white font-bold">{{ spectatorStore.serverStats.publicSpectators }}</span>
+                </span>
             </div>
         </div>
     </header>

@@ -69,7 +69,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'voltage', 'current', 'voltageLower', 'voltageHigh', 'voltageDiff',
         'rpm', 'speed', 'throttle',
         'temp1', 'temp2', 'tempDiff', 'ampH', 'currLap',
-        'gear', 'brake', 'lon', 'lat'
+        'gear', 'brake', 'lon', 'lat', 'track'
     ])
 
     const LAP_KEYS = new Set([
@@ -94,7 +94,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         gear: 'Gear',
         brake: 'Brake',
         lat: 'Latitude',
-        lon: 'Longitude'
+        lon: 'Longitude',
+        track: 'Track'
     }
 
     // Descriptions for tooltips
@@ -115,7 +116,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         gear: 'Current gear selection',
         brake: 'Brake status (1 = engaged, 0 = released)',
         lat: 'GPS latitude coordinate',
-        lon: 'GPS longitude coordinate'
+        lon: 'GPS longitude coordinate',
+        track: 'Current track or circuit name'
     }
 
     // Helper: Get display name for a key
@@ -139,7 +141,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'speed', 'rpm', 'throttle', 'voltageLower',
         'voltageHigh', 'voltageDiff', 'gear', 'brake',
         'temp1', 'temp2', 'tempDiff',
-        'currLap', 'lat', 'lon'
+        'currLap', 'lat', 'lon', 'track'
     ]
 
     // Computed: Get array of keys present in data for UI toggles
@@ -162,6 +164,11 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         // Return in preferred order, filtering to only available keys
         return KEY_ORDER.filter(k => keys.has(k))
+    })
+
+    // Computed: Graph Keys (Available keys excluding non-plottable ones like 'track')
+    const graphKeys = computed(() => {
+        return availableKeys.value.filter(k => k !== 'track')
     })
 
     // Computed: Generate markArea data for ECharts lap highlights
@@ -448,7 +455,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const currentStart = earliestTime.value
         const newStart = currentStart - (minutes * 60 * 1000)
 
-        await fetchHistory(carId, newStart, currentStart, true) // true = prepend
+        const count = await fetchHistory(carId, newStart, currentStart, true) // true = prepend
+        if (count === 0) {
+            const { useToast } = await import('../composables/useToast')
+            const { showToast } = useToast()
+            showToast('No additional history available for this period.', 'warning')
+        }
     }
 
     // Load a specific day (clears existing)
@@ -474,7 +486,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         isPaused.value = true
         clearHistory()
 
-        await fetchHistory(carId, start, end)
+        const count = await fetchHistory(carId, start, end)
+        if (count === 0) {
+            const { useToast } = await import('../composables/useToast')
+            const { showToast } = useToast()
+            showToast('No history found for the selected period.', 'warning')
+        }
     }
 
     // Reset to Live Mode (Clear history, load recent)
@@ -501,7 +518,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     async function fetchHistory(carId, start = null, end = null, prepend = false) {
-        if (!carId) return
+        if (!carId) return 0
 
         // Default: last 30 mins if no start provided
         const startTime = start || (Date.now() - 30 * 60 * 1000)
@@ -608,8 +625,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
                 console.log(`Loaded ${incoming.length} historical points. Total: ${history.value.length}`)
             }
+            return fullHistory.length
         } catch (error) {
             console.error('Failed to fetch history:', error)
+            return 0
         }
     }
 
@@ -653,6 +672,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         maxHistoryPoints,
         graphSettings,
         unitSettings,
+        graphKeys,
         getDisplayName,
         getDescription,
         chartZoomRequest,

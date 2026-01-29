@@ -33,7 +33,7 @@ export function updateRaceSessions(sessions, packet, lastLapIndex) {
     const isNewRace = !currentRace || (lapNumber < lastRecordedLap) || (lapNumber === 1 && lastRecordedLap > 1)
 
     // Helper to find track name
-    const trackName = packet.Track || packet.TrackName || packet.Course || packet.Circuit || null
+    const trackName = packet.track || packet.Track || packet.TrackName || packet.Course || packet.Circuit || null
 
     if (isNewRace) {
         const durationMs = Number((lapData.LL_Time || 0) * 1000)

@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
-import { ChartBarIcon } from '@heroicons/vue/24/outline'
+import { useAuthStore } from '../../stores/auth'
+import { ChartBarIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
+const auth = useAuthStore()
 
 // Headers for the table
 const headers = computed(() => [
@@ -68,6 +70,21 @@ const sortedRaces = computed(() => {
     }
   })
 })
+
+// Load History Logic
+const isLoadingHistory = ref(false)
+
+async function loadExtra(minutes) {
+  const carId = telemetry.viewingCar?.id || auth.user?.id || auth.user?._id
+  if (carId) {
+    isLoadingHistory.value = true
+    try {
+      await telemetry.loadExtraHistory(carId, minutes)
+    } finally {
+      isLoadingHistory.value = false
+    }
+  }
+}
 
 const formatValue = (val) => {
   if (typeof val === 'number') {
@@ -155,7 +172,7 @@ const getBarPercent = (val, min, max) => {
 
 // Disclaimer Modal Logic
 import DisclaimerModal from '../ui/DisclaimerModal.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 
 const showDisclaimer = ref(false)
 
@@ -185,11 +202,11 @@ const handleDisclaimerConfirm = (doNotShow) => {
         <div
           class="flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 bg-neutral-900 z-20 py-1 md:py-2 border-b border-neutral-800">
           <div class="flex items-center space-x-3">
-            <h2 class="text-sm md:text-xl font-bold text-white tracking-tight flex items-center flex-wrap gap-2">
-              <span>Race:</span>
-              <span class="text-primary font-mono text-xs md:text-base">{{ formatDate(race.startTime) }}</span>
-              <span v-if="race.trackName" class="text-gray-400 text-xs md:text-base border-l border-neutral-700 pl-2">{{
-                race.trackName }}</span>
+            <h2
+              class="text-sm md:text-xl font-bold text-white tracking-tight flex items-center flex-wrap gap-2 leading-none">
+              <!-- <span>Race:</span> -->
+              <span v-if="race.trackName" class="text-white">{{ race.trackName }} </span>
+              <span class="text-primary font-mono text-xs md:text-base pt-0.5">{{ formatDate(race.startTime) }}</span>
             </h2>
             <button @click="viewSessionOnGraph(race)"
               class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
@@ -254,7 +271,33 @@ const handleDisclaimerConfirm = (doNotShow) => {
           </table>
         </div>
       </div>
+
+      <!-- History Load Buttons -->
+      <div
+        class="flex flex-col md:flex-row items-center justify-between bg-neutral-800/50 p-3 rounded-lg border border-neutral-700/50 mt-4 mb-4">
+        <div class="flex items-center space-x-2 text-xs text-gray-400 mb-2 md:mb-0">
+          <ArrowPathIcon class="w-4 h-4" :class="isLoadingHistory ? 'animate-spin text-primary' : ''" />
+          <span>Load More History:</span>
+        </div>
+        <div class="flex space-x-2 w-full md:w-auto">
+          <button @click="loadExtra(10)" :disabled="isLoadingHistory"
+            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            +10m
+          </button>
+          <button @click="loadExtra(30)" :disabled="isLoadingHistory"
+            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            +30m
+          </button>
+          <button @click="loadExtra(60)" :disabled="isLoadingHistory"
+            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            +1h
+          </button>
+        </div>
+      </div>
     </div>
+
+    <!-- History Load Buttons -->
+
 
     <DisclaimerModal :is-open="showDisclaimer" title="Disclaimer"
       message="eChook measured lap times are only accurate to within a few seconds and are no replacement for the official lap times."
