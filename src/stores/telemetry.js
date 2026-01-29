@@ -405,7 +405,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             // So here we assume if we are just toggling pause, we want to fill the gap.
 
             const lastTime = latestTime.value
-            if (lastTime && auth.user?.id) {
+            // Use viewingCar if available, fallback to auth user (though viewingCar should be set)
+            const carId = viewingCar.value?.id || auth.user?.id || auth.user?._id
+
+            if (lastTime && carId) {
                 const today = new Date().toDateString()
                 const lastDate = new Date(lastTime).toDateString()
 
@@ -415,7 +418,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                     console.log(`Resuming live... fetching gap from ${new Date(lastTime).toLocaleTimeString()} to ${new Date(now).toLocaleTimeString()}`)
 
                     // Use prepend=true to force merge strategy in fetchHistory
-                    await fetchHistory(auth.user.id, lastTime, now, true)
+                    await fetchHistory(carId, lastTime, now, true)
                 }
             }
         }
