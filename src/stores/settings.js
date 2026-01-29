@@ -26,6 +26,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const showDashboardMetrics = ref(true)
     const hideLapsDisclaimer = ref(false)
     const hideHistoryClearConfirmation = ref(false)
+    const showGraphHelp = ref(true)
     const dataCardOrder = ref([]) // User's custom order for data cards
 
     // 5. Race Records (Historical Lap Data)
@@ -43,6 +44,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (newData.showDashboardMetrics !== undefined) showDashboardMetrics.value = newData.showDashboardMetrics
         if (newData.hideLapsDisclaimer !== undefined) hideLapsDisclaimer.value = newData.hideLapsDisclaimer
         if (newData.hideHistoryClearConfirmation !== undefined) hideHistoryClearConfirmation.value = newData.hideHistoryClearConfirmation
+        if (newData.showGraphHelp !== undefined) showGraphHelp.value = newData.showGraphHelp
         if (newData.dataCardOrder) dataCardOrder.value = newData.dataCardOrder
         if (newData.races) races.value = { ...races.value, ...newData.races }
     }
@@ -56,6 +58,7 @@ export const useSettingsStore = defineStore('settings', () => {
         showDashboardMetrics,
         hideLapsDisclaimer,
         hideHistoryClearConfirmation,
+        showGraphHelp,
         dataCardOrder,
         races,
         importSettings

@@ -127,7 +127,9 @@ const option = computed(() => {
     dataZoom: [
       {
         type: 'inside',
-        xAxisIndex: 0
+        xAxisIndex: 0,
+        moveOnMouseWheel: true,
+        zoomOnMouseWheel: 'shift'
       }
     ],
     dataset: {
@@ -166,10 +168,15 @@ const option = computed(() => {
     ]
   }
 })
+const handleWheel = (e) => {
+  if (e.ctrlKey) {
+    e.stopPropagation()
+  }
+}
 </script>
 
 <template>
-  <div class="relative overflow-hidden"
+  <div class="relative overflow-hidden" @wheel.capture="handleWheel"
     :style="{ height: height ? (typeof height === 'number' ? height + 'px' : height) : telemetry.graphSettings.graphHeight + 'px' }">
     <h3 v-if="showTitle" class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{
       telemetry.getDisplayName(dataKey) }}</h3>

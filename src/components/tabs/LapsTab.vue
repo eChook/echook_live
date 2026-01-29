@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import { useAuthStore } from '../../stores/auth'
-import { ChartBarIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
@@ -83,6 +83,38 @@ async function loadExtra(minutes) {
     } finally {
       isLoadingHistory.value = false
     }
+  }
+}
+
+
+import { exportHistoryAsCsv } from '../../utils/csvExport'
+
+const downloadRaceCsv = (race) => {
+  if (!race) return
+
+  const startTime = race.startTimeMs
+
+  // Find end time by looking for the next race in the list
+  const allStartTimes = Object.keys(telemetry.races).map(Number).sort((a, b) => a - b)
+  const myIndex = allStartTimes.indexOf(startTime)
+  let endTime = Infinity
+  if (myIndex !== -1 && myIndex < allStartTimes.length - 1) {
+    endTime = allStartTimes[myIndex + 1]
+  } else {
+    // If it's the last race, use the time of the latest packet in history
+    // or just Date.now() if live? 
+    // Safer to grab the max timestamp from history to avoid empty extra range
+    const latest = telemetry.history[telemetry.history.length - 1]
+    endTime = latest ? latest.timestamp : Date.now()
+  }
+
+  const success = exportHistoryAsCsv(startTime, endTime, 'eChook', race.trackName)
+
+  if (!success) {
+    // Import toast if needed or just alert/log. 
+    // LapsTab doesn't use useToast yet locally (it loads it in loadExtraHistory via store).
+    // Keep simple for now as per previous logic.
+    console.warn("CSV Export failed: No data found.")
   }
 }
 
@@ -208,6 +240,11 @@ const handleDisclaimerConfirm = (doNotShow) => {
               <span v-if="race.trackName" class="text-white">{{ race.trackName }} </span>
               <span class="text-primary font-mono text-xs md:text-base pt-0.5">{{ formatDate(race.startTime) }}</span>
             </h2>
+            <button @click="downloadRaceCsv(race)"
+              class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
+              title="Download Race CSV">
+              <ArrowDownTrayIcon class="w-4 h-4 md:w-5 md:h-5" />
+            </button>
             <button @click="viewSessionOnGraph(race)"
               class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
               title="View Race on Graph">
