@@ -193,8 +193,8 @@ function closeConfirmModal() {
 
 const toggleHistoryMenu = () => {
   if (!showHistoryMenu.value) {
-    if (auth.user?.id) {
-      telemetry.fetchAvailableDays(auth.user.id)
+    if (displayedCar.value?.id) {
+      telemetry.fetchAvailableDays(displayedCar.value.id)
     }
   }
   showHistoryMenu.value = !showHistoryMenu.value
@@ -231,7 +231,7 @@ function handlePlayButton() {
       }
     }
 
-    if (shouldReset && auth.user?.id) {
+    if (shouldReset && displayedCar.value?.id) {
       // Show Resume Confirmation Modal
       showResumeConfirmModal.value = true
     } else {
@@ -243,10 +243,10 @@ function handlePlayButton() {
 }
 
 async function confirmResetToLive() {
-  if (auth.user?.id) {
+  if (displayedCar.value?.id) {
     isLoadingHistory.value = true
     try {
-      await telemetry.resetToLive(auth.user.id)
+      await telemetry.resetToLive(displayedCar.value.id)
     } finally {
       isLoadingHistory.value = false
       showResumeConfirmModal.value = false
