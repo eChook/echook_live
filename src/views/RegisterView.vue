@@ -10,6 +10,7 @@ const auth = useAuthStore()
 
 const formData = ref({
   car: '',
+  email: '',
   password: '',
   confirmPassword: '',
   team: '',
@@ -74,6 +75,11 @@ const handleRegister = async () => {
               class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
             <p class="text-xs text-gray-500">Only letters, numbers, spaces, underscores, and hyphens are allowed.
             </p>
+          </div>
+          <div>
+            <label class="block mb-1 text-sm font-medium text-gray-400">Email</label>
+            <input v-model="formData.email" type="email" required
+              class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
           </div>
           <div>
             <label class="block mb-1 text-sm font-medium text-gray-400">Team Name</label>
