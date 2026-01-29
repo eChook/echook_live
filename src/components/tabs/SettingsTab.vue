@@ -229,6 +229,13 @@ const wsUrl = WS_URL
               class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter team name..." />
           </div>
+          <!-- Email -->
+          <div>
+            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+            <input v-model="form.email" type="email"
+              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              placeholder="Enter email address..." />
+          </div>
 
           <!-- Opt-Out Toggle -->
           <div class="col-span-1 md:col-span-2">

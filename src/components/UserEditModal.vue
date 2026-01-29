@@ -39,6 +39,13 @@
                                         class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
                                 </div>
 
+                                <!-- Email -->
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+                                    <input v-model="form.email" type="email"
+                                        class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                                </div>
+
                                 <!-- Is Admin -->
                                 <SwitchGroup>
                                     <div class="flex items-center space-x-3">
@@ -100,6 +107,7 @@ const form = ref({
     car: '',
     team: '',
     number: 0,
+    email: '',
     isAdmin: false
 })
 
@@ -110,9 +118,10 @@ watch(() => props.modelValue, (val) => {
 watch(() => props.user, (u) => {
     if (u) {
         form.value = {
-            car: u.car || u.carName || '', // Handle varied API naming? active_cars says carName, users says car usually.
+            car: u.car || u.carName || '',
             team: u.team || u.teamName || '',
             number: u.number || 0,
+            email: u.email || '',
             isAdmin: u.isAdmin || false
         }
     }
