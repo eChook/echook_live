@@ -1,6 +1,13 @@
+<!--
+  @file components/UserEditModal.vue
+  @brief Admin user edit modal component.
+  @description Modal dialog for editing user account details in the admin panel.
+               Uses HeadlessUI for accessible modal and switch components.
+-->
 <template>
     <TransitionRoot appear :show="isOpen" as="template">
         <Dialog as="div" @close="closeModal" class="relative z-50">
+            <!-- Backdrop -->
             <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0" enter-to="opacity-100"
                 leave="duration-200 ease-in" leave-from="opacity-100" leave-to="opacity-0">
                 <div class="fixed inset-0 bg-black/75 backdrop-blur-sm" />
@@ -46,7 +53,7 @@
                                         class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
                                 </div>
 
-                                <!-- Is Admin -->
+                                <!-- Is Admin Toggle -->
                                 <SwitchGroup>
                                     <div class="flex items-center space-x-3">
                                         <Switch v-model="form.isAdmin"
@@ -62,6 +69,7 @@
 
                             </div>
 
+                            <!-- Action Buttons -->
                             <div class="mt-6 flex justify-end space-x-3">
                                 <button type="button"
                                     class="inline-flex justify-center rounded-md border border-neutral-600 bg-transparent px-4 py-2 text-sm font-medium text-gray-300 hover:bg-neutral-700 focus:outline-none"
@@ -83,6 +91,22 @@
 </template>
 
 <script setup>
+/**
+ * @description User edit modal for admin panel.
+ * 
+ * Features:
+ * - Edit user account fields: car name, team, number, email
+ * - Toggle admin status with accessible switch component
+ * - Animated transitions for modal appearance
+ * 
+ * Props:
+ * - modelValue: Controls modal visibility (v-model:open)
+ * - user: User object to edit
+ * 
+ * Emits:
+ * - update:modelValue: When modal visibility changes
+ * - save: When save is clicked, with updated user data
+ */
 import { ref, watch } from 'vue'
 import {
     TransitionRoot,
@@ -95,14 +119,22 @@ import {
     SwitchLabel
 } from '@headlessui/vue'
 
+/**
+ * @brief Component props definition.
+ */
 const props = defineProps({
-    modelValue: Boolean, // For v-model:open
+    /** @brief Controls modal visibility (for v-model) */
+    modelValue: Boolean,
+    /** @brief User object to edit */
     user: Object
 })
 
 const emit = defineEmits(['update:modelValue', 'save'])
 
+/** @brief Local modal visibility state */
 const isOpen = ref(props.modelValue)
+
+/** @brief Form data for user fields */
 const form = ref({
     car: '',
     team: '',
@@ -111,10 +143,12 @@ const form = ref({
     isAdmin: false
 })
 
+// Sync isOpen with prop
 watch(() => props.modelValue, (val) => {
     isOpen.value = val
 })
 
+// Populate form when user prop changes
 watch(() => props.user, (u) => {
     if (u) {
         form.value = {
@@ -127,11 +161,17 @@ watch(() => props.user, (u) => {
     }
 }, { immediate: true })
 
+/**
+ * @brief Close the modal and emit update event.
+ */
 function closeModal() {
     isOpen.value = false
     emit('update:modelValue', false)
 }
 
+/**
+ * @brief Save changes and close modal.
+ */
 function save() {
     emit('save', { ...props.user, ...form.value })
     closeModal()

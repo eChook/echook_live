@@ -1,4 +1,23 @@
+<!--
+  @file components/tabs/SettingsTab.vue
+  @brief User settings and account management component.
+  @description Comprehensive settings panel for managing account details,
+               display preferences, unit conversions, and API access information.
+-->
 <script setup>
+/**
+ * @description Settings Tab component.
+ * 
+ * Features:
+ * - Account profile editing with email verification
+ * - Display/unit settings (speed, temperature units)
+ * - Graph visibility and dashboard preferences
+ * - API credentials display (ID, GET URL, WebSocket URL)
+ * - Settings export/import functionality
+ * - Public opt-out toggle for telemetry visibility
+ * 
+ * Account changes require OTP verification via email.
+ */
 import { computed, ref } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useAuthStore } from '../../stores/auth'
@@ -21,6 +40,7 @@ const telemetry = useTelemetryStore()
 const auth = useAuthStore()
 const settings = useSettingsStore()
 
+/** @brief File input ref for settings import */
 const fileInput = ref(null)
 
 const downloadSettings = () => {
@@ -322,7 +342,7 @@ const wsUrl = WS_URL
 
       <!-- Performance -->
       <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Performance</h3>
+        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Performance and Visuals</h3>
 
         <div class="space-y-6">
           <!-- Max History -->
@@ -337,25 +357,8 @@ const wsUrl = WS_URL
             </p>
           </div>
 
-          <!-- Update Frequency -->
-          <div>
-            <div class="flex justify-between mb-2">
-              <label class="text-sm font-medium text-gray-300">Chart Update Frequency</label>
-              <span class="text-sm font-mono text-primary">{{ settings.graphSettings.chartUpdateFreq }} Hz</span>
-            </div>
-            <input type="range" v-model.number="settings.graphSettings.chartUpdateFreq" min="0.1" max="5" step="0.1"
-              class="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
-            <p class="text-xs text-gray-500 mt-1">Controls how often the graphs redraw. Lower values (e.g. 1Hz)
-              significantly reduce CPU usage. (Default: 5Hz)</p>
-          </div>
-        </div>
-      </section>
 
-      <!-- Graph Settings -->
-      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Visuals</h3>
 
-        <div class="space-y-6">
           <!-- Graph Height -->
           <div>
             <div class="flex justify-between mb-2">
@@ -394,6 +397,8 @@ const wsUrl = WS_URL
               </div>
             </SwitchGroup>
 
+
+
             <!-- Grid -->
             <SwitchGroup>
               <div class="flex items-center">
@@ -406,6 +411,15 @@ const wsUrl = WS_URL
                 </Switch>
               </div>
             </SwitchGroup>
+          </div>
+
+          <!-- Shortcuts Button -->
+          <div class="pt-4 border-t border-neutral-700 mt-4 flex justify-end">
+            <button @click="settings.showShortcutsModal = true"
+              class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium flex items-center">
+              <InformationCircleIcon class="w-4 h-4 mr-2" />
+              View Keyboard Shortcuts
+            </button>
           </div>
         </div>
       </section>

@@ -1,33 +1,61 @@
+<!--
+  @file views/DashboardView.vue
+  @brief Main dashboard view for authenticated users.
+  @description The primary interface for viewing telemetry data. Features a
+               data ribbon with draggable cards, tabbed content area (Graph,
+               Map, Laps, Settings, Admin), and keyboard shortcuts for navigation.
+-->
 <script setup>
+/**
+ * @description Dashboard view component setup.
+ * 
+ * Features:
+ * - Real-time telemetry data display via data cards
+ * - Draggable data card reordering (persisted to settings)
+ * - Multiple tabs: Graph, Map, Laps, Settings, Admin (if admin)
+ * - Lazy-loaded tab components for performance
+ * - Keyboard shortcuts for navigation and chart control
+ * - Responsive layout (mobile bottom tabs, desktop side tabs)
+ */
 import { onMounted, onUnmounted, ref, computed, shallowRef, defineAsyncComponent } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
+import GraphHelpModal from '../components/GraphHelpModal.vue'
 import draggable from 'vuedraggable'
 
-// Tabs (Lazy Loaded)
+// Lazy-loaded tab components for code splitting
 const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.vue'))
 const MapTab = defineAsyncComponent(() => import('../components/tabs/MapTab.vue'))
 const LapsTab = defineAsyncComponent(() => import('../components/tabs/LapsTab.vue'))
 const SettingsTab = defineAsyncComponent(() => import('../components/tabs/SettingsTab.vue'))
 const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.vue'))
 
-// Icons
+// Heroicons for tab navigation
 import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
 const settings = useSettingsStore()
 
+/**
+ * @brief Get display unit for a telemetry key.
+ * @param {string} key - Telemetry key
+ * @returns {string|undefined} Unit string or undefined
+ */
 const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
   if (key === 'temp1' || key === 'temp2' || key === 'tempDiff') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
   return undefined
 }
 
-// Ordered keys: merge user order with available keys
+/**
+ * @brief Computed property for ordered data card keys.
+ * @description Merges user's saved order with available telemetry keys.
+ *              New keys are appended to the end of the user's order.
+ */
 const orderedKeys = computed({
   get: () => {
     const available = new Set(telemetry.availableKeys)
@@ -40,12 +68,22 @@ const orderedKeys = computed({
   }
 })
 
+// ============================================
 // Tab Configuration
+// ============================================
+
+/**
+ * @brief Currently active tab ID (persisted to settings).
+ */
 const activeTabId = computed({
   get: () => settings.activeTabId,
   set: (val) => { settings.activeTabId = val }
 })
 
+/**
+ * @brief Tab definitions with conditional admin tab.
+ * @type {ComputedRef<Array<Object>>}
+ */
 const tabs = computed(() => {
   const baseTabs = [
     { id: 'graph', label: 'Graph', icon: ChartBarIcon, component: GraphTab },
@@ -57,29 +95,130 @@ const tabs = computed(() => {
     baseTabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheckIcon, component: AdminTab })
   }
 
-  console.log('Computing tabs. User:', auth.user, 'IsAdmin:', auth.user?.isAdmin, 'Result:', baseTabs)
-
   return baseTabs
 })
 
+/**
+ * @brief Get the component for the currently active tab.
+ * @type {ComputedRef<Component>}
+ */
 const activeComponent = computed(() => {
   if (activeTabId.value === 'settings') return SettingsTab
   const tab = tabs.value.find(t => t.id === activeTabId.value)
   return tab ? tab.component : GraphTab
 })
 
+// ============================================
+// Lifecycle Hooks
+// ============================================
+
 onMounted(() => {
   telemetry.connect()
+  window.addEventListener('keydown', handleKeydown)
+
+  // Show help modal for first-time users
+  if (settings.showGraphHelp) {
+    settings.showShortcutsModal = true
+  }
 })
 
 onUnmounted(() => {
   telemetry.disconnect()
+  window.removeEventListener('keydown', handleKeydown)
 })
+
+// ============================================
+// Keyboard Shortcuts
+// ============================================
+
+/**
+ * @brief Handle keyboard shortcuts for dashboard navigation and chart control.
+ * @param {KeyboardEvent} e - Keyboard event
+ * 
+ * Shortcuts:
+ * - Tab: Cycle through Graph → Map → Laps tabs
+ * - Space: Pause/Resume live data
+ * - R: Zoom chart to full current race
+ * - 1-9: Zoom chart to last N laps
+ * - L: Unlock chart zoom (return to live scroll)
+ * - Arrow keys: Pan (left/right) and zoom (up/down) chart
+ */
+const handleKeydown = (e) => {
+  // 1. Tab Cycling (Graph -> Map -> Laps)
+  if (e.key === 'Tab') {
+    e.preventDefault()
+
+    const cycle = ['graph', 'map', 'laps']
+    const currentIndex = cycle.indexOf(activeTabId.value)
+
+    if (currentIndex === -1) {
+      activeTabId.value = cycle[0]
+    } else {
+      const nextIndex = (currentIndex + 1) % cycle.length
+      activeTabId.value = cycle[nextIndex]
+    }
+  }
+
+  // 2. Space: Pause/Resume
+  if (e.key === ' ' && e.target.tagName !== 'INPUT') {
+    e.preventDefault()
+    telemetry.togglePause()
+  }
+
+  // 3. 'R': Zoom to Full Race
+  if (e.key.toLowerCase() === 'r' && e.target.tagName !== 'INPUT') {
+    const races = Object.values(telemetry.races).sort((a, b) => b.startTimeMs - a.startTimeMs)
+    if (races.length > 0) {
+      const race = races[0]
+      const end = telemetry.latestTime || Date.now()
+      telemetry.requestChartZoom(race.startTimeMs, end)
+    }
+  }
+
+  // 4. Number Keys (1-9): Zoom to Last N Laps
+  if (!isNaN(parseInt(e.key)) && parseInt(e.key) > 0 && e.target.tagName !== 'INPUT') {
+    const n = parseInt(e.key)
+    const laps = telemetry.lapHistory
+
+    if (laps.length > 0) {
+      const lapsToShow = laps.slice(-n)
+      if (lapsToShow.length > 0) {
+        const start = lapsToShow[0].startTime
+        let end = lapsToShow[lapsToShow.length - 1].finishTime
+
+        if (!end || end < start) end = telemetry.latestTime || Date.now()
+
+        telemetry.requestChartZoom(start, end)
+      }
+    }
+  }
+
+  // 5. 'L': Unlock Zoom (Return to Live Scroll)
+  if (e.key.toLowerCase() === 'l' && e.target.tagName !== 'INPUT') {
+    telemetry.requestChartUnlock()
+  }
+
+  // 6. Arrow Keys (Zoom/Pan) - Only on Graph Tab
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.target.tagName !== 'INPUT' && activeTabId.value === 'graph') {
+    e.preventDefault()
+
+    if (e.key === 'ArrowLeft') {
+      telemetry.requestChartPan(-1 * 60 * 1000) // Back 1 min
+    } else if (e.key === 'ArrowRight') {
+      telemetry.requestChartPan(1 * 60 * 1000) // Forward 1 min
+    } else if (e.key === 'ArrowUp') {
+      telemetry.requestChartScale(0.8) // Zoom In (20%)
+    } else if (e.key === 'ArrowDown') {
+      telemetry.requestChartScale(1.2) // Zoom Out (20%)
+    }
+  }
+}
 </script>
 
 <template>
   <div class="h-screen overflow-hidden bg-neutral-900 flex flex-col">
     <DashboardHeader />
+    <GraphHelpModal :isOpen="settings.showShortcutsModal" @close="settings.showShortcutsModal = false" />
 
     <!-- Data Ribbon - horizontal scroll on mobile -->
     <div
@@ -155,7 +294,7 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* Hide scrollbar for ribbon */
+/* Hide scrollbar for data ribbon */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

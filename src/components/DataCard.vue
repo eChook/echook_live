@@ -1,16 +1,50 @@
+<!--
+  @file components/DataCard.vue
+  @brief Telemetry data display card component.
+  @description A reusable card for displaying a single telemetry value with
+               label, unit, and visual feedback for stale data. Supports
+               drag-and-drop reordering in the dashboard ribbon.
+-->
 <script setup>
+/**
+ * @description DataCard component for displaying formatted telemetry values.
+ * 
+ * Props:
+ * - label: Display name for the data point
+ * - value: Raw value to display
+ * - unit: Optional unit override
+ * - stale: Whether data is stale (reduces opacity)
+ * - tooltip: Hover tooltip text
+ */
 import { computed } from 'vue'
 import { formatValue, getUnit } from '../utils/formatting'
 
+/**
+ * @brief Component props definition.
+ */
 const props = defineProps({
+  /** @brief Display label for the data point */
   label: String,
+  /** @brief Raw value (formatted for display) */
   value: [String, Number],
+  /** @brief Optional unit override (auto-detected if not provided) */
   unit: String,
+  /** @brief Whether data should appear stale/dimmed */
   stale: Boolean,
+  /** @brief Tooltip text for hover */
   tooltip: String
 })
 
+/**
+ * @brief Formatted display value using formatting utility.
+ * @type {ComputedRef<string>}
+ */
 const displayValue = computed(() => formatValue(props.label, props.value))
+
+/**
+ * @brief Display unit (uses prop or auto-detects from label).
+ * @type {ComputedRef<string>}
+ */
 const displayUnit = computed(() => props.unit || getUnit(props.label))
 </script>
 
@@ -20,7 +54,7 @@ const displayUnit = computed(() => props.unit || getUnit(props.label))
     stale ? 'opacity-50 grayscale' : 'opacity-100'
   ]" :title="tooltip">
     <span class="text-[10px] md:text-xs uppercase text-gray-400 font-bold tracking-wider truncate max-w-full">{{ label
-      }} <span v-if="displayUnit" class="text-gray-500 font-normal">({{ displayUnit }})</span></span>
+    }} <span v-if="displayUnit" class="text-gray-500 font-normal">({{ displayUnit }})</span></span>
     <span
       :class="['text-lg md:text-2xl font-mono font-bold transition-colors duration-500', stale ? 'text-gray-500' : 'text-white']">{{
         displayValue }}</span>

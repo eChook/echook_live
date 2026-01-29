@@ -1,4 +1,24 @@
+<!--
+  @file components/tabs/MapTab.vue
+  @brief Interactive map tab with car position and gradient trail.
+  @description Displays an OpenStreetMap with the car's current position
+               and a color-coded historical trail. Trail color represents
+               a selected telemetry metric value.
+-->
 <script setup>
+/**
+ * @description Map tab component for GPS visualization.
+ * 
+ * Features:
+ * - OpenStreetMap tile layer via Leaflet
+ * - Real-time car position marker
+ * - Gradient-colored trail based on selected metric
+ * - Configurable trail duration (10s to 10m)
+ * - Auto-fit bounds option
+ * - Collapsible settings panel
+ * 
+ * Trail coloring uses red-to-green gradient based on metric value.
+ */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import "leaflet/dist/leaflet.css"
@@ -10,29 +30,32 @@ const telemetry = useTelemetryStore()
 
 // Map State
 const map = ref(null)
+
+/** @brief Whether map auto-fits to trail bounds */
 const isAutoFitEnabled = ref(true)
 
 // Controls State
-const trailTimeSeconds = ref(300) // Default 5 minutes
+/** @brief Trail duration in seconds (default 5 minutes) */
+const trailTimeSeconds = ref(300)
+
+/** @brief Currently selected metric for trail coloring */
 const selectedMetric = ref('speed')
+
+/** @brief Whether settings panel is expanded */
 const isSettingsExpanded = ref(false)
 
-// Update center to follow car ONLY if user hasn't panned away
-// For simplicity, let's just re-center if we have data and maybe add a "Recenter" button later
-// Or better: auto-center until user drags.
-const onMapReady = () => {
-  // 
-}
-
-// Compute Trail
-// Map history to { lat, lon, value } within the selected time window
+/**
+ * @brief Compute trail data within the selected time window.
+ * @description Filters telemetry history to points with GPS data
+ *              within the configured time range.
+ * @type {ComputedRef<Array<{lat: number, lon: number, value: number}>>}
+ */
 const trailData = computed(() => {
   if (telemetry.displayHistory.length === 0) return []
 
   const latestTs = telemetry.displayHistory[telemetry.displayHistory.length - 1].timestamp
   const startTime = latestTs - (trailTimeSeconds.value * 1000)
 
-  // Filter history for points within time range and map to simplified objects
   return telemetry.displayHistory
     .filter(p => p.timestamp >= startTime && p.lat != null && p.lon != null)
     .map(p => ({
@@ -42,10 +65,12 @@ const trailData = computed(() => {
     }))
 })
 
+/**
+ * @brief Fit map bounds to current trail data.
+ */
 const fitToTrail = () => {
   if (!map.value || trailData.value.length === 0) return
 
-  // Calculate bounds
   let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity
   trailData.value.forEach(p => {
     if (p.lat < minLat) minLat = p.lat
@@ -70,19 +95,22 @@ const fitToTrail = () => {
   }
 }
 
-// Auto-fit bounds directly on trail updates
+// Auto-fit bounds when trail data updates
 watch(trailData, (val) => {
   if (isAutoFitEnabled.value) {
     fitToTrail()
   }
-}, { deep: false }) // deep false because computed array reference changes often, but elements are immutable
+}, { deep: false })
 
-// Trigger fit when enabled
+// Trigger fit when auto-fit is enabled
 watch(isAutoFitEnabled, (val) => {
   if (val) fitToTrail()
 })
 
-// Compute Min/Max for gradient
+/**
+ * @brief Compute min/max values for gradient coloring.
+ * @type {ComputedRef<{min: number, max: number}>}
+ */
 const trailRange = computed(() => {
   if (trailData.value.length === 0) return { min: 0, max: 100 }
 
@@ -90,7 +118,7 @@ const trailRange = computed(() => {
   let min = Math.min(...values)
   let max = Math.max(...values)
 
-  if (min === max) max = min + 1 // Avoid divide by zero
+  if (min === max) max = min + 1
   return { min, max }
 })
 
@@ -105,12 +133,12 @@ const trailRange = computed(() => {
       <!-- Gradient Trail -->
       <GradientPath :points="trailData" :min="trailRange.min" :max="trailRange.max" />
 
-      <!-- Car Marker (Dot) -->
+      <!-- Car Marker -->
       <l-circle-marker v-if="telemetry.displayLiveData.lat && telemetry.displayLiveData.lon"
         :lat-lng="[telemetry.displayLiveData.lat, telemetry.displayLiveData.lon]" :radius="8" color="#fff" :weight="2"
         fill-color="#cb1557" :fill-opacity="1"></l-circle-marker>
 
-      <!-- Controls Overlay -->
+      <!-- Settings Control Overlay -->
       <l-control position="topright" class="leaflet-control-layers leaflet-control !border-none !bg-transparent">
         <div class="flex flex-col items-end space-y-2">
           <!-- Toggle Button -->
@@ -144,7 +172,7 @@ const trailRange = computed(() => {
                 </div>
               </div>
 
-              <!-- Trail Length (Time Based) -->
+              <!-- Trail Length Slider -->
               <div class="mb-6">
                 <div class="flex justify-between items-center mb-2">
                   <label class="text-xs font-bold text-gray-300 uppercase">Trail History</label>
@@ -178,5 +206,5 @@ const trailRange = computed(() => {
 </template>
 
 <style scoped>
-/* Leaflet dark mode overrides if desired, but for now standard OSM */
+/* Leaflet dark mode overrides if desired */
 </style>

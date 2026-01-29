@@ -1,13 +1,36 @@
+/**
+ * @file csvExport.js
+ * @brief CSV export functionality for telemetry data.
+ * @description Provides utilities for exporting telemetry history data to CSV files
+ *              with proper formatting, headers, units, and automatic file download.
+ */
+
 import { useTelemetryStore } from '../stores/telemetry'
 
 /**
- * Exports a range of telemetry history to a CSV file.
- * Automatically handles filtering, headers, units, and file download.
+ * @brief Export a range of telemetry history to a CSV file.
+ * @description Filters telemetry data by timestamp range, generates a CSV with
+ *              appropriate headers and units, and triggers a browser download.
+ *              
+ *              Features:
+ *              - Automatic column ordering based on preferred telemetry display order
+ *              - Excludes internal keys (id, carId, _id, timestamp, updated, car)
+ *              - Includes both raw timestamp (ms) and ISO formatted time
+ *              - Infers units from current telemetry settings
+ *              - Handles CSV special characters (commas in values)
+ *              - Generates descriptive filename with track and date
  * 
- * @param {number} startTime - Start timestamp (ms)
- * @param {number} endTime - End timestamp (ms)
- * @param {string} [filenamePrefix='eChook-export'] - Prefix for the filename
- * @param {string} [trackName='unknown-track'] - Track name for filename
+ * @param {number} startTime - Start timestamp in milliseconds (inclusive)
+ * @param {number} endTime - End timestamp in milliseconds (inclusive)
+ * @param {string} [filenamePrefix='eChook'] - Prefix for the generated filename
+ * @param {string} [trackName='unknown-track'] - Track name to include in filename
+ * @returns {boolean} true if export succeeded, false if no data in range
+ * 
+ * @example
+ * // Export last hour of data
+ * const now = Date.now()
+ * exportHistoryAsCsv(now - 3600000, now, 'telemetry', 'Rockingham')
+ * // Downloads: telemetry-rockingham-2024-01-15T10-30-00.csv
  */
 export function exportHistoryAsCsv(startTime, endTime, filenamePrefix = 'eChook', trackName = 'unknown-track') {
     const telemetry = useTelemetryStore()
@@ -21,7 +44,13 @@ export function exportHistoryAsCsv(startTime, endTime, filenamePrefix = 'eChook'
         return false
     }
 
-    // Hardcoded order from telemetry.js
+    /**
+     * @brief Preferred column ordering for CSV output.
+     * @description Columns are ordered logically by category:
+     *              electrical (voltage, current, ampH), mechanical (speed, rpm, throttle),
+     *              battery details, thermal, then location/track data.
+     * @type {string[]}
+     */
     const PREFERRED_ORDER = [
         'voltage', 'current', 'ampH',
         'speed', 'rpm', 'throttle', 'voltageLower',
@@ -30,6 +59,11 @@ export function exportHistoryAsCsv(startTime, endTime, filenamePrefix = 'eChook'
         'currLap', 'lat', 'lon', 'track'
     ]
 
+    /**
+     * @brief Keys excluded from CSV export.
+     * @description Internal identifiers and metadata that shouldn't be in exports.
+     * @type {Set<string>}
+     */
     const EXCLUDED_KEYS = new Set(['id', 'carId', '_id', 'timestamp', 'updated', 'car'])
 
     // 2. Collect Keys

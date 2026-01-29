@@ -1,9 +1,34 @@
+<!--
+  @file components/ui/ToastNotification.vue
+  @brief Global toast notification component.
+  @description Displays temporary toast messages at the bottom-right corner.
+               Uses the useToast composable for shared state across components.
+               Supports success, warning, error, and info message types.
+-->
 <script setup>
+/**
+ * @description Toast notification component.
+ * 
+ * Features:
+ * - Animated slide-in/fade-out transitions
+ * - Color-coded icons based on message type
+ * - Manual dismiss button
+ * - Auto-hide timer handled by useToast composable
+ * 
+ * Message Types:
+ * - success: Green check icon
+ * - warning: Yellow exclamation icon
+ * - error: Red exclamation icon
+ * - info: Blue information icon
+ */
 import { useToast } from '../../composables/useToast'
 import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 
 const { isVisible, message, type, hideToast } = useToast()
 
+/**
+ * @brief Icon component map by message type.
+ */
 const iconMap = {
     success: CheckCircleIcon,
     warning: ExclamationCircleIcon,
@@ -11,6 +36,9 @@ const iconMap = {
     info: InformationCircleIcon
 }
 
+/**
+ * @brief Background color class map by message type.
+ */
 const colorMap = {
     success: 'bg-green-500',
     warning: 'bg-yellow-500',

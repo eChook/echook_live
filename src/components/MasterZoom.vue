@@ -1,4 +1,24 @@
+<!--
+  @file components/MasterZoom.vue
+  @brief Master zoom slider component for synchronized chart control.
+  @description Provides a slider-based dataZoom control that syncs across
+               all ECharts instances in the same group. Displays time axis
+               and allows range selection.
+-->
 <script setup>
+/**
+ * @description Master zoom component for graph range selection.
+ * 
+ * Features:
+ * - Slider-based time range selection
+ * - Syncs with all charts in the same ECharts group
+ * - Handles absolute zoom requests from store
+ * - Minimal styling without data display (just timestamps)
+ * 
+ * Props:
+ * - data: Array of telemetry data points (for time range)
+ * - group: ECharts group name for synchronization
+ */
 import { computed, ref, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { use } from "echarts/core";
@@ -11,6 +31,7 @@ import {
 } from "echarts/components";
 import VChart from "vue-echarts";
 
+// Register ECharts components
 use([
   CanvasRenderer,
   LineChart,
@@ -19,51 +40,60 @@ use([
   TooltipComponent
 ]);
 
+/**
+ * @brief Component props definition.
+ */
 const props = defineProps({
+  /** @brief Array of telemetry data points */
   data: {
     type: Array,
     required: true
   },
+  /** @brief ECharts group name for synchronization */
   group: {
     type: String,
     required: true
   }
 })
 
-// Import connect REMOVED (reverting to handle in parent)
-// import { connect } from 'echarts/core'
-
 const telemetry = useTelemetryStore()
 const chartRef = ref(null)
 
+/**
+ * @brief Process absolute zoom requests from the telemetry store.
+ * @description Only handles 'absolute' zoom type; ignores 'reset', 'pan', 'scale'.
+ */
 const processZoom = () => {
   const req = telemetry.chartZoomRequest
   if (req && chartRef.value) {
-    chartRef.value.dispatchAction({
-      type: 'dataZoom',
-      startValue: req.start,
-      endValue: req.end
-    })
-    telemetry.chartZoomRequest = null // Consume request
+    if (req.type === 'absolute') {
+      chartRef.value.dispatchAction({
+        type: 'dataZoom',
+        startValue: req.start,
+        endValue: req.end
+      })
+      telemetry.chartZoomRequest = null
+    }
   }
 }
 
-// Watch for zoom requests from other components
+// Watch for zoom requests
 watch(() => telemetry.chartZoomRequest, (req) => {
   if (req) {
-    // specific check to avoid loops or errors if ref not ready
     processZoom()
   }
 })
 
 onMounted(() => {
-  // Check for pending request on mount
-  // Use requestAnimationFrame to avoid "Layout was forced" warnings by ensuring DOM is ready
   requestAnimationFrame(() => {
     processZoom()
   })
 })
 
+/**
+ * @brief ECharts option configuration for zoom slider.
+ * @type {ComputedRef<Object>}
+ */
 const option = computed(() => {
   return {
     animation: false,
@@ -71,8 +101,7 @@ const option = computed(() => {
       left: 60,
       right: 20,
       top: 5,
-      bottom: 35, // Space for slider
-      // height: 40 // Let it auto-calculate
+      bottom: 35
     },
     xAxis: {
       type: 'time',
@@ -98,7 +127,7 @@ const option = computed(() => {
         type: 'slider',
         xAxisIndex: 0,
         filterMode: 'empty',
-        height: 30, // Restored height
+        height: 30,
         bottom: 5,
         borderColor: '#404040',
         textStyle: { color: '#a3a3a3' },

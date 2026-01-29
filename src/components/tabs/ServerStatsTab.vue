@@ -1,3 +1,10 @@
+<!--
+  @file components/tabs/ServerStatsTab.vue
+  @brief Server statistics and monitoring dashboard.
+  @description Displays real-time server health metrics including
+               CPU usage, memory, bandwidth, and user activity.
+               Uses TelemetryGraph for historical data visualization.
+-->
 <template>
     <div class="h-full flex flex-col space-y-6">
         <!-- Header / Actions -->
@@ -160,6 +167,18 @@
 </template>
 
 <script setup>
+/**
+ * @description Server Stats Tab component.
+ * 
+ * Features:
+ * - Real-time server health metrics (CPU, memory, bandwidth)
+ * - User activity tracking (active cars, spectators)
+ * - Historical graphs for all metrics using TelemetryGraph
+ * - Auto-refresh every 60 seconds
+ * - Spectator distribution table
+ * 
+ * Graphs are linked via ECharts 'stats' group for synchronized zoom.
+ */
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useAdminStore } from '../../stores/admin'
 import { ArrowPathIcon } from '@heroicons/vue/24/outline'
@@ -167,6 +186,7 @@ import TelemetryGraph from '../TelemetryGraph.vue'
 import { connect } from 'echarts/core'
 
 const adminStore = useAdminStore()
+/** @brief Polling interval for auto-refresh */
 let pollInterval = null
 
 onMounted(() => {

@@ -1,4 +1,21 @@
+<!--
+  @file views/LoginView.vue
+  @brief Login page view component.
+  @description Main authentication page with login form, spectator track list,
+               and "What's New" feature showcase. Connects to the public WebSocket
+               namespace for live track display.
+-->
 <script setup>
+/**
+ * @description Vue script setup for LoginView.
+ * 
+ * Features:
+ * - User authentication via car name and password
+ * - Auto-redirect for already authenticated users
+ * - Live spectator track list with real-time updates
+ * - Cookie consent notice with localStorage persistence
+ * - Feature showcase for new users
+ */
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
@@ -9,6 +26,7 @@ import { onMounted, onUnmounted } from 'vue'
 
 const spectatorStore = useSpectatorStore()
 
+// Connect to public namespace for track list
 onMounted(() => {
   spectatorStore.connectPublic()
 })
@@ -17,10 +35,15 @@ onUnmounted(() => {
   spectatorStore.disconnectPublic()
 })
 
+/**
+ * @brief Navigate to spectator view for a track.
+ * @param {string} trackName - Name of the track to spectate
+ */
 const goToSpectate = (trackName) => {
   router.push(`/spectate/${encodeURIComponent(trackName)}`)
 }
 
+// Form state
 const car = ref('')
 const password = ref('')
 const error = ref('')
@@ -28,6 +51,10 @@ const isLoading = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 
+/**
+ * @brief Handle login form submission.
+ * @description Validates credentials and redirects to dashboard on success.
+ */
 const handleLogin = async () => {
   error.value = ''
   isLoading.value = true
@@ -56,6 +83,9 @@ onMounted(() => {
   }
 })
 
+/**
+ * @brief Accept cookie notice and persist preference.
+ */
 const acceptCookies = () => {
   localStorage.setItem('cookie_notice_accepted', 'true')
   showCookieNotice.value = false

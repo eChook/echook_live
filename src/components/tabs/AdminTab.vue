@@ -1,3 +1,10 @@
+<!--
+  @file components/tabs/AdminTab.vue
+  @brief Admin dashboard with user and car management.
+  @description Comprehensive admin panel with sub-tabs for managing
+               active cars, all users, email lists, maps, and server stats.
+               Provides CRUD operations for users and car data viewing.
+-->
 <template>
     <div class="h-full flex overflow-hidden bg-neutral-900 text-gray-300">
 
@@ -337,8 +344,6 @@ const viewCar = async (item) => {
     telemetry.joinRoom(carId, carDetails)
     // Clear history and load recent for this car
     await telemetry.resetToLive(carId)
-    // Maybe notify user?
-    console.log(`Switched view to ${carId}`)
 }
 
 // Edit Logic

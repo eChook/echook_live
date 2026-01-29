@@ -1,4 +1,27 @@
+<!--
+  @file components/tabs/LapsTab.vue
+  @brief Lap times and race session display tab.
+  @description Displays detected race sessions and lap times in tabular format.
+               Includes lap-to-lap comparison, CSV export, and graph navigation.
+-->
 <script setup>
+/**
+ * @description Laps tab component for race/lap data display.
+ * 
+ * Features:
+ * - Race session grouping with start timestamp
+ * - Sortable lap table with telemetry metrics
+ * - Lap-to-lap comparison with color-coded diffs
+ * - Background bars showing relative performance
+ * - CSV export per race session
+ * - "View on Graph" navigation for laps and races
+ * - Load more history buttons
+ * - First-time disclaimer modal
+ * 
+ * Metrics displayed:
+ * - Lap number, start/finish time, lap duration
+ * - Voltage, current, RPM, speed, Ah, efficiency
+ */
 import { computed, ref } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
@@ -9,7 +32,10 @@ const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
 const auth = useAuthStore()
 
-// Headers for the table
+/**
+ * @brief Table column headers.
+ * @type {ComputedRef<Array<string>>}
+ */
 const headers = computed(() => [
   'Lap',
   'Start',
@@ -22,20 +48,25 @@ const headers = computed(() => [
   'Ah',
   'Eff'
 ])
+
+/** @brief Data keys corresponding to table columns */
 const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Eff']
 
+/**
+ * @brief Sorted races with converted laps and per-race stats.
+ * @description Processes race data for display, including unit conversion
+ *              and min/max stats calculation for background bars.
+ * @type {ComputedRef<Array<Object>>}
+ */
 const sortedRaces = computed(() => {
-  // Show newest race first
   const raceList = Object.values(telemetry.races).sort((a, b) => b.startTimeMs - a.startTimeMs)
 
   return raceList.map(race => {
     const lapList = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
 
-    // 1. Create Converted Laps
+    // Convert units (e.g., speed)
     const convertedLaps = lapList.map(lap => {
       const newLap = { ...lap }
-
-      // Convert Speed
       if (newLap.LL_Spd !== undefined) {
         let val = newLap.LL_Spd
         if (telemetry.unitSettings.speedUnit === 'mph') val = val * 2.23694
@@ -45,7 +76,7 @@ const sortedRaces = computed(() => {
       return newLap
     })
 
-    // 2. Calculate stats for this race using convert laps
+    // Calculate min/max stats for background bars
     const stats = {}
     keys.slice(1).forEach(key => {
       let min = Infinity
@@ -64,7 +95,7 @@ const sortedRaces = computed(() => {
 
     return {
       ...race,
-      startTime: race.startTimeMs, // Ensure formatDate can use this
+      startTime: race.startTimeMs,
       sortedLaps,
       stats
     }
@@ -74,6 +105,10 @@ const sortedRaces = computed(() => {
 // Load History Logic
 const isLoadingHistory = ref(false)
 
+/**
+ * @brief Load additional telemetry history.
+ * @param {number} minutes - Minutes of history to load
+ */
 async function loadExtra(minutes) {
   const carId = telemetry.viewingCar?.id || auth.user?.id || auth.user?._id
   if (carId) {
@@ -86,38 +121,36 @@ async function loadExtra(minutes) {
   }
 }
 
-
 import { exportHistoryAsCsv } from '../../utils/csvExport'
 
+/**
+ * @brief Export race data to CSV file.
+ * @param {Object} race - Race object to export
+ */
 const downloadRaceCsv = (race) => {
   if (!race) return
 
   const startTime = race.startTimeMs
-
-  // Find end time by looking for the next race in the list
   const allStartTimes = Object.keys(telemetry.races).map(Number).sort((a, b) => a - b)
   const myIndex = allStartTimes.indexOf(startTime)
   let endTime = Infinity
+
   if (myIndex !== -1 && myIndex < allStartTimes.length - 1) {
     endTime = allStartTimes[myIndex + 1]
   } else {
-    // If it's the last race, use the time of the latest packet in history
-    // or just Date.now() if live? 
-    // Safer to grab the max timestamp from history to avoid empty extra range
     const latest = telemetry.history[telemetry.history.length - 1]
     endTime = latest ? latest.timestamp : Date.now()
   }
 
   const success = exportHistoryAsCsv(startTime, endTime, 'eChook', race.trackName)
-
   if (!success) {
-    // Import toast if needed or just alert/log. 
-    // LapsTab doesn't use useToast yet locally (it loads it in loadExtraHistory via store).
-    // Keep simple for now as per previous logic.
     console.warn("CSV Export failed: No data found.")
   }
 }
 
+/**
+ * @brief Format numeric value for display.
+ */
 const formatValue = (val) => {
   if (typeof val === 'number') {
     return val.toFixed(2)
@@ -125,17 +158,25 @@ const formatValue = (val) => {
   return val
 }
 
+/**
+ * @brief Format timestamp as time string.
+ */
 const formatTime = (ms) => {
   if (!ms || !Number.isFinite(ms)) return '-'
   return new Date(ms).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
+/**
+ * @brief Format date/timestamp for race header.
+ */
 const formatDate = (isoStringOrMs) => {
   if (!isoStringOrMs) return 'Unknown Time'
   return new Date(isoStringOrMs).toLocaleString()
 }
 
-// Navigation / Graph Logic
+/**
+ * @brief Navigate to graph tab and zoom to race session.
+ */
 const viewSessionOnGraph = (race) => {
   telemetry.requestChartZoom(
     race.startTime - 30000,
@@ -145,6 +186,9 @@ const viewSessionOnGraph = (race) => {
   settings.activeTabId = 'graph'
 }
 
+/**
+ * @brief Navigate to graph tab and zoom to specific lap.
+ */
 const viewLapOnGraph = (lap) => {
   if (!lap.startTime || !lap.finishTime) return
   telemetry.requestChartZoom(
@@ -155,46 +199,46 @@ const viewLapOnGraph = (lap) => {
   settings.activeTabId = 'graph'
 }
 
-// Comparison Logic
-// Define "Good" direction for each key. 
-// -1 means Lower is Better (Green). 1 means Higher is Better (Green).
+/**
+ * @brief Metric direction for comparison coloring.
+ * @description -1 means lower is better (green), 1 means higher is better.
+ */
 const metricDirection = {
   'LL_Time': -1,
   'LL_Ah': -1,
-  'LL_I': -1, // Assume lower amps is better efficiency? Or Neutral? Let's go efficiency.
-  'LL_V': 1,  // Higher voltage is better (less sag)
-  'LL_RPM': 1, // Higher RPM/Speed usually "better" performance
+  'LL_I': -1,
+  'LL_V': 1,
+  'LL_RPM': 1,
   'LL_Spd': 1,
-  'LL_Eff': 1  // Higher efficiency is better
+  'LL_Eff': 1
 }
 
+/**
+ * @brief Calculate difference from previous lap.
+ */
 const getDiff = (currentLap, sortedLaps, key, currentIndex) => {
-  // sortedLaps is Newest First (3, 2, 1).
-  // So "previous lap" (chronologically) is the NEXT item in the array (index + 1).
-
-  // We want the diff FROM the previous lap TO the current lap.
-  // Diff = Current - Previous.
-
   const prevLapData = sortedLaps[currentIndex + 1]
   if (!prevLapData) return null
 
   const curr = currentLap[key] || 0
   const prev = prevLapData[key] || 0
-
   return curr - prev
 }
 
+/**
+ * @brief Get color class for diff value.
+ */
 const getDiffColor = (key, diff) => {
-  if (Math.abs(diff) < 0.001) return 'text-gray-500' // No change
+  if (Math.abs(diff) < 0.001) return 'text-gray-500'
 
   const dir = metricDirection[key] || 1
-  // If dir is 1 (Higher Better): Positive Diff = Green, Negative = Red
-  // If dir is -1 (Lower Better): Negative Diff = Green, Positive = Red
-
   const isGood = (diff * dir) > 0
   return isGood ? 'text-green-500' : 'text-red-500'
 }
 
+/**
+ * @brief Calculate percentage for background bar width.
+ */
 const getBarPercent = (val, min, max) => {
   const cleanVal = val || 0
   const range = max - min
@@ -202,7 +246,7 @@ const getBarPercent = (val, min, max) => {
   return Math.min(100, Math.max(0, ((cleanVal - min) / range) * 100))
 }
 
-// Disclaimer Modal Logic
+// Disclaimer Modal
 import DisclaimerModal from '../ui/DisclaimerModal.vue'
 import { onMounted } from 'vue'
 
@@ -224,11 +268,13 @@ const handleDisclaimerConfirm = (doNotShow) => {
 
 <template>
   <div class="h-full flex flex-col p-2 md:p-6 overflow-hidden space-y-4 md:space-y-8">
+    <!-- Empty State -->
     <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-gray-500 italic text-sm">
       No lap data recorded yet.
     </div>
 
-    <div class="flex-1 overflow-y-auto space-y-4 md:space-y-8 pr-1 md:pr-2"> <!-- Scrollable container -->
+    <!-- Race List -->
+    <div class="flex-1 overflow-y-auto space-y-4 md:space-y-8 pr-1 md:pr-2">
       <div v-for="race in sortedRaces" :key="race.id" class="flex flex-col space-y-2 md:space-y-4">
         <!-- Race Header -->
         <div
@@ -236,7 +282,6 @@ const handleDisclaimerConfirm = (doNotShow) => {
           <div class="flex items-center space-x-3">
             <h2
               class="text-sm md:text-xl font-bold text-white tracking-tight flex items-center flex-wrap gap-2 leading-none">
-              <!-- <span>Race:</span> -->
               <span v-if="race.trackName" class="text-white">{{ race.trackName }} </span>
               <span class="text-primary font-mono text-xs md:text-base pt-0.5">{{ formatDate(race.startTime) }}</span>
             </h2>
@@ -256,6 +301,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
           </div>
         </div>
 
+        <!-- Lap Table -->
         <div class="bg-neutral-800 rounded-lg border border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
           <table class="w-full min-w-[600px] md:min-w-[1000px] text-left border-collapse">
             <thead class="bg-neutral-900">
@@ -280,7 +326,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
                 </td>
                 <td v-for="key in keys.slice(1)" :key="key"
                   class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-[11px] md:text-sm text-gray-300 relative">
-                  <!-- Background Bar Container -->
+                  <!-- Background Bar -->
                   <div v-if="!['startTime', 'finishTime'].includes(key)"
                     class="absolute inset-y-0.5 left-1 right-1 z-0">
                     <div class="h-full rounded bg-white/10 transition-all duration-700 ease-out"
@@ -293,7 +339,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
                     <span v-if="['startTime', 'finishTime'].includes(key)">{{ formatTime(lap[key]) }}</span>
                     <span v-else>{{ formatValue(lap[key]) }}</span>
 
-                    <!-- Diff -->
+                    <!-- Diff Badge -->
                     <span
                       v-if="!['startTime', 'finishTime'].includes(key) && getDiff(lap, race.sortedLaps, key, idx) !== null"
                       class="text-[9px] md:text-xs font-bold"
@@ -309,7 +355,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
         </div>
       </div>
 
-      <!-- History Load Buttons -->
+      <!-- Load More History -->
       <div
         class="flex flex-col md:flex-row items-center justify-between bg-neutral-800/50 p-3 rounded-lg border border-neutral-700/50 mt-4 mb-4">
         <div class="flex items-center space-x-2 text-xs text-gray-400 mb-2 md:mb-0">
@@ -333,9 +379,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
       </div>
     </div>
 
-    <!-- History Load Buttons -->
-
-
+    <!-- Disclaimer Modal -->
     <DisclaimerModal :is-open="showDisclaimer" title="Disclaimer"
       message="eChook measured lap times are only accurate to within a few seconds and are no replacement for the official lap times."
       @confirm="handleDisclaimerConfirm" />

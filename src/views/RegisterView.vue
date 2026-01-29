@@ -1,4 +1,20 @@
+<!--
+  @file views/RegisterView.vue
+  @brief User registration page view component.
+  @description Provides a registration form for new car accounts including
+               car name, email, team name, and password with confirmation.
+               Validates password match before submission.
+-->
 <script setup>
+/**
+ * @description Vue script setup for RegisterView.
+ * 
+ * Features:
+ * - Form validation with password confirmation
+ * - Visual feedback for password match/mismatch
+ * - Auto-redirect to dashboard on successful registration
+ * - Error display for registration failures
+ */
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
@@ -8,6 +24,10 @@ import PublicHeader from '../components/PublicHeader.vue'
 const router = useRouter()
 const auth = useAuthStore()
 
+/**
+ * @brief Form data for registration.
+ * @type {Ref<Object>}
+ */
 const formData = ref({
   car: '',
   email: '',
@@ -20,14 +40,27 @@ const formData = ref({
 const error = ref('')
 const isLoading = ref(false)
 
+/**
+ * @brief Check if both password fields match and are filled.
+ * @type {ComputedRef<boolean>}
+ */
 const passwordsMatch = computed(() => {
   return formData.value.confirmPassword && formData.value.password === formData.value.confirmPassword
 })
 
+/**
+ * @brief Check if password confirmation doesn't match.
+ * @type {ComputedRef<boolean>}
+ */
 const passwordMismatch = computed(() => {
   return formData.value.confirmPassword && formData.value.password !== formData.value.confirmPassword
 })
 
+/**
+ * @brief Handle registration form submission.
+ * @description Validates passwords match, then submits to auth store.
+ *              Redirects to dashboard on success, shows error on failure.
+ */
 const handleRegister = async () => {
   error.value = ''
 

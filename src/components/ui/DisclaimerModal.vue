@@ -1,6 +1,13 @@
+<!--
+  @file components/ui/DisclaimerModal.vue
+  @brief Disclaimer/notice modal with "don't show again" option.
+  @description Modal dialog for displaying important notices or disclaimers.
+               Includes a checkbox to prevent future displays of the same notice.
+-->
 <template>
     <TransitionRoot appear :show="isOpen" as="template">
         <Dialog as="div" @close="handleClose" class="relative z-50">
+            <!-- Backdrop -->
             <TransitionChild as="template" enter="duration-300 ease-out" enter-from="opacity-0" enter-to="opacity-100"
                 leave="duration-200 ease-in" leave-from="opacity-100" leave-to="opacity-0">
                 <div class="fixed inset-0 bg-black/75 backdrop-blur-sm" />
@@ -49,6 +56,24 @@
 </template>
 
 <script setup>
+/**
+ * @description Disclaimer modal with persistent "don't show again" option.
+ * 
+ * Features:
+ * - Displays important notices or disclaimers
+ * - "Don't show again" checkbox for user preference
+ * - Accept button to confirm acknowledgment
+ * - Backdrop click does not close (requires explicit acceptance)
+ * 
+ * Props:
+ * - isOpen: Whether the modal is visible
+ * - title: Modal title
+ * - message: Disclaimer message text
+ * 
+ * Emits:
+ * - close: When modal is closed (not currently used)
+ * - confirm: When Accept is clicked, includes doNotShow preference
+ */
 import { ref, watch } from 'vue'
 import {
     TransitionRoot,
@@ -58,12 +83,18 @@ import {
     DialogTitle,
 } from '@headlessui/vue'
 
+/**
+ * @brief Component props definition.
+ */
 const props = defineProps({
+    /** @brief Whether the modal is currently visible */
     isOpen: Boolean,
+    /** @brief Modal dialog title */
     title: {
         type: String,
         default: 'Notice'
     },
+    /** @brief Disclaimer message text */
     message: {
         type: String,
         required: true
@@ -72,21 +103,22 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm'])
 
+/** @brief "Don't show again" checkbox state */
 const doNotShow = ref(false)
 
-// Reset state when opened? standard practice not to, but kept simple here.
-
+/**
+ * @brief Handle backdrop click (disabled for disclaimers).
+ * @description Disclaimers typically require explicit acceptance,
+ *              so backdrop click does nothing.
+ */
 function handleClose() {
-    // If forced to accept, maybe don't allow close by clicking outside? 
-    // User asked for "Accept" button. Disallowing implicit close is safer for disclaimers.
-    // But standard modal behavior usually allows background click. Let's allow it but treat as non-confirm?
-    // User request: "Accept button". Usually implies it blocks until accepted? 
-    // Let's assume backdrop click does NOT close or acts as accept? 
-    // Safer: backdrop does nothing or closes without saving preference? 
-    // Let's allow generic close.
-    // emit('close')
+    // Disabled: Backdrop click does not close disclaimer modals
+    // Requires explicit Accept button click
 }
 
+/**
+ * @brief Confirm acceptance and emit with preference.
+ */
 function confirm() {
     emit('confirm', doNotShow.value)
 }

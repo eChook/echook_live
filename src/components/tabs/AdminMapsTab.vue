@@ -1,4 +1,25 @@
+<!--
+  @file components/tabs/AdminMapsTab.vue
+  @brief Admin panel track/map management component.
+  @description Provides interface for managing race track boundaries.
+               Allows viewing, creating, editing, and deleting track definitions
+               with interactive map-based bounding box editing.
+-->
 <script setup>
+/**
+ * @description Admin Maps Tab component.
+ * 
+ * Features:
+ * - List of all defined race tracks
+ * - Interactive Leaflet map for boundary visualization
+ * - Draggable corner markers for bounding box editing
+ * - Create new tracks with default boundaries
+ * - Edit track names and boundaries
+ * - Delete tracks with confirmation
+ * 
+ * Track boundaries are defined as lat/lon min/max rectangles
+ * used for automatic race detection and map centering.
+ */
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAdminStore } from '../../stores/admin'
 import { TrashIcon, PlusIcon, MapIcon } from '@heroicons/vue/24/outline'

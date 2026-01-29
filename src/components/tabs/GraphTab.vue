@@ -1,4 +1,26 @@
+<!--
+  @file components/tabs/GraphTab.vue
+  @brief Telemetry graph tab with metric selection and synchronized charts.
+  @description Main graph visualization tab showing multiple TelemetryGraph
+               components with synchronized zoom via ECharts grouping.
+               Includes collapsible metric sidebar for visibility control.
+-->
 <script setup>
+/**
+ * @description Graph tab component for telemetry visualization.
+ * 
+ * Features:
+ * - Multiple synchronized TelemetryGraph instances
+ * - ECharts chart grouping for coordinated zoom/pan
+ * - Collapsible sidebar for metric visibility toggles
+ * - MasterZoom slider for global time range selection
+ * - Per-metric color coding
+ * - First-time help modal
+ * 
+ * Settings Persisted:
+ * - selectedDashboardKeys: Which metrics are visible
+ * - showDashboardMetrics: Whether sidebar is expanded
+ */
 import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
@@ -11,47 +33,67 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
 
-// Chart Sync
+/** @brief ECharts group name for synchronized charts */
 const CHART_GROUP = 'telemetry_sync_group'
 connect(CHART_GROUP)
 
-// Metrics Visibility State
+/**
+ * @brief Whether the metrics sidebar is visible.
+ * @type {ComputedRef<boolean>}
+ */
 const showMetrics = computed({
   get: () => settings.showDashboardMetrics,
   set: (val) => { settings.showDashboardMetrics = val }
 })
 
+/**
+ * @brief Set of currently selected/visible metric keys.
+ * @type {ComputedRef<Set<string>>}
+ */
 const selectedKeys = computed({
   get: () => new Set(settings.selectedDashboardKeys),
   set: (val) => { settings.selectedDashboardKeys = Array.from(val) }
 })
 
+/**
+ * @brief Toggle metrics sidebar visibility.
+ */
 const toggleMetrics = () => {
   showMetrics.value = !showMetrics.value
 }
 
+/**
+ * @brief Predefined colors for common metrics.
+ */
 const metricColors = {
-  speed: '#2dd4bf', // teal-400
-  rpm: '#fbbf24', // amber-400
-  current: '#f87171', // red-400
-  voltage: '#34d399', // emerald-400
-  throttle: '#60a5fa', // blue-400
-  temp1: '#fb923c', // orange-400
-  temp2: '#f97316', // orange-500
-  ampH: '#a78bfa', // violet-400
-  gear: '#818cf8', // indigo-400
-  brake: '#f43f5e', // rose-500
-  voltageLower: '#10b981', // emerald-500
-  voltageHigh: '#059669', // emerald-600
-  voltageDiff: '#047857', // emerald-700
-  tempDiff: '#c2410c' // orange-700
+  speed: '#2dd4bf',
+  rpm: '#fbbf24',
+  current: '#f87171',
+  voltage: '#34d399',
+  throttle: '#60a5fa',
+  temp1: '#fb923c',
+  temp2: '#f97316',
+  ampH: '#a78bfa',
+  gear: '#818cf8',
+  brake: '#f43f5e',
+  voltageLower: '#10b981',
+  voltageHigh: '#059669',
+  voltageDiff: '#047857',
+  tempDiff: '#c2410c'
 }
 
+/**
+ * @brief Fallback colors for unknown metrics.
+ */
 const fallbackColors = [
   '#2dd4bf', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa',
   '#34d399', '#f87171', '#818cf8', '#fb923c'
 ]
 
+/**
+ * @brief Toggle a metric's visibility.
+ * @param {string} key - Metric key to toggle
+ */
 const toggleKey = (key) => {
   const newSet = new Set(selectedKeys.value)
   if (newSet.has(key)) {
@@ -62,10 +104,15 @@ const toggleKey = (key) => {
   selectedKeys.value = newSet
 }
 
+/**
+ * @brief Get color for a metric key.
+ * @param {string} key - Metric key
+ * @returns {string} Hex color string
+ */
 const getColor = (key) => {
   if (metricColors[key]) return metricColors[key]
 
-  // Deterministic fallback based on key string
+  // Deterministic fallback based on key hash
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
     hash = key.charCodeAt(i) + ((hash << 5) - hash);
@@ -76,7 +123,7 @@ const getColor = (key) => {
 
 const showHelp = ref(false)
 
-// Ensure charts are connected when this tab mounts
+// Ensure charts are connected when tab mounts
 onMounted(() => {
   requestAnimationFrame(() => {
     connect(CHART_GROUP)
@@ -105,7 +152,7 @@ onActivated(() => {
 
 <template>
   <div class="flex-1 flex overflow-hidden h-full relative">
-    <!-- Controls / Sidebar -->
+    <!-- Metrics Sidebar (Collapsible) -->
     <aside
       class="bg-neutral-900 border-r border-neutral-800 transition-all duration-300 overflow-hidden flex flex-col pt-14 md:pt-0"
       :class="showMetrics ? 'w-44 opacity-100' : 'w-0 opacity-0 border-r-0'">
@@ -135,7 +182,7 @@ onActivated(() => {
       </div>
     </aside>
 
-    <!-- Collapsed Toggle Button (aligned with MasterZoom) -->
+    <!-- Collapsed Toggle Button -->
     <div v-if="!showMetrics" class="absolute top-[calc(0.75rem)] left-1 z-20">
       <button @click="toggleMetrics" class="p-1 text-gray-500 hover:text-white transition" title="Show Metrics">
         <ChevronRightIcon class="w-5 h-5" />

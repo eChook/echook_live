@@ -1,4 +1,31 @@
+<!--
+  @file components/DashboardHeader.vue
+  @brief Main dashboard navigation header component.
+  @description Persistent header with car status, history controls,
+               data management, and navigation. Shows connection status,
+               loaded data range, and provides quick actions.
+-->
 <script setup>
+/**
+ * @description Dashboard Header component.
+ * 
+ * Features:
+ * - Live connection status indicator with color-coded state
+ * - Car/team name display with viewing mode support
+ * - History calendar for loading historical data
+ * - Data range display (from/to timestamps)
+ * - Pause/resume data streaming
+ * - Clear data confirmation modal
+ * - Smart resume (clears old data and resumes live)
+ * - Responsive mobile menu
+ * - Server stats display (active cars, spectators)
+ * - Logout functionality
+ * 
+ * Status colors:
+ * - Green (pulsing): Live data flowing
+ * - Orange: Data stale (5-10s) or paused
+ * - Red: No connection or data older than 10s
+ */
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useTelemetryStore } from '../stores/telemetry'

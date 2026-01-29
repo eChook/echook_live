@@ -1,3 +1,12 @@
+/**
+ * @file stores/telemetry.js
+ * @brief Core telemetry data management store.
+ * @description Pinia store for managing real-time telemetry data from the eChook
+ *              car. Handles WebSocket connections, data ingestion, history management,
+ *              unit conversions, lap/race detection, and graph zoom state.
+ *              This is the primary data store for the dashboard.
+ */
+
 import { defineStore } from 'pinia'
 import { ref, computed, watch, shallowRef } from 'vue'
 import { io } from 'socket.io-client'
@@ -8,63 +17,131 @@ import { updateRaceSessions } from '../utils/raceAnalytics'
 import { api, decodeMsgpack, socketMsgpackOptions } from '../utils/msgpack'
 import { scalePacket } from '../utils/unitConversions'
 
+/**
+ * @brief Telemetry store for real-time car data.
+ * @description Manages the complete lifecycle of telemetry data from socket
+ *              connection through display. Provides reactive state for live
+ *              data, historical data, lap tracking, and chart controls.
+ */
 export const useTelemetryStore = defineStore('telemetry', () => {
-    const socket = ref(null)
-    const isConnected = ref(false)
-    const now = ref(Date.now()) // Reactive time for staleness tracking
+    // ============================================
+    // Connection State
+    // ============================================
 
-    // Update 'now' every second
+    /** @brief Socket.IO client instance */
+    const socket = ref(null)
+
+    /** @brief Whether WebSocket is currently connected */
+    const isConnected = ref(false)
+
+    /** @brief Current timestamp for staleness calculations (updated every second) */
+    const now = ref(Date.now())
+
+    // Update 'now' every second for reactive staleness tracking
     setInterval(() => {
         now.value = Date.now()
     }, 1000)
+
+    /** @brief Timestamp of last received data packet */
     const lastPacketTime = ref(0)
 
+    /**
+     * @brief Whether data is considered stale (no updates in 5+ seconds).
+     * @type {ComputedRef<boolean>}
+     */
     const isDataStale = computed(() => {
         if (!isConnected.value) return true
         if (lastPacketTime.value === 0) return true
         return (now.value - lastPacketTime.value) > 5000
     })
-    const liveData = ref({}) // Latest packet
-    const history = shallowRef([]) // Array of pre-scaled { timestamp, ...data }
+
+    // ============================================
+    // Data State
+    // ============================================
+
+    /** @brief Latest telemetry packet (scaled for display) */
+    const liveData = ref({})
+
+    /**
+     * @brief Historical telemetry data array.
+     * @description Uses shallowRef for performance - array mutations are batched.
+     * @type {ShallowRef<Array<Object>>}
+     */
+    const history = shallowRef([])
+
+    /** @brief Timestamp of last chart update */
     const lastChartUpdate = ref(0)
-    const lapHistory = ref([]) // Array of lap data (sequential for backup)
-    const chartZoomRequest = ref(null) // { start: ms, end: ms, id: number }
 
-    function requestChartZoom(start, end) {
-        chartZoomRequest.value = { start, end, id: Date.now() }
-    }
+    /** @brief Sequential array of lap data for backup/legacy consumers */
+    const lapHistory = ref([])
 
-    // 3. Admin / Viewing State
-    const viewingCar = ref(null) // { id, carName, teamName, number }
+    /**
+     * @brief Current chart zoom request.
+     * @description Types: 'absolute' (start/end), 'reset', 'pan' (offsetMs), 'scale' (factor)
+     * @type {Ref<Object|null>}
+     */
+    const chartZoomRequest = ref(null)
 
-    // -- Persistent Settings Proxy --
+    // ============================================
+    // Viewing State
+    // ============================================
+
+    /**
+     * @brief Currently viewed car details.
+     * @description { id, carName, teamName, number, isOwn }
+     */
+    const viewingCar = ref(null)
+
+    // ============================================
+    // Settings Proxy (from Settings Store)
+    // ============================================
+
     const settings = useSettingsStore()
 
-    // We proxy these so we don't have to update every component immediately
+    /**
+     * @brief Proxy for max history points setting.
+     * @description Allows components to read/write via telemetry store.
+     */
     const maxHistoryPoints = computed({
         get: () => settings.maxHistoryPoints,
         set: (val) => { settings.maxHistoryPoints = val }
     })
+
+    /** @brief Proxy for graph settings */
     const graphSettings = computed(() => settings.graphSettings)
+
+    /** @brief Proxy for unit settings */
     const unitSettings = computed(() => settings.unitSettings)
+
+    /**
+     * @brief Proxy for race records.
+     * @description Structure: { [raceStartTime]: { startTimeMs, laps: { [lapNum]: data } } }
+     */
     const races = computed({
         get: () => settings.races,
         set: (val) => { settings.races = val }
     })
 
+    // Trim history when max points setting changes
     watch(() => settings.maxHistoryPoints, (val) => {
         if (history.value.length > val) {
             history.value = history.value.slice(history.value.length - val)
         }
     })
 
+    // Clear history when units change (requires rescaling)
     watch(() => settings.unitSettings, () => {
-        // console.log('Units changed, clearing history to refresh data...')
         clearHistory()
     }, { deep: true })
 
+    // ============================================
+    // Key Configuration
+    // ============================================
 
-    // Allowed keys configuration
+    /**
+     * @brief Set of regular telemetry keys (non-lap data).
+     * @type {Set<string>}
+     */
     const REGULAR_KEYS = new Set([
         'voltage', 'current', 'voltageLower', 'voltageHigh', 'voltageDiff',
         'rpm', 'speed', 'throttle',
@@ -72,11 +149,18 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'gear', 'brake', 'lon', 'lat', 'track'
     ])
 
+    /**
+     * @brief Set of lap summary keys (LL_* prefixed).
+     * @type {Set<string>}
+     */
     const LAP_KEYS = new Set([
         'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff'
     ])
 
-    // Human-readable display names for telemetry keys
+    /**
+     * @brief Human-readable display names for telemetry keys.
+     * @type {Object.<string, string>}
+     */
     const KEY_DISPLAY_NAMES = {
         voltage: 'Voltage',
         current: 'Current',
@@ -98,7 +182,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         track: 'Track'
     }
 
-    // Descriptions for tooltips
+    /**
+     * @brief Tooltip descriptions for telemetry keys.
+     * @type {Object.<string, string>}
+     */
     const KEY_DESCRIPTIONS = {
         voltage: 'Total battery voltage (24V Nominal)',
         current: 'Current draw from the battery',
@@ -120,22 +207,45 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         track: 'Current track or circuit name'
     }
 
-    // Helper: Get display name for a key
+    /**
+     * @brief Get human-readable display name for a telemetry key.
+     * @param {string} key - Telemetry key
+     * @returns {string} Display name or the key itself if not found
+     */
     const getDisplayName = (key) => KEY_DISPLAY_NAMES[key] || key
+
+    /**
+     * @brief Get description tooltip for a telemetry key.
+     * @param {string} key - Telemetry key
+     * @returns {string} Description or empty string if not found
+     */
     const getDescription = (key) => KEY_DESCRIPTIONS[key] || ''
 
-    // Wrapper to inject current unitSettings into scalePacket
+    /**
+     * @brief Scale a packet using current unit settings.
+     * @param {Object} pt - Raw telemetry packet
+     * @returns {Object} Scaled packet with converted units
+     */
     const scalePacketWithUnits = (pt) => scalePacket(pt, unitSettings.value)
 
-    // Computed: Display Live Data (Converted Units)
+    // ============================================
+    // Computed Properties
+    // ============================================
+
+    /**
+     * @brief Live data with unit conversions applied.
+     * @type {ComputedRef<Object>}
+     */
     const displayLiveData = computed(() => {
         const pt = liveData.value
         if (!pt) return {}
         return scalePacketWithUnits(pt)
     })
 
-
-    // Display order for keys
+    /**
+     * @brief Preferred display order for telemetry keys.
+     * @type {string[]}
+     */
     const KEY_ORDER = [
         'voltage', 'current', 'ampH',
         'speed', 'rpm', 'throttle', 'voltageLower',
@@ -144,9 +254,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         'currLap', 'lat', 'lon', 'track'
     ]
 
-    // Computed: Get array of keys present in data for UI toggles
+    /**
+     * @brief Array of available telemetry keys present in current data.
+     * @description Keys are ordered by KEY_ORDER preference.
+     * @type {ComputedRef<string[]>}
+     */
     const availableKeys = computed(() => {
-        // Collect all keys from liveData
         const keys = new Set()
 
         // Add keys from live data if they are in REGULAR_KEYS
@@ -154,35 +267,39 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             if (REGULAR_KEYS.has(k)) keys.add(k)
         })
 
-        // Also check recent history to ensure we don't drop keys that might be momentarily missing/null
-        // but only if they are allowed
+        // Also check recent history for temporarily missing keys
         if (history.value.length > 0) {
             Object.keys(history.value[history.value.length - 1]).forEach(k => {
                 if (REGULAR_KEYS.has(k)) keys.add(k)
             })
         }
 
-        // Return in preferred order, filtering to only available keys
         return KEY_ORDER.filter(k => keys.has(k))
     })
 
-    // Computed: Graph Keys (Available keys excluding non-plottable ones like 'track')
+    /**
+     * @brief Available keys filtered for graph display (excludes 'track').
+     * @type {ComputedRef<string[]>}
+     */
     const graphKeys = computed(() => {
         return availableKeys.value.filter(k => k !== 'track')
     })
 
-    // Computed: Generate markArea data for ECharts lap highlights
+    /**
+     * @brief Generate ECharts markArea data for lap highlights.
+     * @description Creates colored regions on the graph for each completed lap.
+     * @type {ComputedRef<Array>}
+     */
     const lapMarkAreas = computed(() => {
         const areas = []
         const isValidTs = (ts) => ts && Number.isFinite(ts) && ts > 946684800000
 
         let lastFinish = null
 
-        // Sort races by start time for visual consistency
+        // Sort races by start time
         const sortedRaces = Object.values(races.value).sort((a, b) => a.startTimeMs - b.startTimeMs)
 
         sortedRaces.forEach(race => {
-            // Sort laps by number
             const sortedLaps = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
 
             sortedLaps.forEach(lap => {
@@ -205,7 +322,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             })
         })
 
-        // 2. Process Current (Incomplete) Lap
+        // Add current (incomplete) lap
         if (lastFinish && history.value.length > 0) {
             const lastPt = history.value[history.value.length - 1]
             if (isValidTs(lastFinish) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lastFinish) {
@@ -230,30 +347,49 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     })
 
     const auth = useAuthStore()
+
+    /** @brief Current lap number from latest data */
     const currentLapIndex = ref(0)
 
-    /**
-     * Processes incoming telemetry packets to update the current lap index and extract lap timing information.
-     * It manages race detection by identifying lap number resets and maintains a continuous timeline of laps.
-     * 
-     * @param {Object} packet - The telemetry data packet containing lap and timing information.
-     */
+    // ============================================
+    // Data Processing Functions
+    // ============================================
 
+    /**
+     * @brief Process incoming packet for lap and race data.
+     * @description Updates race sessions when lap summary data (LL_*) is received.
+     *              Detects new races, records lap times, and maintains race history.
+     * @param {Object} packet - Telemetry packet with timestamp
+     */
     function processLapData(packet) {
         if (packet.currLap !== undefined) {
             currentLapIndex.value = packet.currLap
         }
 
-        // Use utility to update races structure
-        races.value = updateRaceSessions({ ...races.value }, packet, currentLapIndex.value)
+        // Only update races if packet contains lap data
+        const hasLapData = packet['LL_Time'] !== undefined || packet['LL_V'] !== undefined
+        const hasTrackName = packet['track'] !== undefined || packet['Track'] !== undefined || packet['Circuit'] !== undefined
 
-        // Update lapHistory array for potential legacy consumers
-        const latestRace = Object.values(races.value).sort((a, b) => b.startTimeMs - a.startTimeMs)[0]
-        if (latestRace) {
-            lapHistory.value = Object.values(latestRace.laps).sort((a, b) => a.lapNumber - b.lapNumber)
+        if (hasLapData || hasTrackName) {
+            races.value = updateRaceSessions({ ...races.value }, packet, currentLapIndex.value)
+
+            // Update lapHistory array for legacy consumers
+            const latestRace = Object.values(races.value).sort((a, b) => b.startTimeMs - a.startTimeMs)[0]
+            if (latestRace) {
+                lapHistory.value = Object.values(latestRace.laps).sort((a, b) => a.lapNumber - b.lapNumber)
+            }
         }
     }
 
+    // ============================================
+    // Socket Connection Functions
+    // ============================================
+
+    /**
+     * @brief Establish WebSocket connection to the telemetry server.
+     * @description Connects to WS_URL, sets up event handlers for data,
+     *              and automatically joins the user's car room.
+     */
     function connect() {
         if (socket.value?.connected) return
 
@@ -261,10 +397,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         socket.value.on('connect', () => {
             isConnected.value = true
-            // console.log('Socket connected')
-            // Join the room for the specific car if user is valid
-            // Note: API doc says emit 'join' with Car ID. 
-            // So use auth.user.id
+            // Join room for the authenticated user's car
             if (auth.user?.id || auth.user?._id) {
                 const userCar = {
                     id: auth.user.id || auth.user._id,
@@ -279,7 +412,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         socket.value.on('disconnect', () => {
             isConnected.value = false
-            console.log('Socket disconnected')
         })
 
         socket.value.on('data', (rawData) => {
@@ -288,52 +420,46 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             // Decode MessagePack buffer
             const packet = decodeMsgpack(rawData)
 
-            // Auto-cast all numeric-like strings to numbers
+            // Auto-cast numeric strings to numbers
             Object.keys(packet).forEach(key => {
                 const val = packet[key]
                 if (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '') {
                     packet[key] = Number(val)
                 }
             })
-            // console.log('New Data Packet', packet)
-            // Prefer server/packet timestamp to align with history
+
             const timestamp = packet.timestamp || packet.updated || Date.now()
 
-            // 1. Process Lap Data FIRST
-            // This ensures races.value is updated before history triggers the chart redraw logic
+            // 1. Process lap data first (updates races before chart redraw)
             processLapData({ ...packet, timestamp })
 
-            // 2. Process Regular Data
+            // 2. Process regular telemetry data
             const regularPacket = {}
             let hasRegularData = false
 
-            // Normalize Capitalized Keys if present
+            // Normalize capitalized keys
             if (packet['Lon'] !== undefined) packet['lon'] = packet['Lon']
             if (packet['Lat'] !== undefined) packet['lat'] = packet['Lat']
 
             REGULAR_KEYS.forEach(key => {
-                // Check for key in packet (or normalized versions if needed)
                 if (packet[key] !== undefined) {
                     regularPacket[key] = packet[key]
                     hasRegularData = true
                 }
             })
 
-            // Always preserve timestamp and lat/lon for map if they exist in original packet 
-            // even if not explicitly in REGULAR_KEYS (though Lat/Lon are in there)
             regularPacket.timestamp = timestamp
-            // Ensure lat/lon are implicitly added if they exist, to ensure map works even if not in REGULAR_KEYS
             if (packet.lat !== undefined) regularPacket.lat = packet.lat
             if (packet.lon !== undefined) regularPacket.lon = packet.lon
 
             if (hasRegularData) {
-                // SCALE ON INGESTION: Store pre-scaled data in history for max performance
+                // Scale on ingestion for performance
                 const processed = scalePacketWithUnits(regularPacket)
 
                 liveData.value = processed
                 lastPacketTime.value = timestamp
 
-                // Buffer history (Push to array directly)
+                // Add to history
                 history.value.push(processed)
 
                 // Limit history size
@@ -341,20 +467,19 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                     history.value.shift()
                 }
 
-                // Throttled Redraw based on user setting
-                const nowMs = Date.now()
-                const throttleInterval = 1000 / (graphSettings.value.chartUpdateFreq || 5)
-                if (nowMs - lastChartUpdate.value > throttleInterval) {
-                    history.value = [...history.value]
-                    lastChartUpdate.value = nowMs
-                }
+                // Trigger reactivity
+                history.value = [...history.value]
             }
         })
     }
 
+    /**
+     * @brief Join a car's data room to receive its telemetry.
+     * @param {string} carId - Car ID to join
+     * @param {Object|null} carDetails - Optional car details object
+     */
     function joinRoom(carId, carDetails = null) {
         if (socket.value && isConnected.value) {
-            console.log('Joining room for:', carId)
             socket.value.emit('join', carId)
             if (carDetails) {
                 viewingCar.value = carDetails
@@ -365,12 +490,19 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
+    /**
+     * @brief Leave a car's data room.
+     * @param {string} carId - Car ID to leave
+     */
     function leaveRoom(carId) {
         if (socket.value) {
             socket.value.emit('leave', carId)
         }
     }
 
+    /**
+     * @brief Disconnect from the WebSocket server.
+     */
     function disconnect() {
         if (socket.value) {
             socket.value.disconnect()
@@ -379,6 +511,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
+    /**
+     * @brief Clear all history and race data.
+     */
     function clearHistory() {
         history.value = []
         races.value = []
@@ -386,51 +521,70 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         currentLapIndex.value = 0
     }
 
-    const isPaused = ref(false)
-    const availableDays = ref(new Set()) // Set of YYYY-MM-DD
+    // ============================================
+    // Pause/Resume State
+    // ============================================
 
-    // Getters for header
+    /** @brief Whether live data ingestion is paused */
+    const isPaused = ref(false)
+
+    /** @brief Set of available history days (YYYY-MM-DD format) */
+    const availableDays = ref(new Set())
+
+    /**
+     * @brief Earliest timestamp in history.
+     * @type {ComputedRef<number|null>}
+     */
     const earliestTime = computed(() => {
         if (history.value.length === 0) return null
         return history.value[0].timestamp
     })
 
+    /**
+     * @brief Latest timestamp in history.
+     * @type {ComputedRef<number|null>}
+     */
     const latestTime = computed(() => {
         if (history.value.length === 0) return null
         return history.value[history.value.length - 1].timestamp
     })
 
+    /**
+     * @brief Toggle pause state for live data ingestion.
+     * @description When resuming, automatically fetches data from the gap period.
+     * @returns {Promise<void>}
+     */
     async function togglePause() {
         const wasPaused = isPaused.value
         isPaused.value = !isPaused.value
 
-        // If we are RESUMING (switching from true to false)
+        // If resuming, fill the gap
         if (wasPaused && !isPaused.value) {
-            // Check if we are "Live" (i.e. viewing today's data) or just paused on today
-            // If we are viewing history (different day), we probably shouldn't auto-fill gap 
-            // unless we are sure. But usually 'Reset to Live' handles different days.
-            // So here we assume if we are just toggling pause, we want to fill the gap.
-
             const lastTime = latestTime.value
-            // Use viewingCar if available, fallback to auth user (though viewingCar should be set)
             const carId = viewingCar.value?.id || auth.user?.id || auth.user?._id
 
             if (lastTime && carId) {
                 const today = new Date().toDateString()
                 const lastDate = new Date(lastTime).toDateString()
 
-                // Only fill gap if we are on the same day
+                // Only fill gap if same day
                 if (today === lastDate) {
                     const now = Date.now()
-                    console.log(`Resuming live... fetching gap from ${new Date(lastTime).toLocaleTimeString()} to ${new Date(now).toLocaleTimeString()}`)
-
-                    // Use prepend=true to force merge strategy in fetchHistory
                     await fetchHistory(carId, lastTime, now, true)
                 }
             }
         }
     }
 
+    // ============================================
+    // History Fetching Functions
+    // ============================================
+
+    /**
+     * @brief Fetch list of days with available history data.
+     * @param {string} carId - Car ID to query
+     * @returns {Promise<void>}
+     */
     async function fetchAvailableDays(carId) {
         if (!carId) return
         try {
@@ -443,19 +597,27 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
-    // Computed: Is Truncated?
+    /**
+     * @brief Whether history is at maximum capacity.
+     * @type {ComputedRef<boolean>}
+     */
     const isHistoryTruncated = computed(() => {
         return history.value.length >= maxHistoryPoints.value
     })
 
-    // Load extra history BEFORE the current earliest point
+    /**
+     * @brief Load additional history before current data.
+     * @param {string} carId - Car ID to fetch for
+     * @param {number} minutes - Number of minutes to load
+     * @returns {Promise<void>}
+     */
     async function loadExtraHistory(carId, minutes) {
         if (!carId || !earliestTime.value) return
 
         const currentStart = earliestTime.value
         const newStart = currentStart - (minutes * 60 * 1000)
 
-        const count = await fetchHistory(carId, newStart, currentStart, true) // true = prepend
+        const count = await fetchHistory(carId, newStart, currentStart, true)
         if (count === 0) {
             const { useToast } = await import('../composables/useToast')
             const { showToast } = useToast()
@@ -463,14 +625,18 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
-    // Load a specific day (clears existing)
-    // Optional start/end times (HH:MM strings or timestamps, here assuming timestamps or handling in UI)
-    // Actually, simpler to pass start/end Timestamps if caller calculates them, 
-    // OR pass 00:00 strings. Let's make it flexible: assume timestamps for start/end if provided
+    /**
+     * @brief Load history for a specific day.
+     * @description Clears existing data and loads the specified day's history.
+     * @param {string} carId - Car ID to fetch for
+     * @param {string} dateString - Date in YYYY-MM-DD format
+     * @param {string} [startTimeStr='00:00'] - Start time (HH:MM)
+     * @param {string} [endTimeStr='23:59'] - End time (HH:MM)
+     * @returns {Promise<void>}
+     */
     async function loadDay(carId, dateString, startTimeStr = '00:00', endTimeStr = '23:59') {
         if (!carId) return
 
-        // Helper to combine date + time string
         const getTs = (timeStr) => {
             const [h, m] = timeStr.split(':')
             const d = new Date(dateString)
@@ -481,8 +647,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const start = getTs(startTimeStr)
         const end = getTs(endTimeStr)
 
-        // Pause live feed implicitly when viewing history? 
-        // User requirements imply separating live vs history mode via the prompt "modal... remove all currently loaded data"
         isPaused.value = true
         clearHistory()
 
@@ -494,17 +658,23 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
-    // Reset to Live Mode (Clear history, load recent)
+    /**
+     * @brief Reset to live mode with recent data.
+     * @description Clears history, resumes live updates, and loads last 30 minutes.
+     * @param {string} carId - Car ID to reset for
+     * @returns {Promise<void>}
+     */
     async function resetToLive(carId) {
         if (!carId) return
 
-        isPaused.value = false // Resume live updates
-        clearHistory() // Clear all data
-
-        // Load last 30 mins
+        isPaused.value = false
+        clearHistory()
         await fetchHistory(carId)
     }
 
+    /**
+     * @brief Full state reset (disconnect and clear all data).
+     */
     function resetState() {
         disconnect()
         liveData.value = {}
@@ -517,15 +687,24 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         isPaused.value = false
     }
 
+    /**
+     * @brief Fetch historical telemetry data from the server.
+     * @description Fetches data in chunks, merges with existing history if prepending.
+     *              Reprocesses all data for lap/race detection after loading.
+     * @param {string} carId - Car ID to fetch for
+     * @param {number|null} [start=null] - Start timestamp (defaults to last 30 minutes)
+     * @param {number|null} [end=null] - End timestamp (defaults to now)
+     * @param {boolean} [prepend=false] - Whether to merge with existing data
+     * @returns {Promise<number>} Number of data points fetched
+     */
     async function fetchHistory(carId, start = null, end = null, prepend = false) {
         if (!carId) return 0
 
-        // Default: last 30 mins if no start provided
         const startTime = start || (Date.now() - 30 * 60 * 1000)
 
         let fullHistory = []
         let page = 1
-        const limit = 5000 // Max chunk size
+        const limit = 5000
         let fetching = true
 
         try {
@@ -537,45 +716,27 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 }
                 if (end) params.end = end
 
-                const response = await api.get(`/api/history/${carId}`, {
-                    params
-                })
-
-                console.log('History API response:', {
-                    status: response.status,
-                    dataType: typeof response.data,
-                    isArray: Array.isArray(response.data),
-                    dataLength: response.data?.length,
-                    dataSample: response.data?.slice?.(0, 2)
-                })
+                const response = await api.get(`/api/history/${carId}`, { params })
 
                 if (response.data && Array.isArray(response.data)) {
                     const chunk = response.data
                     fullHistory = fullHistory.concat(chunk)
 
-                    // CHECK: Did we get a full page?
                     if (chunk.length < limit) {
                         fetching = false
                     } else {
                         page++
                     }
                 } else {
-                    fetching = false // Error or empty response, stop
+                    fetching = false
                 }
             }
 
             if (fullHistory.length > 0) {
-                console.log('Processing fullHistory:', {
-                    length: fullHistory.length,
-                    sample: fullHistory.slice(0, 2),
-                    sampleKeys: fullHistory[0] ? Object.keys(fullHistory[0]) : []
-                })
-
                 const dataMap = new Map()
 
-                // Normalize incoming
+                // Normalize and cast incoming data
                 const incoming = fullHistory.map(pt => {
-                    // Auto-cast strings to numbers (same as websocket)
                     const castPt = { ...pt }
                     Object.keys(castPt).forEach(key => {
                         const val = castPt[key]
@@ -588,33 +749,21 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                         ...castPt,
                         timestamp: castPt.timestamp || castPt.updated
                     })
-                }).filter(pt => pt.timestamp) // Ensure timestamp exists
-
-                console.log('After normalization:', {
-                    incomingLength: incoming.length,
-                    filteredOut: fullHistory.length - incoming.length,
-                    sampleTimestamps: incoming.slice(0, 3).map(p => p.timestamp)
-                })
+                }).filter(pt => pt.timestamp)
 
                 // Merge strategy
                 if (prepend) {
-                    // Combine incoming + existing
-                    // Use Map to dedupe based on timestamp
                     incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
                     history.value.forEach(pt => dataMap.set(pt.timestamp, pt))
                 } else {
-                    // Just replace (or initial load)
                     incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
                 }
 
-                // Convert back to array and sort
+                // Sort and scale
                 history.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
-
-                // Scale whole history for initial load
                 history.value = history.value.map(pt => scalePacketWithUnits(pt))
 
-                // Re-process history for laps/races
-                // We must rebuild ALL race logic when history changes to ensure continuity
+                // Rebuild race data from history
                 races.value = []
                 lapHistory.value = []
                 currentLapIndex.value = 0
@@ -622,8 +771,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 history.value.forEach(pt => {
                     processLapData(pt)
                 })
-
-                console.log(`Loaded ${incoming.length} historical points. Total: ${history.value.length}`)
             }
             return fullHistory.length
         } catch (error) {
@@ -632,25 +779,73 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         }
     }
 
+    // ============================================
+    // Chart Zoom Control Functions
+    // ============================================
+
+    /**
+     * @brief Request absolute chart zoom to specific time range.
+     * @param {number} start - Start timestamp in milliseconds
+     * @param {number} end - End timestamp in milliseconds
+     */
+    function requestChartZoom(start, end) {
+        chartZoomRequest.value = { type: 'absolute', start, end }
+    }
+
+    /**
+     * @brief Request chart zoom reset (unlock to live scroll).
+     */
+    function requestChartUnlock() {
+        chartZoomRequest.value = { type: 'reset' }
+    }
+
+    /**
+     * @brief Request chart pan by time offset.
+     * @param {number} offsetMs - Offset in milliseconds (positive = right, negative = left)
+     */
+    function requestChartPan(offsetMs) {
+        chartZoomRequest.value = { type: 'pan', offsetMs }
+    }
+
+    /**
+     * @brief Request chart zoom scale change.
+     * @param {number} factor - Scale factor (< 1 = zoom in, > 1 = zoom out)
+     */
+    function requestChartScale(factor) {
+        chartZoomRequest.value = { type: 'scale', factor }
+    }
+
     return {
+        // Connection State
         socket,
         isConnected,
         lastPacketTime,
+        isDataStale,
+
+        // Data State
         liveData,
         history,
-        displayHistory: history, // Compatibility: Alias history as displayHistory
+        displayHistory: history,
         lapHistory,
         races,
         viewingCar,
         availableKeys,
+        graphKeys,
+
+        // Pause State
         isPaused,
         availableDays,
         earliestTime,
         latestTime,
+        isHistoryTruncated,
+
+        // Connection Actions
         connect,
         joinRoom,
         leaveRoom,
         disconnect,
+
+        // Data Actions
         clearHistory,
         fetchHistory,
         togglePause,
@@ -659,23 +854,23 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         loadDay,
         resetToLive,
         resetState,
-        // Settings & Computed
+
+        // Settings Proxies
         maxHistoryPoints,
         graphSettings,
         unitSettings,
         displayLiveData,
-        isHistoryTruncated,
         lapMarkAreas,
-        isDataStale,
-        isConnected,
-        races,
-        maxHistoryPoints,
-        graphSettings,
-        unitSettings,
-        graphKeys,
+
+        // Helpers
         getDisplayName,
         getDescription,
+
+        // Chart Control
         chartZoomRequest,
-        requestChartZoom
+        requestChartZoom,
+        requestChartUnlock,
+        requestChartPan,
+        requestChartScale
     }
 })

@@ -1,10 +1,22 @@
+/**
+ * @file msgpack.js
+ * @brief MessagePack encoding/decoding utilities and API clients.
+ * @description Provides MessagePack binary serialization for efficient data transfer
+ *              between the client and server. Includes pre-configured Axios instances
+ *              for API and Authentication endpoints with automatic MessagePack handling.
+ */
+
 import msgpack from 'msgpack-lite'
 import axios from 'axios'
 import { API_BASE_URL } from '../config'
 
 /**
- * Decode MessagePack buffer to JavaScript object.
- * Handles both ArrayBuffer and Uint8Array.
+ * @brief Decode a MessagePack buffer to a JavaScript object.
+ * @description Handles both ArrayBuffer (from fetch/WebSocket) and Uint8Array inputs.
+ *              Used to parse binary data received from the server.
+ * 
+ * @param {ArrayBuffer|Uint8Array} buffer - The MessagePack encoded binary data
+ * @returns {*} The decoded JavaScript object/array
  */
 export function decodeMsgpack(buffer) {
     if (buffer instanceof ArrayBuffer) {
@@ -14,21 +26,33 @@ export function decodeMsgpack(buffer) {
 }
 
 /**
- * Encode JavaScript object to MessagePack buffer.
+ * @brief Encode a JavaScript object to MessagePack buffer.
+ * @description Converts JavaScript objects to compact binary format for transmission.
+ * 
+ * @param {*} data - The JavaScript object/array to encode
+ * @returns {Uint8Array} The MessagePack encoded binary data
  */
 export function encodeMsgpack(data) {
     return msgpack.encode(data)
 }
 
 /**
- * Socket.IO options for MessagePack format.
+ * @brief Socket.IO connection options for MessagePack format.
+ * @description Query parameter that tells the server to send data in MessagePack format.
+ * @type {Object}
  */
 export const socketMsgpackOptions = {
     query: { format: 'msgpack' }
 }
 
 /**
- * Axios instance pre-configured for MessagePack content negotiation.
+ * @brief Axios instance for general API requests with MessagePack support.
+ * @description Pre-configured with:
+ *              - MessagePack content negotiation headers
+ *              - Automatic request body encoding to MessagePack
+ *              - Automatic response decoding from MessagePack (with JSON fallback)
+ *              - ArrayBuffer response type for binary handling
+ * @type {import('axios').AxiosInstance}
  */
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -77,7 +101,11 @@ export const api = axios.create({
 })
 
 /**
- * Auth-specific axios instance (same config, different baseURL).
+ * @brief Axios instance for authentication API requests with MessagePack support.
+ * @description Same configuration as `api` but with:
+ *              - Base URL pointing to /auth endpoint
+ *              - Credentials included for cookie-based session handling
+ * @type {import('axios').AxiosInstance}
  */
 export const authApi = axios.create({
     baseURL: `${API_BASE_URL}/auth`,

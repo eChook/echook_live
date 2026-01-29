@@ -1,4 +1,20 @@
+<!--
+  @file components/PublicHeader.vue
+  @brief Public-facing header component for login/spectator pages.
+  @description Displays the eChook branding and real-time server statistics
+               (active cars, pit crews, spectators). Connects to the public
+               WebSocket namespace for live stat updates.
+-->
 <script setup>
+/**
+ * @description Public header component with server statistics.
+ * 
+ * Features:
+ * - eChook branding with link to login
+ * - Real-time server stats: active cars, pit crews, spectators
+ * - Auto-connects to public namespace on mount
+ * - Responsive layout (icons on mobile, full text on desktop)
+ */
 import { onMounted } from 'vue'
 import { useSpectatorStore } from '../stores/spectator'
 import {
@@ -9,7 +25,7 @@ import {
 
 const spectatorStore = useSpectatorStore()
 
-// Ensure we are connected to public socket to get stats
+// Ensure connection to public socket for stats
 onMounted(() => {
     spectatorStore.connectPublic()
 })
@@ -26,8 +42,9 @@ onMounted(() => {
             </router-link>
         </div>
 
-        <!-- Right Side Stats -->
+        <!-- Right Side: Server Stats -->
         <div class="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-400">
+            <!-- Active Cars -->
             <div class="flex items-center space-x-1 md:space-x-2" title="Active Cars">
                 <BoltIcon class="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 <span>
@@ -35,6 +52,7 @@ onMounted(() => {
                     <span class="text-white font-bold">{{ spectatorStore.serverStats.activeCars }}</span>
                 </span>
             </div>
+            <!-- Pit Crews (Private Spectators) -->
             <div class="flex items-center space-x-1 md:space-x-2" title="Pit Crews">
                 <UsersIcon class="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                 <span>
@@ -42,6 +60,7 @@ onMounted(() => {
                     <span class="text-white font-bold">{{ spectatorStore.serverStats.privateSpectators }}</span>
                 </span>
             </div>
+            <!-- Public Spectators -->
             <div class="flex items-center space-x-1 md:space-x-2" title="Spectators">
                 <EyeIcon class="w-4 h-4 md:w-5 md:h-5 text-green-400" />
                 <span>
