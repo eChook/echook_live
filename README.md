@@ -195,9 +195,3 @@ This frontend requires an eChook Server backend with:
 
 This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
----
-
-## Related Projects
-
-- [eChook Arduino](https://github.com/eChook/eChook-Arduino) - Car-side telemetry board
-- [eChook App](https://github.com/eChook/eChook-Android) - Android companion app
