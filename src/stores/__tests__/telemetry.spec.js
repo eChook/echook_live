@@ -102,4 +102,40 @@ describe('telemetry store', () => {
             expect(tempF).toBe(77)
         })
     })
+    describe('lapMarkAreas', () => {
+        it('calculates current lap number with +1 offset', () => {
+            const telemetry = useTelemetryStore()
+
+            // Setup valid timestamps
+            const t0 = 1600000000000
+            const t1 = t0 + 10000
+            const t2 = t1 + 5000
+
+            // Mock races with one completed lap (Lap 1)
+            telemetry.races = {
+                'race1': {
+                    startTimeMs: t0,
+                    laps: {
+                        1: { startTime: t0, finishTime: t1, lapNumber: 1 }
+                    }
+                }
+            }
+
+            // Mock history showing we are now past the finish line, with currLap=1
+            // currLap=1 (from server) + 1 (fix) -> Lap 2
+            telemetry.history = [
+                { timestamp: t2, currLap: 1 }
+            ]
+
+            const areas = telemetry.lapMarkAreas
+            // 1st area: Lap 1 (completed). 2nd area: Current Lap
+            expect(areas).toHaveLength(2)
+
+            const completedLap = areas[0]
+            expect(completedLap[1].name).toBe('Lap 1')
+
+            const currentLap = areas[1]
+            expect(currentLap[1].name).toBe('Lap 2')
+        })
+    })
 })
