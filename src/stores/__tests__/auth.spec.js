@@ -5,7 +5,8 @@ import { useAuthStore } from '../auth'
 // Mock the msgpack authApi
 vi.mock('../../utils/msgpack', () => ({
     authApi: {
-        post: vi.fn()
+        post: vi.fn(),
+        get: vi.fn()
     }
 }))
 
@@ -85,6 +86,37 @@ describe('auth store', () => {
 
             expect(result.success).toBe(true)
             expect(auth.user).toEqual(mockUser)
+        })
+    })
+
+    describe('startDemo', () => {
+        it('sets demo user on successful demo start', async () => {
+            const auth = useAuthStore()
+            const mockDemoUser = { id: 'demo-car-1', car: 'Demo Car', team: 'Demo Team', isDemo: true }
+
+            authApi.get.mockResolvedValue({
+                data: { success: true, user: mockDemoUser }
+            })
+
+            const result = await auth.startDemo()
+
+            expect(result.success).toBe(true)
+            expect(auth.user).toEqual(mockDemoUser)
+            expect(auth.isAuthenticated).toBe(true)
+        })
+
+        it('returns error when demo fails', async () => {
+            const auth = useAuthStore()
+
+            authApi.get.mockRejectedValue({
+                response: { data: { message: 'Demo unavailable' } }
+            })
+
+            const result = await auth.startDemo()
+
+            expect(result.success).toBe(false)
+            expect(result.error).toBe('Demo unavailable')
+            expect(auth.user).toBeNull()
         })
     })
 })

@@ -140,6 +140,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     /**
+     * @brief Start a demo session with simulated telemetry data.
+     * @description Authenticates as a demo user without credentials.
+     *              Demo data is generated server-side and shared across all demo users.
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async function startDemo() {
+        try {
+            const response = await authApi.get('/demo')
+            if (response.data.success) {
+                user.value = response.data.user
+                return { success: true }
+            }
+            return { success: false, error: response.data.message || 'Failed to start demo' }
+        } catch (error) {
+            return { success: false, error: error.response?.data?.message || 'Demo unavailable' }
+        }
+    }
+
+    /**
      * @brief Log out the current user.
      * @description Clears the local user state. Server-side session is
      *              invalidated via cookie expiration.
@@ -159,7 +178,8 @@ export const useAuthStore = defineStore('auth', () => {
         logout,
         checkSession,
         updateProfile,
-        requestVerificationCode
+        requestVerificationCode,
+        startDemo
     }
 }, {
     persist: true

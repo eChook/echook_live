@@ -90,6 +90,22 @@ const acceptCookies = () => {
   localStorage.setItem('cookie_notice_accepted', 'true')
   showCookieNotice.value = false
 }
+
+/**
+ * @brief Start a demo session.
+ * @description Authenticates as demo user and redirects to dashboard.
+ */
+const handleDemo = async () => {
+  error.value = ''
+  isLoading.value = true
+  const result = await auth.startDemo()
+  isLoading.value = false
+  if (result.success) {
+    router.push('/')
+  } else {
+    error.value = result.error
+  }
+}
 </script>
 
 <template>
@@ -162,6 +178,13 @@ const acceptCookies = () => {
             <div class="text-center text-sm text-gray-500 mt-4">
               New in Town? <router-link to="/register" class="text-primary hover:underline">Register New
                 Car</router-link>
+            </div>
+
+            <div class="text-center text-xs text-gray-600 mt-3 pt-3 border-t border-neutral-700">
+              <button @click="handleDemo" :disabled="isLoading"
+                class="text-blue-400 hover:text-blue-300 hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Try Demo
+              </button>
             </div>
           </form>
         </div>
