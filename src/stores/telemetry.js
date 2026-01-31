@@ -211,12 +211,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (lastFinish && history.value.length > 0) {
             const lastPt = history.value[history.value.length - 1]
             if (isValidTs(lastFinish) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lastFinish) {
-                const currentLapNum = lastPt.currLap || (Object.keys(lapHistory.value).length + 1)
+                const currentLapNum = lastPt.currLap !== undefined ? (lastPt.currLap + 1) : (Object.keys(lapHistory.value).length + 1)
                 areas.push([
                     {
                         xAxis: lastFinish,
                         itemStyle: {
-                            color: currentLapNum % 2 === 0 ? '#ffffff' : 'transparent',
+                            color: currentLapNum % 2 === 0 ? '#360a31ff' : '#ffffff',
                             opacity: 0.1
                         }
                     },
