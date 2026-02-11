@@ -58,7 +58,8 @@ export const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Accept': 'application/msgpack',
-        'Content-Type': 'application/msgpack'
+        'Content-Type': 'application/msgpack',
+        'X-Requested-With': 'XMLHttpRequest'
     },
     responseType: 'arraybuffer',
     transformRequest: [(data, headers) => {
@@ -112,7 +113,8 @@ export const authApi = axios.create({
     withCredentials: true,
     headers: {
         'Accept': 'application/msgpack',
-        'Content-Type': 'application/msgpack'
+        'Content-Type': 'application/msgpack',
+        'X-Requested-With': 'XMLHttpRequest'
     },
     responseType: 'arraybuffer',
     transformRequest: [(data) => {
