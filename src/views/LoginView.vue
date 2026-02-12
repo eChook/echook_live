@@ -128,7 +128,7 @@ const handleDemo = async () => {
         </p>
         <p class="text-gray-300 max-w-3xl mx-auto text-balance">
           A future Omni update will fix this, however in the meantime the best workaround is to temporarily <strong>set
-            your device language to English</strong> while using the telemetry system. We sincerely
+            your phone language to English</strong> while using the Omni app. We sincerely
           apologize for any inconvenience.
         </p>
       </div>
