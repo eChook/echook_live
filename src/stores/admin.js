@@ -51,7 +51,10 @@ export const useAdminStore = defineStore('admin', () => {
     // Axios instance with credentials for admin API
     const api = axios.create({
         baseURL: API_BASE_URL,
-        withCredentials: true
+        withCredentials: true,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
     })
 
     // ============================================

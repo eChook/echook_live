@@ -116,19 +116,21 @@ const handleDemo = async () => {
     backgroundRepeat: 'no-repeat'
   }">
     <PublicHeader />
-    <div class="flex-1 flex flex-col items-center justify-center pt-16 px-4">
+    <div class="flex-1 flex flex-col items-center justify-center pt-32 px-4">
 
-      <!-- Welcome Card -->
+      <!-- User Notice: European Decimal Issue -->
       <div class="bg-neutral-800 rounded-xl shadow-2xl border border-neutral-700 p-8 w-full max-w-4xl mb-8 text-center">
-        <h2 class="text-2xl font-bold text-white mb-4">Welcome to the new eChook Live Telemetry Portal</h2>
-        <p class="text-gray-300 mb-6 max-w-2xl mx-auto">
-          This service is in beta and we hope to iron out any bugs before the season start. To that end, if you have any
-          feedback, positive or negative, we'd really appreciate it.
+        <h2 class="text-2xl font-bold text-white mb-4">Notice for our (Continental) European Users</h2>
+        <p class="text-gray-300 mb-4 max-w-3xl mx-auto text-balance">
+          We are aware of an issue where telemetry data may appear incorrectly in regions that use a comma (0,0) instead
+          of a period (0.0) as a decimal separator. This can result in unusually large numbers appearing on the
+          telemetry screen.
         </p>
-        <a href="https://forms.gle/gdL29NHoqkQCFUPw8" target="_blank"
-          class="inline-block px-6 py-3 bg-neutral-700 hover:bg-neutral-600 border border-neutral-600 text-white font-medium rounded-lg transition transform active:scale-95 text-sm">
-          Give Feedback
-        </a>
+        <p class="text-gray-300 max-w-3xl mx-auto text-balance">
+          A future Omni update will fix this, however in the meantime the best workaround is to temporarily <strong>set
+            your device language to English</strong> while using the telemetry system. We sincerely
+          apologize for any inconvenience.
+        </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
