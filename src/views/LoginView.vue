@@ -118,21 +118,6 @@ const handleDemo = async () => {
     <PublicHeader />
     <div class="flex-1 flex flex-col items-center justify-center pt-32 px-4">
 
-      <!-- User Notice: European Decimal Issue -->
-      <div class="bg-neutral-800 rounded-xl shadow-2xl border border-neutral-700 p-8 w-full max-w-4xl mb-8 text-center">
-        <h2 class="text-2xl font-bold text-white mb-4">Notice for our (Continental) European Users</h2>
-        <p class="text-gray-300 mb-4 max-w-3xl mx-auto text-balance">
-          We are aware of an issue where telemetry data may appear incorrectly in regions that use a comma (0,0) instead
-          of a period (0.0) as a decimal separator. This can result in unusually large numbers appearing on the
-          telemetry screen.
-        </p>
-        <p class="text-gray-300 max-w-3xl mx-auto text-balance">
-          A future Omni update will fix this, however in the meantime the best workaround is to temporarily <strong>set
-            your phone language to English</strong> while using the Omni app. We sincerely
-          apologize for any inconvenience.
-        </p>
-      </div>
-
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
 
         <!-- Login Panel -->
