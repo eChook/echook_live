@@ -268,9 +268,14 @@ const handleKeydown = (e) => {
           enter-to-class="opacity-100 translate-y-0" leave-active-class="transition duration-300 ease-in"
           leave-from-class="opacity-100 translate-y-0" leave-to-class="opacity-0 translate-y-4">
           <div v-if="!telemetry.isConnected"
-            class="absolute bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 px-4 md:px-6 py-2 md:py-3 bg-red-900/90 backdrop-blur-md border border-red-500/50 rounded-full shadow-2xl flex items-center space-x-2 md:space-x-3 z-50 pointer-events-none">
-            <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            <span class="text-red-100 font-bold text-xs md:text-sm tracking-wide">Reconnecting...</span>
+            class="absolute bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 px-4 md:px-6 py-2 md:py-3 backdrop-blur-md rounded-full shadow-2xl flex items-center space-x-2 md:space-x-3 z-50 pointer-events-none"
+            :class="telemetry.isSocketReconnecting ? 'bg-amber-900/90 border border-amber-500/50' : 'bg-red-900/90 border border-red-500/50'">
+            <div class="w-2 h-2 rounded-full animate-pulse"
+              :class="telemetry.isSocketReconnecting ? 'bg-amber-400' : 'bg-red-500'"></div>
+            <span class="font-bold text-xs md:text-sm tracking-wide"
+              :class="telemetry.isSocketReconnecting ? 'text-amber-100' : 'text-red-100'">
+              {{ telemetry.socketStatusMessage || telemetry.socketError || 'Reconnecting...' }}
+            </span>
           </div>
         </Transition>
       </main>

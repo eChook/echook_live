@@ -138,4 +138,14 @@ describe('telemetry store', () => {
             expect(currentLap[1].name).toBe('Lap 2')
         })
     })
+
+    describe('race reset invariants', () => {
+        it('keeps races as an object map when clearing state', () => {
+            const telemetry = useTelemetryStore()
+            telemetry.races = { race1: { laps: {} } }
+            telemetry.resetState()
+            expect(Array.isArray(telemetry.races)).toBe(false)
+            expect(typeof telemetry.races).toBe('object')
+        })
+    })
 })

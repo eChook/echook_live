@@ -110,7 +110,7 @@ const isLoadingHistory = ref(false)
  * @param {number} minutes - Minutes of history to load
  */
 async function loadExtra(minutes) {
-  const carId = telemetry.viewingCar?.id || auth.user?.id || auth.user?._id
+  const carId = telemetry.viewingCar?.id || auth.userId
   if (carId) {
     isLoadingHistory.value = true
     try {

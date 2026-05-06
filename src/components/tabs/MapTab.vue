@@ -27,6 +27,8 @@ import { ChevronDownIcon, AdjustmentsHorizontalIcon } from '@heroicons/vue/24/ou
 import GradientPath from '../../components/GradientPath.vue'
 
 const telemetry = useTelemetryStore()
+const AUTO_FIT_THROTTLE_MS = 1000
+const MAX_TRAIL_POINTS = 1200
 
 // Map State
 const map = ref(null)
@@ -51,18 +53,25 @@ const isSettingsExpanded = ref(false)
  * @type {ComputedRef<Array<{lat: number, lon: number, value: number}>>}
  */
 const trailData = computed(() => {
-  if (telemetry.displayHistory.length === 0) return []
+  const history = telemetry.displayHistory
+  if (history.length === 0) return []
 
-  const latestTs = telemetry.displayHistory[telemetry.displayHistory.length - 1].timestamp
+  const latestTs = history[history.length - 1].timestamp
   const startTime = latestTs - (trailTimeSeconds.value * 1000)
-
-  return telemetry.displayHistory
-    .filter(p => p.timestamp >= startTime && p.lat != null && p.lon != null)
-    .map(p => ({
-      lat: p.lat,
-      lon: p.lon,
-      value: typeof p[selectedMetric.value] === 'number' ? p[selectedMetric.value] : 0
-    }))
+  const points = []
+  for (let i = history.length - 1; i >= 0; i--) {
+    const packet = history[i]
+    if (packet.timestamp < startTime) break
+    if (packet.lat != null && packet.lon != null) {
+      points.push({
+        lat: packet.lat,
+        lon: packet.lon,
+        value: typeof packet[selectedMetric.value] === 'number' ? packet[selectedMetric.value] : 0
+      })
+      if (points.length >= MAX_TRAIL_POINTS) break
+    }
+  }
+  return points.reverse()
 })
 
 /**
@@ -96,10 +105,13 @@ const fitToTrail = () => {
 }
 
 // Auto-fit bounds when trail data updates
-watch(trailData, (val) => {
-  if (isAutoFitEnabled.value) {
-    fitToTrail()
-  }
+let lastAutoFitAt = 0
+watch(trailData, () => {
+  if (!isAutoFitEnabled.value) return
+  const now = Date.now()
+  if (now - lastAutoFitAt < AUTO_FIT_THROTTLE_MS) return
+  lastAutoFitAt = now
+  fitToTrail()
 }, { deep: false })
 
 // Trigger fit when auto-fit is enabled
@@ -113,10 +125,12 @@ watch(isAutoFitEnabled, (val) => {
  */
 const trailRange = computed(() => {
   if (trailData.value.length === 0) return { min: 0, max: 100 }
-
-  const values = trailData.value.map(p => p.value)
-  let min = Math.min(...values)
-  let max = Math.max(...values)
+  let min = Infinity
+  let max = -Infinity
+  trailData.value.forEach((point) => {
+    if (point.value < min) min = point.value
+    if (point.value > max) max = point.value
+  })
 
   if (min === max) max = min + 1
   return { min, max }

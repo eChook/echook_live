@@ -7,6 +7,8 @@
 
 import { ref, computed } from 'vue'
 import { api } from '../utils/msgpack'
+import { normalizeTelemetryPacket } from '../utils/telemetryPacket'
+import { useToast } from './useToast'
 
 /**
  * @brief Composable for managing telemetry history.
@@ -50,6 +52,9 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
     const isHistoryTruncated = computed(() => {
         return historyRef.value.length >= maxPointsRef.value
     })
+    /** @brief Monotonic request id used to ignore stale async responses. */
+    const activeFetchToken = ref(0)
+    const { showToast } = useToast()
 
     /**
      * @brief Fetch list of days with available history data.
@@ -80,6 +85,7 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
      */
     async function fetchHistory(carId, start = null, end = null, prepend = false) {
         if (!carId) return 0
+        const fetchToken = ++activeFetchToken.value
 
         const startTime = start || (Date.now() - 30 * 60 * 1000)
 
@@ -90,6 +96,7 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
         try {
             while (fetching) {
+                if (fetchToken !== activeFetchToken.value) return 0
                 const params = {
                     start: startTime,
                     page,
@@ -101,7 +108,7 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
                 if (response.data && Array.isArray(response.data)) {
                     const chunk = response.data
-                    fullHistory = fullHistory.concat(chunk)
+                    fullHistory.push(...chunk)
 
                     if (chunk.length < limit) {
                         fetching = false
@@ -114,23 +121,13 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
             }
 
             if (fullHistory.length > 0) {
+                if (fetchToken !== activeFetchToken.value) return 0
                 const dataMap = new Map()
 
                 // Normalize and cast incoming data
-                const incoming = fullHistory.map(pt => {
-                    const castPt = { ...pt }
-                    Object.keys(castPt).forEach(key => {
-                        const val = castPt[key]
-                        if (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '') {
-                            castPt[key] = Number(val)
-                        }
-                    })
-
-                    return Object.freeze({
-                        ...castPt,
-                        timestamp: castPt.timestamp || castPt.updated
-                    })
-                }).filter(pt => pt.timestamp)
+                const incoming = fullHistory
+                    .map((pt) => normalizeTelemetryPacket(pt))
+                    .filter((pt) => pt && pt.timestamp)
 
                 // Merge strategy
                 if (prepend) {
@@ -143,6 +140,7 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
                 // Sort and scale
                 historyRef.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
                 historyRef.value = historyRef.value.map(pt => processPacket(pt))
+                if (fetchToken !== activeFetchToken.value) return 0
 
                 // Rebuild race data from history
                 clearRaces()
@@ -172,8 +170,6 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
         const count = await fetchHistory(carId, newStart, currentStart, true)
         if (count === 0) {
-            const { useToast } = await import('../composables/useToast')
-            const { showToast } = useToast()
             showToast('No additional history available for this period.', 'warning')
         }
     }
@@ -207,8 +203,6 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
         const count = await fetchHistory(carId, start, end)
         if (count === 0) {
-            const { useToast } = await import('../composables/useToast')
-            const { showToast } = useToast()
             showToast('No history found for the selected period.', 'warning')
         }
     }

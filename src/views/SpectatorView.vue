@@ -42,7 +42,7 @@ const speedMultiplier = computed(() => unit.value === 'mph' ? 2.23694 : 3.6)
 
 /** @brief Cars with valid GPS coordinates for map display */
 const mapCars = computed(() => {
-    return spectatorStore.activeCarList.filter(c => c.lat && c.lon)
+    return spectatorStore.activeCarList.filter(c => c.lat != null && c.lon != null)
 })
 
 /**
@@ -92,15 +92,15 @@ const hasCentered = ref(false)
 /**
  * @brief Watch for first car with GPS and center map.
  */
-watch(() => spectatorStore.activeCarList, (cars) => {
+watch(() => mapCars.value, (cars) => {
     if (!hasCentered.value && cars.length > 0) {
-        const valid = cars.find(c => c.lat && c.lon)
+        const valid = cars.find(c => c.lat != null && c.lon != null)
         if (valid) {
             center.value = [valid.lat, valid.lon]
             hasCentered.value = true
         }
     }
-}, { deep: true })
+}, { deep: false })
 
 </script>
 

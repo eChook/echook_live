@@ -32,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
      * @returns {boolean} True if user is logged in
      */
     const isAuthenticated = computed(() => !!user.value)
+    /** @brief Normalized user identifier for mixed backend id fields. */
+    const userId = computed(() => user.value?.id || user.value?._id || null)
 
     // ============================================
     // Authentication Actions
@@ -47,10 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
     async function login(credentials) {
         try {
             const response = await authApi.post('/login', credentials)
-            if (response.data.success) {
-                user.value = response.data.user
+            const body = response?.data || {}
+            if (body.success && body.user) {
+                user.value = body.user
                 return { success: true }
             }
+            return { success: false, error: body.message || 'Login failed' }
         } catch (error) {
             console.error('Login failed', error)
             return { success: false, error: error.response?.data?.message || 'Login failed' }
@@ -68,12 +72,14 @@ export const useAuthStore = defineStore('auth', () => {
     async function register(data) {
         try {
             const response = await authApi.post('/register', data)
-            if (response.data.success) {
-                if (response.data.user) {
-                    user.value = response.data.user
+            const body = response?.data || {}
+            if (body.success) {
+                if (body.user) {
+                    user.value = body.user
                 }
                 return { success: true }
             }
+            return { success: false, error: body.message || 'Registration failed' }
         } catch (error) {
             return { success: false, error: error.response?.data?.message || 'Registration failed' }
         }
@@ -82,17 +88,30 @@ export const useAuthStore = defineStore('auth', () => {
     /**
      * @brief Verify the current session is still valid.
      * @description Calls the server to check if the session cookie is valid.
-     *              Logs out the user if the session has expired.
-     * @returns {Promise<void>}
+     *              Logs out the user only for confirmed auth failures.
+     *              Transient network/API failures preserve local auth state.
+     * @returns {Promise<{success: boolean, transient?: boolean, error?: string}>}
      */
     async function checkSession() {
         try {
             const response = await authApi.post('/getid')
-            if (response.data.id) {
-                // Session valid
+            const body = response?.data || {}
+            if (body.id) {
+                return { success: true }
             }
-        } catch (e) {
             logout()
+            return { success: false, error: 'Session expired' }
+        } catch (e) {
+            const status = e?.response?.status
+            const message = e?.response?.data?.message || 'Session check failed'
+            const isAuthFailure = status === 401 || status === 403
+
+            if (isAuthFailure) {
+                logout()
+                return { success: false, error: message }
+            }
+
+            return { success: false, transient: true, error: message }
         }
     }
 
@@ -171,6 +190,7 @@ export const useAuthStore = defineStore('auth', () => {
         // State
         user,
         isAuthenticated,
+        userId,
 
         // Actions
         login,

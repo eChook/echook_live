@@ -10,8 +10,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { io } from 'socket.io-client'
-import { decodeMsgpack, socketMsgpackOptions } from '../utils/msgpack'
+import { createSocketOptions, decodeMsgpack } from '../utils/msgpack'
 import { WS_URL } from '../config'
+import { normalizeTelemetryPacket } from '../utils/telemetryPacket'
 
 /**
  * @brief Spectator store for public race viewing.
@@ -34,6 +35,9 @@ export const useSpectatorStore = defineStore('spectator', () => {
 
     /** @brief Socket.IO instance for public namespace */
     const publicSocket = ref(null)
+    const socketError = ref('')
+    const isReconnecting = ref(false)
+    const reconnectAttempts = ref(0)
 
     // ============================================
     // Live Data State
@@ -73,16 +77,21 @@ export const useSpectatorStore = defineStore('spectator', () => {
      *              Automatically re-joins current track on reconnection.
      */
     const connectPublic = () => {
-        if (publicSocket.value) return
+        if (publicSocket.value?.connected) return
+        if (publicSocket.value && !publicSocket.value.connected) {
+            publicSocket.value.disconnect()
+            publicSocket.value = null
+        }
 
         isConnecting.value = true
-        publicSocket.value = io(`${WS_URL}/public`, {
-            transports: ['websocket'],
-            ...socketMsgpackOptions
-        })
+        socketError.value = ''
+        publicSocket.value = io(`${WS_URL}/public`, createSocketOptions())
 
         publicSocket.value.on('connect', () => {
             isConnecting.value = false
+            isReconnecting.value = false
+            reconnectAttempts.value = 0
+            socketError.value = ''
             // Re-join track on reconnect
             if (currentTrack.value && currentTrack.value !== null) {
                 publicSocket.value.emit('joinTrack', currentTrack.value)
@@ -91,16 +100,18 @@ export const useSpectatorStore = defineStore('spectator', () => {
 
         publicSocket.value.on('trackList', (rawData) => {
             const tracks = decodeMsgpack(rawData)
-            activeTracks.value = tracks
+            activeTracks.value = Array.isArray(tracks) ? tracks : []
         })
 
         publicSocket.value.on('stats', (rawData) => {
             const stats = decodeMsgpack(rawData)
-            if (stats) serverStats.value = stats
+            if (stats && typeof stats === 'object' && !Array.isArray(stats)) {
+                serverStats.value = stats
+            }
         })
 
         publicSocket.value.on('data', (rawData) => {
-            const data = decodeMsgpack(rawData)
+            const data = normalizeTelemetryPacket(decodeMsgpack(rawData))
             // Data contains: { name, number, team, lat, lon, speed, track, updated }
             if (data && data.name && data.number != null) {
                 const team = data.team || 'NoTeam'
@@ -116,6 +127,20 @@ export const useSpectatorStore = defineStore('spectator', () => {
 
         publicSocket.value.on('disconnect', () => {
             // Socket disconnected, will auto-reconnect
+            isReconnecting.value = true
+        })
+        publicSocket.value.on('connect_error', (error) => {
+            isConnecting.value = false
+            isReconnecting.value = true
+            socketError.value = error?.message || 'Unable to connect spectator socket'
+        })
+        publicSocket.value.on('reconnect_attempt', (attempt) => {
+            isReconnecting.value = true
+            reconnectAttempts.value = Number(attempt) || (reconnectAttempts.value + 1)
+        })
+        publicSocket.value.on('reconnect_failed', () => {
+            isReconnecting.value = false
+            socketError.value = socketError.value || 'Spectator reconnect attempts failed'
         })
     }
 
@@ -128,6 +153,9 @@ export const useSpectatorStore = defineStore('spectator', () => {
             publicSocket.value.disconnect()
             publicSocket.value = null
         }
+        socketError.value = ''
+        isReconnecting.value = false
+        reconnectAttempts.value = 0
     }
 
     // ============================================
@@ -194,6 +222,9 @@ export const useSpectatorStore = defineStore('spectator', () => {
         hoveredCarId,
         selectedCarId,
         activeCarList,
+        socketError,
+        isReconnecting,
+        reconnectAttempts,
 
         // Actions
         connectPublic,

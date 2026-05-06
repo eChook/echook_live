@@ -55,13 +55,43 @@ const router = createRouter({
  * @param {Object} from - Current route object  
  * @param {Function} next - Navigation callback
  */
-router.beforeEach((to, from, next) => {
-    const authStore = useAuthStore()
+let sessionChecked = false
+
+/**
+ * @brief Reset internal session-check flag.
+ * @description Exposed for focused guard tests to isolate per-test state.
+ */
+export function resetSessionCheckState() {
+    sessionChecked = false
+}
+
+/**
+ * @brief Execute authentication guard logic for navigation.
+ * @param {Object} to - Target route
+ * @param {Object} from - Source route
+ * @param {Function} next - Navigation continuation callback
+ * @param {Object} [authStore=useAuthStore()] - Auth store instance override (tests)
+ * @returns {Promise<void>}
+ */
+export async function runAuthGuard(to, from, next, authStore = useAuthStore()) {
+    if (!sessionChecked && authStore.isAuthenticated) {
+        const result = await authStore.checkSession()
+        if (result?.success) {
+            sessionChecked = true
+        } else if (!result?.transient) {
+            sessionChecked = true
+        }
+    }
+
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next({ name: 'login' })
     } else {
         next()
     }
+}
+
+router.beforeEach(async (to, from, next) => {
+    await runAuthGuard(to, from, next)
 })
 
 export default router

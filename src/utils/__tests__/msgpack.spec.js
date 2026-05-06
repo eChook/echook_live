@@ -72,4 +72,10 @@ describe('msgpack encoding/decoding', () => {
         const decoded = decodeMsgpack(arrayBuffer)
         expect(decoded).toEqual(data)
     })
+
+    it('returns null for invalid payloads', () => {
+        expect(decodeMsgpack(null)).toBeNull()
+        expect(decodeMsgpack(undefined)).toBeNull()
+        expect(decodeMsgpack(new Uint8Array())).toBeNull()
+    })
 })

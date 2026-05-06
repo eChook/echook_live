@@ -4,6 +4,9 @@ import { useAuthStore } from '../auth'
 
 // Mock the msgpack authApi
 vi.mock('../../utils/msgpack', () => ({
+    api: {
+        post: vi.fn()
+    },
     authApi: {
         post: vi.fn(),
         get: vi.fn()
@@ -44,6 +47,16 @@ describe('auth store', () => {
             expect(result.success).toBe(true)
             expect(auth.user).toEqual(mockUser)
             expect(auth.isAuthenticated).toBe(true)
+        })
+
+        it('returns structured failure for non-throwing unsuccessful login', async () => {
+            const auth = useAuthStore()
+            authApi.post.mockResolvedValue({
+                data: { success: false, message: 'Invalid credentials' }
+            })
+
+            const result = await auth.login({ email: 'test@example.com', password: 'wrong' })
+            expect(result).toEqual({ success: false, error: 'Invalid credentials' })
         })
 
         it('returns error on failed login', async () => {
@@ -87,6 +100,16 @@ describe('auth store', () => {
             expect(result.success).toBe(true)
             expect(auth.user).toEqual(mockUser)
         })
+
+        it('returns structured failure for non-throwing unsuccessful register', async () => {
+            const auth = useAuthStore()
+            authApi.post.mockResolvedValue({
+                data: { success: false, message: 'Already exists' }
+            })
+
+            const result = await auth.register({ name: 'New Car', email: 'new@example.com', password: 'password' })
+            expect(result).toEqual({ success: false, error: 'Already exists' })
+        })
     })
 
     describe('startDemo', () => {
@@ -117,6 +140,54 @@ describe('auth store', () => {
             expect(result.success).toBe(false)
             expect(result.error).toBe('Demo unavailable')
             expect(auth.user).toBeNull()
+        })
+    })
+
+    describe('checkSession', () => {
+        it('returns success for valid session payload', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Driver 1' }
+            authApi.post.mockResolvedValue({ data: { id: 'u1' } })
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: true })
+            expect(auth.user).toEqual({ id: 'u1', name: 'Driver 1' })
+        })
+
+        it('logs out when session payload has no id', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Driver 1' }
+            authApi.post.mockResolvedValue({ data: {} })
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: false, error: 'Session expired' })
+            expect(auth.user).toBeNull()
+        })
+
+        it('logs out on auth status failure', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Driver 1' }
+            authApi.post.mockRejectedValue({
+                response: { status: 401, data: { message: 'Unauthorized' } }
+            })
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: false, error: 'Unauthorized' })
+            expect(auth.user).toBeNull()
+        })
+
+        it('keeps local session on transient network failure', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Driver 1' }
+            authApi.post.mockRejectedValue(new Error('Network down'))
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: false, transient: true, error: 'Session check failed' })
+            expect(auth.user).toEqual({ id: 'u1', name: 'Driver 1' })
         })
     })
 })

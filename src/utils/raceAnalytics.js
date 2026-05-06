@@ -1,3 +1,4 @@
+import { LAP_KEYS } from './telemetryKeys'
 /**
  * @file raceAnalytics.js
  * @brief Race session detection and lap tracking utilities.
@@ -49,8 +50,6 @@
  * @returns {Object} Updated sessions object
  */
 export function updateRaceSessions(sessions, packet, lastLapIndex) {
-    const LAP_KEYS = new Set(['LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff'])
-
     // Extract LL_ data
     let hasLapKeys = false
     const lapData = {}

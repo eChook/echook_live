@@ -116,6 +116,7 @@ export const useSettingsStore = defineStore('settings', () => {
      */
     function importSettings(newData) {
         if (!newData) return
+        const isObjectRecord = (value) => value && typeof value === 'object' && !Array.isArray(value)
 
         if (newData.maxHistoryPoints !== undefined) maxHistoryPoints.value = newData.maxHistoryPoints
         if (newData.unitSettings) unitSettings.value = { ...unitSettings.value, ...newData.unitSettings }
@@ -127,7 +128,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (newData.hideHistoryClearConfirmation !== undefined) hideHistoryClearConfirmation.value = newData.hideHistoryClearConfirmation
         if (newData.showGraphHelp !== undefined) showGraphHelp.value = newData.showGraphHelp
         if (newData.dataCardOrder) dataCardOrder.value = newData.dataCardOrder
-        if (newData.races) races.value = { ...races.value, ...newData.races }
+        if (isObjectRecord(newData.races)) races.value = { ...races.value, ...newData.races }
     }
 
     return {

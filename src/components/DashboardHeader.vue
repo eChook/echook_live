@@ -26,7 +26,7 @@
  * - Orange: Data stale (5-10s) or paused
  * - Red: No connection or data older than 10s
  */
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useSettingsStore } from '../stores/settings'
@@ -57,8 +57,7 @@ const settings = useSettingsStore()
 const router = useRouter()
 
 // -- Original Logic --
-const now = ref(Date.now())
-let timer = null
+const now = computed(() => telemetry.now || Date.now())
 
 const lastUpdatedText = computed(() => {
   if (telemetry.isPaused) return ''
@@ -77,16 +76,6 @@ const carStatusColor = computed(() => {
   if (diff > 10) return 'bg-red-500'
   if (diff > 5) return 'bg-orange-500'
   return 'bg-green-500 animate-pulse'
-})
-
-onMounted(() => {
-  timer = setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
 })
 
 // -- New History Logic --
@@ -126,7 +115,7 @@ const displayedCar = computed(() => {
   // Fallback to logged in user
   if (auth.user) {
     return {
-      id: auth.user.id || auth.user._id,
+      id: auth.userId,
       carName: auth.user.carName || auth.user.car,
       teamName: auth.user.teamName || auth.user.team,
       number: auth.user.number
@@ -137,7 +126,7 @@ const displayedCar = computed(() => {
 
 const isViewingOther = computed(() => {
   if (!displayedCar.value || !auth.user) return false
-  const userId = auth.user.id || auth.user._id
+  const userId = auth.userId
   return displayedCar.value.id !== userId
 })
 
@@ -294,7 +283,7 @@ const downloadAllData = () => {
   // If live, latestTime might not be perfectly up to date with 'now', but it covers the data range.
   const start = telemetry.earliestTime
   const end = telemetry.latestTime
-  const track = telemetry.races.length > 0 ? 'mixed-session' : 'unknown-track'
+  const track = Object.keys(telemetry.races || {}).length > 0 ? 'mixed-session' : 'unknown-track'
   // Ideally we could look at the track of the first race or something, but 'mixed' is safer if multiple
 
   exportHistoryAsCsv(start, end, 'eChook-full-export', track)

@@ -70,7 +70,7 @@ export const useAdminStore = defineStore('admin', () => {
         isLoading.value = true
         try {
             const res = await api.get('/admin/users')
-            users.value = res.data
+            users.value = Array.isArray(res.data) ? res.data : []
         } catch (e) {
             error.value = e.message
         } finally {
@@ -86,7 +86,7 @@ export const useAdminStore = defineStore('admin', () => {
         isLoading.value = true
         try {
             const res = await api.get('/admin/active_cars')
-            activeCars.value = res.data
+            activeCars.value = Array.isArray(res.data) ? res.data : []
         } catch (e) {
             error.value = e.message
         } finally {
@@ -102,7 +102,7 @@ export const useAdminStore = defineStore('admin', () => {
         isLoading.value = true
         try {
             const res = await api.get('/admin/emails')
-            emails.value = res.data
+            emails.value = Array.isArray(res.data) ? res.data : []
         } catch (e) {
             error.value = e.message
         } finally {
@@ -157,7 +157,7 @@ export const useAdminStore = defineStore('admin', () => {
         isLoading.value = true
         try {
             const res = await api.get('/admin/tracks')
-            tracks.value = res.data
+            tracks.value = Array.isArray(res.data) ? res.data : []
         } catch (e) {
             error.value = e.message
         } finally {
@@ -245,7 +245,7 @@ export const useAdminStore = defineStore('admin', () => {
             const res = await api.get('/admin/stats', { params: { limit } })
             const { history, ...rest } = res.data
             serverStats.value = rest
-            serverStatsHistory.value = history
+            serverStatsHistory.value = Array.isArray(history) ? history : []
         } catch (e) {
             error.value = e.message
             console.error('Fetch server stats failed', e)

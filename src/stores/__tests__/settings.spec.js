@@ -80,6 +80,13 @@ describe('settings store', () => {
             expect(settings.maxHistoryPoints).toBe(original)
         })
 
+        it('ignores invalid races import values', () => {
+            const settings = useSettingsStore()
+            settings.races = { existing: { laps: {} } }
+            settings.importSettings({ races: [] })
+            expect(settings.races).toEqual({ existing: { laps: {} } })
+        })
+
         it('imports dataCardOrder', () => {
             const settings = useSettingsStore()
 

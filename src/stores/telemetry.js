@@ -8,12 +8,13 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch, shallowRef } from 'vue'
+import { ref, computed, watch, shallowRef, triggerRef } from 'vue'
 import { useAuthStore } from './auth'
 import { useSettingsStore } from './settings'
 import { updateRaceSessions } from '../utils/raceAnalytics'
 import { decodeMsgpack } from '../utils/msgpack'
 import { scalePacket } from '../utils/unitConversions'
+import { extractRegularTelemetryPacket, normalizeTelemetryPacket } from '../utils/telemetryPacket'
 
 // Extracted modules
 import { useSocket } from '../composables/useSocket'
@@ -66,6 +67,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     /** @brief Currently subscribed socket room (car ID) */
     const activeRoomId = ref(null)
+    /** @brief Requested room while socket is disconnected */
+    const pendingRoomRequest = ref(null)
+    /** @brief Human-friendly socket lifecycle message for the UI */
+    const socketStatusMessage = ref('')
 
     /**
      * @brief Currently viewed car details.
@@ -214,7 +219,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (lastFinish && history.value.length > 0) {
             const lastPt = history.value[history.value.length - 1]
             if (isValidTs(lastFinish) && isValidTs(lastPt.timestamp) && lastPt.timestamp > lastFinish) {
-                const currentLapNum = lastPt.currLap !== undefined ? (lastPt.currLap + 1) : (Object.keys(lapHistory.value).length + 1)
+                const currentLapNum = lastPt.currLap !== undefined ? (lastPt.currLap + 1) : (lapHistory.value.length + 1)
                 areas.push([
                     {
                         xAxis: lastFinish,
@@ -245,6 +250,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @param {Object} packet - Telemetry packet with timestamp
      */
     function processLapData(packet) {
+        if (!packet || typeof packet !== 'object') return
         if (packet.currLap !== undefined) {
             currentLapIndex.value = packet.currLap
         }
@@ -254,7 +260,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const hasTrackName = packet['track'] !== undefined || packet['Track'] !== undefined || packet['Circuit'] !== undefined
 
         if (hasLapData || hasTrackName) {
-            races.value = updateRaceSessions({ ...races.value }, packet, currentLapIndex.value)
+            const currentRaces = races.value && typeof races.value === 'object' && !Array.isArray(races.value)
+                ? races.value
+                : {}
+            races.value = updateRaceSessions({ ...currentRaces }, packet, currentLapIndex.value)
 
             // Update lapHistory array for legacy consumers
             const latestRace = Object.values(races.value).sort((a, b) => b.startTimeMs - a.startTimeMs)[0]
@@ -268,7 +277,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @brief Clear race tracking data.
      */
     function clearRaces() {
-        races.value = []
+        races.value = {}
         lapHistory.value = []
         currentLapIndex.value = 0
     }
@@ -281,39 +290,18 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (isPaused.value) return
 
         // Decode MessagePack buffer
-        const packet = decodeMsgpack(rawData)
+        const decoded = decodeMsgpack(rawData)
+        const packet = normalizeTelemetryPacket(decoded)
+        if (!packet) return
 
-        // Auto-cast numeric strings to numbers
-        Object.keys(packet).forEach(key => {
-            const val = packet[key]
-            if (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '') {
-                packet[key] = Number(val)
-            }
-        })
-
-        const timestamp = packet.timestamp || packet.updated || Date.now()
+        const timestamp = packet.timestamp || Date.now()
 
         // 1. Process lap data first (updates races before chart redraw)
         processLapData({ ...packet, timestamp })
 
         // 2. Process regular telemetry data
-        const regularPacket = {}
-        let hasRegularData = false
-
-        // Normalize capitalized keys
-        if (packet['Lon'] !== undefined) packet['lon'] = packet['Lon']
-        if (packet['Lat'] !== undefined) packet['lat'] = packet['Lat']
-
-        REGULAR_KEYS.forEach(key => {
-            if (packet[key] !== undefined) {
-                regularPacket[key] = packet[key]
-                hasRegularData = true
-            }
-        })
-
-        regularPacket.timestamp = timestamp
-        if (packet.lat !== undefined) regularPacket.lat = packet.lat
-        if (packet.lon !== undefined) regularPacket.lon = packet.lon
+        const regularPacket = extractRegularTelemetryPacket(packet, REGULAR_KEYS, timestamp)
+        const hasRegularData = Object.keys(regularPacket).length > 1
 
         if (hasRegularData) {
             // Scale on ingestion for performance
@@ -330,8 +318,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 history.value.shift()
             }
 
-            // Trigger reactivity
-            history.value = [...history.value]
+            // Trigger reactivity without cloning the full history array.
+            triggerRef(history)
         }
     }
 
@@ -341,10 +329,19 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
     // Socket composable
     const socketComposable = useSocket({
-        onConnect: () => {
+        onConnect: ({ flushedRoomId }) => {
+            socketStatusMessage.value = ''
+
+            if (flushedRoomId) {
+                activeRoomId.value = flushedRoomId
+                pendingRoomRequest.value = null
+                historyComposable.fetchHistory(flushedRoomId)
+                return
+            }
+
             // Rejoin the currently viewed car after reconnect. Fallback to own car.
             const viewedCarId = viewingCar.value?.id
-            const ownCarId = auth.user?.id || auth.user?._id
+            const ownCarId = auth.userId
             const targetCarId = viewedCarId || ownCarId
 
             if (targetCarId) {
@@ -358,7 +355,18 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 joinRoom(targetCarId, carDetails)
             }
         },
-        onDisconnect: () => { },
+        onDisconnect: (reason) => {
+            if (reason === 'io client disconnect') {
+                socketStatusMessage.value = ''
+                return
+            }
+            socketStatusMessage.value = socketComposable.isReconnecting.value
+                ? `Reconnecting to telemetry stream${socketComposable.reconnectAttempts.value > 0 ? ` (attempt ${socketComposable.reconnectAttempts.value})` : ''}...`
+                : 'Telemetry connection lost'
+        },
+        onError: (message) => {
+            socketStatusMessage.value = message || 'Telemetry connection error'
+        },
         onData: handleIncomingData
     })
 
@@ -391,20 +399,32 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @param {Object|null} carDetails - Optional car details object
      */
     function joinRoom(carId, carDetails = null) {
-        if (socketComposable.isConnected.value) {
-            // Ensure we only have one active car room subscription.
-            if (activeRoomId.value && activeRoomId.value !== carId) {
-                socketComposable.leaveRoom(activeRoomId.value)
-            }
-            socketComposable.joinRoom(carId)
-            activeRoomId.value = carId
-            if (carDetails) {
-                viewingCar.value = carDetails
-            } else {
-                viewingCar.value = { id: carId }
-            }
-            historyComposable.fetchHistory(carId)
+        if (!carId) return
+
+        if (carDetails) {
+            viewingCar.value = carDetails
+        } else {
+            viewingCar.value = { id: carId }
         }
+
+        if (!socketComposable.isConnected.value) {
+            pendingRoomRequest.value = { carId, carDetails: viewingCar.value }
+            socketStatusMessage.value = socketComposable.isReconnecting.value
+                ? `Queued join for ${carId} while reconnecting`
+                : `Queued join for ${carId} until connection is ready`
+            socketComposable.joinRoom(carId)
+            return
+        }
+
+        // Ensure we only have one active car room subscription.
+        if (activeRoomId.value && activeRoomId.value !== carId) {
+            socketComposable.leaveRoom(activeRoomId.value)
+        }
+        socketComposable.joinRoom(carId)
+        activeRoomId.value = carId
+        pendingRoomRequest.value = null
+        socketStatusMessage.value = ''
+        historyComposable.fetchHistory(carId)
     }
 
     /**
@@ -424,6 +444,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     function disconnect() {
         socketComposable.disconnect()
         activeRoomId.value = null
+        pendingRoomRequest.value = null
+        socketStatusMessage.value = ''
     }
 
     // ============================================
@@ -450,7 +472,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         // If resuming, fill the gap
         if (wasPaused && !isPaused.value) {
             const lastTime = historyComposable.latestTime.value
-            const carId = viewingCar.value?.id || auth.user?.id || auth.user?._id
+            const carId = viewingCar.value?.id || auth.userId
 
             if (lastTime && carId) {
                 const today = new Date().toDateString()
@@ -498,7 +520,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         liveData.value = {}
         history.value = []
         lapHistory.value = []
-        races.value = []
+        races.value = {}
         lastPacketTime.value = 0
         currentLapIndex.value = 0
         activeRoomId.value = null
@@ -514,6 +536,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         // Connection State
         socket: socketComposable.socket,
         isConnected: socketComposable.isConnected,
+        socketError: socketComposable.lastError,
+        socketConnectionState: socketComposable.connectionState,
+        isSocketReconnecting: socketComposable.isReconnecting,
+        socketReconnectAttempts: socketComposable.reconnectAttempts,
+        socketStatusMessage,
+        now,
         lastPacketTime,
         isDataStale,
 

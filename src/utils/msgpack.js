@@ -11,6 +11,64 @@ import axios from 'axios'
 import { API_BASE_URL } from '../config'
 
 /**
+ * @brief Safely decode JSON text from binary payload.
+ * @param {ArrayBuffer|Uint8Array} data - Binary response payload
+ * @returns {*|null} Parsed JSON object or null when parsing fails
+ */
+function safeDecodeJson(data) {
+    try {
+        const text = new TextDecoder().decode(data)
+        return JSON.parse(text)
+    } catch {
+        return null
+    }
+}
+
+/**
+ * @brief Decode server binary payload as JSON or MessagePack.
+ * @param {ArrayBuffer|Uint8Array} data - Binary response payload
+ * @returns {*|null} Decoded payload, or null for malformed/empty data
+ */
+function decodeResponsePayload(data) {
+    if (!data || data.byteLength === 0) return null
+
+    // Check for JSON-like start bytes: '{' (123) or '[' (91)
+    const firstByte = new Uint8Array(data, 0, 1)[0]
+    if (firstByte === 123 || firstByte === 91) {
+        const json = safeDecodeJson(data)
+        if (json !== null) return json
+    }
+
+    const decoded = decodeMsgpack(data)
+    if (decoded !== null) return decoded
+
+    return safeDecodeJson(data)
+}
+
+/**
+ * @brief Create an Axios instance configured for MessagePack APIs.
+ * @param {Object} options - Axios configuration overrides
+ * @returns {import('axios').AxiosInstance} Configured Axios client
+ */
+function createMsgpackClient(options = {}) {
+    return axios.create({
+        headers: {
+            'Accept': 'application/msgpack',
+            'Content-Type': 'application/msgpack',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        responseType: 'arraybuffer',
+        transformRequest: [(data) => {
+            // Don't encode GET requests (no body) or null/undefined
+            if (data === undefined || data === null) return data
+            return encodeMsgpack(data)
+        }],
+        transformResponse: [(data) => decodeResponsePayload(data)],
+        ...options
+    })
+}
+
+/**
  * @brief Decode a MessagePack buffer to a JavaScript object.
  * @description Handles both ArrayBuffer (from fetch/WebSocket) and Uint8Array inputs.
  *              Used to parse binary data received from the server.
@@ -19,10 +77,20 @@ import { API_BASE_URL } from '../config'
  * @returns {*} The decoded JavaScript object/array
  */
 export function decodeMsgpack(buffer) {
-    if (buffer instanceof ArrayBuffer) {
-        return msgpack.decode(new Uint8Array(buffer))
+    if (!buffer) return null
+    try {
+        if (buffer instanceof ArrayBuffer) {
+            if (buffer.byteLength === 0) return null
+            return msgpack.decode(new Uint8Array(buffer))
+        }
+        if (ArrayBuffer.isView(buffer)) {
+            if (buffer.byteLength === 0) return null
+            return msgpack.decode(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength))
+        }
+        return msgpack.decode(buffer)
+    } catch {
+        return null
     }
-    return msgpack.decode(buffer)
 }
 
 /**
@@ -46,6 +114,22 @@ export const socketMsgpackOptions = {
 }
 
 /**
+ * @brief Build Socket.IO options with MessagePack query support.
+ * @description Centralizes transport/query defaults so all socket clients
+ *              keep a consistent reconnect and payload format configuration.
+ * @param {Object} [overrides={}] - Additional Socket.IO client options
+ * @returns {Object} Socket.IO options object
+ */
+export function createSocketOptions(overrides = {}) {
+    return {
+        transports: ['websocket'],
+        reconnection: true,
+        ...socketMsgpackOptions,
+        ...overrides
+    }
+}
+
+/**
  * @brief Axios instance for general API requests with MessagePack support.
  * @description Pre-configured with:
  *              - MessagePack content negotiation headers
@@ -54,50 +138,14 @@ export const socketMsgpackOptions = {
  *              - ArrayBuffer response type for binary handling
  * @type {import('axios').AxiosInstance}
  */
-export const api = axios.create({
+export const api = createMsgpackClient({
     baseURL: API_BASE_URL,
-    headers: {
-        'Accept': 'application/msgpack',
-        'Content-Type': 'application/msgpack',
-        'X-Requested-With': 'XMLHttpRequest'
-    },
-    responseType: 'arraybuffer',
-    transformRequest: [(data, headers) => {
-        // Don't encode GET requests (no body) or null/undefined
-        if (data === undefined || data === null) return data
-        return encodeMsgpack(data)
-    }],
     transformResponse: [(data) => {
-        // Handle empty responses
-        if (!data) return null
-        if (data.byteLength === 0) return null
-
-        try {
-            // Check for JSON-like start bytes: '{' (123) or '[' (91)
-            // msgpack-lite treats these as positive fixints, so we must check for JSON first
-            const firstByte = new Uint8Array(data, 0, 1)[0]
-            if (firstByte === 123 || firstByte === 91) {
-                try {
-                    const text = new TextDecoder().decode(data)
-                    return JSON.parse(text)
-                } catch {
-                    // Not valid JSON, continue to msgpack decode
-                }
-            }
-
-            const decoded = decodeMsgpack(data)
-            return decoded
-        } catch (e) {
-            // Fallback for non-msgpack responses (e.g., errors, or server sent JSON)
-            try {
-                const text = new TextDecoder().decode(data)
-                console.warn('MessagePack decode failed, falling back to JSON:', text.substring(0, 100))
-                return JSON.parse(text)
-            } catch (jsonErr) {
-                console.error('Failed to decode response as both MessagePack and JSON', e, jsonErr)
-                return null
-            }
+        const decoded = decodeResponsePayload(data)
+        if (decoded === null && data && data.byteLength > 0) {
+            console.warn('Failed to decode API response payload')
         }
+        return decoded
     }]
 })
 
@@ -108,33 +156,8 @@ export const api = axios.create({
  *              - Credentials included for cookie-based session handling
  * @type {import('axios').AxiosInstance}
  */
-export const authApi = axios.create({
+export const authApi = createMsgpackClient({
     baseURL: `${API_BASE_URL}/auth`,
     withCredentials: true,
-    headers: {
-        'Accept': 'application/msgpack',
-        'Content-Type': 'application/msgpack',
-        'X-Requested-With': 'XMLHttpRequest'
-    },
-    responseType: 'arraybuffer',
-    transformRequest: [(data) => {
-        if (data === undefined || data === null) return data
-        return encodeMsgpack(data)
-    }],
-    transformResponse: [(data) => {
-        if (!data || data.byteLength === 0) return null
-        try {
-            const firstByte = new Uint8Array(data, 0, 1)[0]
-            if (firstByte === 123 || firstByte === 91) {
-                try {
-                    return JSON.parse(new TextDecoder().decode(data))
-                } catch {
-                    // ignore
-                }
-            }
-            return decodeMsgpack(data)
-        } catch {
-            return JSON.parse(new TextDecoder().decode(data))
-        }
-    }]
+    transformResponse: [(data) => decodeResponsePayload(data)]
 })

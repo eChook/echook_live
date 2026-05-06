@@ -58,6 +58,29 @@ const props = defineProps({
 
 const telemetry = useTelemetryStore()
 const chartRef = ref(null)
+const MAX_ZOOM_POINTS = 500
+
+/**
+ * @brief Build a bounded point set for slider rendering.
+ * @description Keeps zoom slider responsive by decimating large history arrays.
+ */
+const zoomSeriesData = computed(() => {
+  const points = props.data
+  if (!Array.isArray(points) || points.length === 0) return []
+  if (points.length <= MAX_ZOOM_POINTS) {
+    return points.map(item => [item.timestamp, 0])
+  }
+  const step = Math.ceil(points.length / MAX_ZOOM_POINTS)
+  const decimated = []
+  for (let i = 0; i < points.length; i += step) {
+    decimated.push([points[i].timestamp, 0])
+  }
+  const last = points[points.length - 1]
+  if (decimated[decimated.length - 1]?.[0] !== last.timestamp) {
+    decimated.push([last.timestamp, 0])
+  }
+  return decimated
+})
 
 /**
  * @brief Process absolute zoom requests from the telemetry store.
@@ -145,7 +168,7 @@ const option = computed(() => {
     series: [
       {
         type: 'line',
-        data: props.data.map(item => [item.timestamp, 0]),
+        data: zoomSeriesData.value,
         showSymbol: false,
         lineStyle: { opacity: 0 }
       }
