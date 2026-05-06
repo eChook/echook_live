@@ -107,4 +107,50 @@ describe('updateRaceSessions', () => {
 
         expect(Object.keys(result).length).toBe(0)
     })
+
+    it('ignores LL_ packets with only zero placeholder values', () => {
+        const sessions = {}
+        const packet = createPacket({
+            currLap: 1,
+            LL_Time: 0,
+            LL_V: 0,
+            LL_I: 0,
+            LL_RPM: 0,
+            LL_Spd: 0,
+            LL_Ah: 0,
+            LL_Eff: 0
+        })
+
+        const result = updateRaceSessions(sessions, packet, 0)
+
+        expect(Object.keys(result).length).toBe(0)
+    })
+
+    it('does not overwrite a valid lap with zero placeholder LL_ values', () => {
+        const sessions = {}
+        const validPacket = createPacket({ currLap: 2, LL_Time: 71.2, LL_V: 24.1 })
+        const withValidLap = updateRaceSessions(sessions, validPacket, 1)
+
+        const race = Object.values(withValidLap)[0]
+        const firstLapData = race.laps[2]
+
+        const zeroPacket = createPacket({
+            currLap: 2,
+            timestamp: validPacket.timestamp + 1000,
+            LL_Time: 0,
+            LL_V: 0,
+            LL_I: 0,
+            LL_RPM: 0,
+            LL_Spd: 0,
+            LL_Ah: 0,
+            LL_Eff: 0
+        })
+
+        const result = updateRaceSessions(withValidLap, zeroPacket, 2)
+        const updatedRace = Object.values(result)[0]
+        const lapAfterZeroPacket = updatedRace.laps[2]
+
+        expect(lapAfterZeroPacket.LL_Time).toBe(firstLapData.LL_Time)
+        expect(lapAfterZeroPacket.LL_V).toBe(firstLapData.LL_V)
+    })
 })

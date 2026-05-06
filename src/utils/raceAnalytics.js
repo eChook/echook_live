@@ -61,8 +61,28 @@ export function updateRaceSessions(sessions, packet, lastLapIndex) {
         }
     })
 
-    // Only proceed if we have lap completion data and it's not lap 0
+    /**
+     * @brief Determine whether a lap packet contains real summary data.
+     * @description Filters out placeholder LL_* packets (often all zeros)
+     *              that otherwise overwrite valid lap summaries.
+     * @param {Object} lapSummary - Extracted LL_* values for the packet
+     * @returns {boolean} True when packet looks like a completed lap summary
+     */
+    const hasMeaningfulLapSummary = (lapSummary) => {
+        const lapTime = Number(lapSummary.LL_Time)
+        if (Number.isFinite(lapTime) && lapTime > 0) return true
+
+        // Fallback: accept if any summary value is non-zero numeric.
+        return Object.values(lapSummary).some((value) => {
+            const num = Number(value)
+            return Number.isFinite(num) && num !== 0
+        })
+    }
+
+    // Only proceed if we have lap completion data, it's not lap 0,
+    // and the LL_* payload is meaningful (not zero placeholders).
     if (!hasLapKeys || packet.currLap === 0) return sessions
+    if (!hasMeaningfulLapSummary(lapData)) return sessions
 
     const timestamp = packet.timestamp || Date.now()
     const lapNumber = packet.currLap

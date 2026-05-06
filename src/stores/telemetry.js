@@ -64,6 +64,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     /** @brief Whether live data ingestion is paused */
     const isPaused = ref(false)
 
+    /** @brief Currently subscribed socket room (car ID) */
+    const activeRoomId = ref(null)
+
     /**
      * @brief Currently viewed car details.
      * @description { id, carName, teamName, number, isOwn }
@@ -339,16 +342,20 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     // Socket composable
     const socketComposable = useSocket({
         onConnect: () => {
-            // Join room for the authenticated user's car
-            if (auth.user?.id || auth.user?._id) {
-                const userCar = {
-                    id: auth.user.id || auth.user._id,
-                    carName: auth.user.carName || auth.user.car,
-                    teamName: auth.user.teamName || auth.user.team,
-                    number: auth.user.number,
+            // Rejoin the currently viewed car after reconnect. Fallback to own car.
+            const viewedCarId = viewingCar.value?.id
+            const ownCarId = auth.user?.id || auth.user?._id
+            const targetCarId = viewedCarId || ownCarId
+
+            if (targetCarId) {
+                const carDetails = viewingCar.value || {
+                    id: ownCarId,
+                    carName: auth.user?.carName || auth.user?.car,
+                    teamName: auth.user?.teamName || auth.user?.team,
+                    number: auth.user?.number,
                     isOwn: true
                 }
-                joinRoom(userCar.id, userCar)
+                joinRoom(targetCarId, carDetails)
             }
         },
         onDisconnect: () => { },
@@ -385,7 +392,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     function joinRoom(carId, carDetails = null) {
         if (socketComposable.isConnected.value) {
+            // Ensure we only have one active car room subscription.
+            if (activeRoomId.value && activeRoomId.value !== carId) {
+                socketComposable.leaveRoom(activeRoomId.value)
+            }
             socketComposable.joinRoom(carId)
+            activeRoomId.value = carId
             if (carDetails) {
                 viewingCar.value = carDetails
             } else {
@@ -401,6 +413,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     function leaveRoom(carId) {
         socketComposable.leaveRoom(carId)
+        if (activeRoomId.value === carId) {
+            activeRoomId.value = null
+        }
     }
 
     /**
@@ -408,6 +423,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     function disconnect() {
         socketComposable.disconnect()
+        activeRoomId.value = null
     }
 
     // ============================================
@@ -485,6 +501,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         races.value = []
         lastPacketTime.value = 0
         currentLapIndex.value = 0
+        activeRoomId.value = null
         historyComposable.availableDays.value = new Set()
         isPaused.value = false
     }
