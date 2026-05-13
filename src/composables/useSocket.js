@@ -48,7 +48,7 @@ export function useSocket({ onConnect, onDisconnect, onData, onError }) {
 
         lastError.value = ''
         connectionState.value = 'connecting'
-        socket.value = io(WS_URL, createSocketOptions())
+        socket.value = io(WS_URL || undefined, createSocketOptions())
 
         socket.value.on('connect', () => {
             isConnected.value = true

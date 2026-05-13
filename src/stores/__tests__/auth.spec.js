@@ -5,7 +5,8 @@ import { useAuthStore } from '../auth'
 // Mock the msgpack authApi
 vi.mock('../../utils/msgpack', () => ({
     api: {
-        post: vi.fn()
+        post: vi.fn(),
+        get: vi.fn()
     },
     authApi: {
         post: vi.fn(),
@@ -13,12 +14,13 @@ vi.mock('../../utils/msgpack', () => ({
     }
 }))
 
-import { authApi } from '../../utils/msgpack'
+import { api, authApi } from '../../utils/msgpack'
 
 describe('auth store', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         vi.clearAllMocks()
+        api.get.mockRejectedValue({ response: { status: 403, data: { error: 'Admin access required' } } })
     })
 
     describe('initial state', () => {
@@ -153,6 +155,34 @@ describe('auth store', () => {
 
             expect(result).toEqual({ success: true })
             expect(auth.user).toEqual({ id: 'u1', name: 'Driver 1' })
+        })
+
+        it('restores admin status when session belongs to an admin user', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Admin Driver' }
+            authApi.post.mockResolvedValue({ data: { id: 'u1' } })
+            api.get.mockResolvedValue({ data: { uptime: 10 } })
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: true })
+            expect(api.get).toHaveBeenCalledWith('/admin/stats', {
+                params: { limit: 1 },
+                withCredentials: true
+            })
+            expect(auth.isAdmin).toBe(true)
+        })
+
+        it('uses isAdmin when session payload includes role information', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', name: 'Admin Driver' }
+            authApi.post.mockResolvedValue({ data: { id: 'u1', isAdmin: true } })
+
+            const result = await auth.checkSession()
+
+            expect(result).toEqual({ success: true })
+            expect(api.get).not.toHaveBeenCalled()
+            expect(auth.isAdmin).toBe(true)
         })
 
         it('logs out when session payload has no id', async () => {

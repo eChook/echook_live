@@ -85,7 +85,7 @@ export const useSpectatorStore = defineStore('spectator', () => {
 
         isConnecting.value = true
         socketError.value = ''
-        publicSocket.value = io(`${WS_URL}/public`, createSocketOptions())
+        publicSocket.value = io(WS_URL ? `${WS_URL}/public` : '/public', createSocketOptions())
 
         publicSocket.value.on('connect', () => {
             isConnecting.value = false

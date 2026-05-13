@@ -26,8 +26,13 @@
 
         <!-- Main Content Area -->
         <div class="flex-1 flex flex-col overflow-hidden relative">
+            <!-- Authentication Notice -->
+            <div v-if="adminAuthMessage" class="m-8 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+                {{ adminAuthMessage }}
+            </div>
+
             <!-- Active Cars Panel -->
-            <div v-if="currentTab === 'cars'" class="flex-1 overflow-y-auto p-8 space-y-6">
+            <div v-else-if="currentTab === 'cars'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-medium text-zinc-900 dark:text-white">Active Cars ({{ adminStore.activeCars.length }})</h3>
                     <button @click="refreshCars" class="p-2 bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition">
@@ -195,6 +200,11 @@
             <div v-else-if="currentTab === 'stats'" class="flex-1 h-full overflow-hidden">
                 <ServerStatsTab />
             </div>
+
+            <!-- Backup and Database Panel -->
+            <div v-else-if="currentTab === 'backup'" class="flex-1 h-full overflow-hidden">
+                <AdminBackupTab />
+            </div>
         </div>
 
         <!-- Edit Modal -->
@@ -222,15 +232,18 @@ import {
     PencilSquareIcon,
     TrashIcon,
     MapIcon,
-    ChartBarIcon
+    ChartBarIcon,
+    CircleStackIcon
 } from '@heroicons/vue/24/outline'
 import UserEditModal from '../UserEditModal.vue'
 import ConfirmationModal from '../ui/ConfirmationModal.vue'
 import AdminMapsTab from './AdminMapsTab.vue'
 import ServerStatsTab from './ServerStatsTab.vue'
+import AdminBackupTab from './AdminBackupTab.vue'
 
 const adminStore = useAdminStore()
 const telemetry = useTelemetryStore()
+const adminAuthMessage = ref('')
 
 // Tabs
 const tabs = [
@@ -239,6 +252,7 @@ const tabs = [
     { id: 'emails', name: 'Emails', icon: EnvelopeIcon },
     { id: 'maps', name: 'Maps', icon: MapIcon },
     { id: 'stats', name: 'Server Stats', icon: ChartBarIcon },
+    { id: 'backup', name: 'Backup & DB', icon: CircleStackIcon },
 ]
 const currentTab = ref('cars')
 

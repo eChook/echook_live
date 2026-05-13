@@ -122,7 +122,9 @@ export const socketMsgpackOptions = {
  */
 export function createSocketOptions(overrides = {}) {
     return {
-        transports: ['websocket'],
+        // Allow Socket.IO to start with HTTP polling and upgrade when possible.
+        // Some local/browser setups reject direct websocket-only handshakes.
+        transports: ['polling', 'websocket'],
         reconnection: true,
         ...socketMsgpackOptions,
         ...overrides

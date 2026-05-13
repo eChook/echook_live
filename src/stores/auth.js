@@ -30,6 +30,13 @@ export const useAuthStore = defineStore('auth', () => {
     const trustedIsAdmin = ref(false)
 
     /**
+     * @brief Whether the current runtime has checked server-side admin access.
+     * @description Prevents repeatedly probing admin endpoints for non-admin users
+     *              while still allowing reloads to recover the admin tab.
+     */
+    const adminStatusChecked = ref(false)
+
+    /**
      * @brief Sanitize user profile data for client-side state usage.
      * @param {Object|null} rawUser - Raw user object from backend response
      * @returns {Object|null} Sanitized profile without privileged fields
@@ -51,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     function applyTrustedUser(rawUser) {
         user.value = sanitizeUser(rawUser)
         trustedIsAdmin.value = !!rawUser?.isAdmin
+        adminStatusChecked.value = true
     }
 
     // Strip any privileged fields if store is hydrated from persisted storage.
@@ -135,6 +143,12 @@ export const useAuthStore = defineStore('auth', () => {
             const response = await authApi.post('/getid')
             const body = response?.data || {}
             if (body.id) {
+                if (typeof body.isAdmin === 'boolean') {
+                    trustedIsAdmin.value = body.isAdmin
+                    adminStatusChecked.value = true
+                } else if (!adminStatusChecked.value) {
+                    await refreshAdminStatus()
+                }
                 return { success: true }
             }
             logout()
@@ -150,6 +164,35 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             return { success: false, transient: true, error: message }
+        }
+    }
+
+    /**
+     * @brief Refresh admin role from a server-authorized admin endpoint.
+     * @description The legacy `/auth/getid` endpoint only returns a user ID, so
+     *              this lightweight admin probe restores the in-memory admin tab
+     *              state after reload without trusting persisted local storage.
+     * @returns {Promise<boolean>} True when the current session is admin
+     */
+    async function refreshAdminStatus() {
+        try {
+            await api.get('/admin/stats', {
+                params: { limit: 1 },
+                withCredentials: true
+            })
+            trustedIsAdmin.value = true
+            return true
+        } catch (error) {
+            const status = error?.response?.status
+            const isDefinitiveRoleFailure = status === 401 || status === 403
+
+            if (isDefinitiveRoleFailure) {
+                trustedIsAdmin.value = false
+            }
+
+            return false
+        } finally {
+            adminStatusChecked.value = true
         }
     }
 
@@ -223,6 +266,7 @@ export const useAuthStore = defineStore('auth', () => {
     function logout() {
         user.value = null
         trustedIsAdmin.value = false
+        adminStatusChecked.value = false
     }
 
     return {
@@ -237,6 +281,7 @@ export const useAuthStore = defineStore('auth', () => {
         register,
         logout,
         checkSession,
+        refreshAdminStatus,
         updateProfile,
         requestVerificationCode,
         startDemo
