@@ -16,11 +16,25 @@ export default defineConfig({
     }),
   ],
   build: {
-    rollupOptions: {
+    /**
+     * Rolldown (Vite 8) no longer accepts object-form `manualChunks`.
+     * Use `codeSplitting.groups` for the same vendor chunk split.
+     * @see https://vite.dev/guide/migration#rolldown
+     * @see https://rolldown.rs/in-depth/manual-code-splitting
+     */
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          'echarts': ['echarts', 'vue-echarts'],
-          'leaflet': ['leaflet', '@vue-leaflet/vue-leaflet'],
+        codeSplitting: {
+          groups: [
+            {
+              name: 'echarts',
+              test: /\/node_modules\/(?:echarts|vue-echarts)\//
+            },
+            {
+              name: 'leaflet',
+              test: /\/node_modules\/(?:leaflet|@vue-leaflet)\//
+            }
+          ]
         }
       }
     }
