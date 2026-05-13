@@ -15,6 +15,15 @@ import { ref } from 'vue'
  *              persistence. Separates UI preferences from telemetry data.
  */
 export const useSettingsStore = defineStore('settings', () => {
+    /** @brief Minimum allowed telemetry history points for runtime safety. */
+    const MIN_HISTORY_POINTS = 5000
+    /** @brief Maximum allowed telemetry history points for runtime safety. */
+    const MAX_HISTORY_POINTS = 50000
+    /** @brief Minimum graph height in pixels. */
+    const MIN_GRAPH_HEIGHT = 200
+    /** @brief Maximum graph height in pixels. */
+    const MAX_GRAPH_HEIGHT = 800
+
     // ============================================
     // Performance & Retention Settings
     // ============================================
@@ -115,20 +124,166 @@ export const useSettingsStore = defineStore('settings', () => {
      * @param {Object} newData - Settings object to import
      */
     function importSettings(newData) {
-        if (!newData) return
-        const isObjectRecord = (value) => value && typeof value === 'object' && !Array.isArray(value)
+        if (!newData || typeof newData !== 'object' || Array.isArray(newData)) {
+            return { success: false, errors: ['Invalid settings payload.'] }
+        }
 
-        if (newData.maxHistoryPoints !== undefined) maxHistoryPoints.value = newData.maxHistoryPoints
-        if (newData.unitSettings) unitSettings.value = { ...unitSettings.value, ...newData.unitSettings }
-        if (newData.graphSettings) graphSettings.value = { ...graphSettings.value, ...newData.graphSettings }
-        if (newData.activeTabId) activeTabId.value = newData.activeTabId
-        if (newData.selectedDashboardKeys) selectedDashboardKeys.value = newData.selectedDashboardKeys
-        if (newData.showDashboardMetrics !== undefined) showDashboardMetrics.value = newData.showDashboardMetrics
-        if (newData.hideLapsDisclaimer !== undefined) hideLapsDisclaimer.value = newData.hideLapsDisclaimer
-        if (newData.hideHistoryClearConfirmation !== undefined) hideHistoryClearConfirmation.value = newData.hideHistoryClearConfirmation
-        if (newData.showGraphHelp !== undefined) showGraphHelp.value = newData.showGraphHelp
-        if (newData.dataCardOrder) dataCardOrder.value = newData.dataCardOrder
-        if (isObjectRecord(newData.races)) races.value = { ...races.value, ...newData.races }
+        const isObjectRecord = (value) => value && typeof value === 'object' && !Array.isArray(value)
+        const clampNumber = (value, min, max) => Math.min(max, Math.max(min, value))
+        const errors = []
+
+        const allowedRootKeys = new Set([
+            'maxHistoryPoints',
+            'unitSettings',
+            'graphSettings',
+            'activeTabId',
+            'selectedDashboardKeys',
+            'showDashboardMetrics',
+            'hideLapsDisclaimer',
+            'hideHistoryClearConfirmation',
+            'showGraphHelp',
+            'dataCardOrder',
+            'races'
+        ])
+        Object.keys(newData).forEach((key) => {
+            if (!allowedRootKeys.has(key)) {
+                errors.push(`Unknown setting key rejected: ${key}`)
+            }
+        })
+
+        if (newData.maxHistoryPoints !== undefined) {
+            if (Number.isFinite(newData.maxHistoryPoints)) {
+                maxHistoryPoints.value = clampNumber(Math.round(newData.maxHistoryPoints), MIN_HISTORY_POINTS, MAX_HISTORY_POINTS)
+            } else {
+                errors.push('maxHistoryPoints must be a valid number.')
+            }
+        }
+
+        if (newData.unitSettings !== undefined) {
+            if (isObjectRecord(newData.unitSettings)) {
+                const nextUnitSettings = { ...unitSettings.value }
+                if (newData.unitSettings.speedUnit !== undefined) {
+                    const allowedSpeedUnits = new Set(['mph', 'kph', 'ms'])
+                    if (allowedSpeedUnits.has(newData.unitSettings.speedUnit)) {
+                        nextUnitSettings.speedUnit = newData.unitSettings.speedUnit
+                    } else {
+                        errors.push('unitSettings.speedUnit must be one of: mph, kph, ms.')
+                    }
+                }
+                if (newData.unitSettings.tempUnit !== undefined) {
+                    const allowedTempUnits = new Set(['c', 'f'])
+                    if (allowedTempUnits.has(newData.unitSettings.tempUnit)) {
+                        nextUnitSettings.tempUnit = newData.unitSettings.tempUnit
+                    } else {
+                        errors.push('unitSettings.tempUnit must be one of: c, f.')
+                    }
+                }
+                unitSettings.value = nextUnitSettings
+            } else {
+                errors.push('unitSettings must be an object.')
+            }
+        }
+
+        if (newData.graphSettings !== undefined) {
+            if (isObjectRecord(newData.graphSettings)) {
+                const nextGraphSettings = { ...graphSettings.value }
+                if (newData.graphSettings.showLapHighlights !== undefined) {
+                    if (typeof newData.graphSettings.showLapHighlights === 'boolean') {
+                        nextGraphSettings.showLapHighlights = newData.graphSettings.showLapHighlights
+                    } else {
+                        errors.push('graphSettings.showLapHighlights must be boolean.')
+                    }
+                }
+                if (newData.graphSettings.showAnimations !== undefined) {
+                    if (typeof newData.graphSettings.showAnimations === 'boolean') {
+                        nextGraphSettings.showAnimations = newData.graphSettings.showAnimations
+                    } else {
+                        errors.push('graphSettings.showAnimations must be boolean.')
+                    }
+                }
+                if (newData.graphSettings.showGrid !== undefined) {
+                    if (typeof newData.graphSettings.showGrid === 'boolean') {
+                        nextGraphSettings.showGrid = newData.graphSettings.showGrid
+                    } else {
+                        errors.push('graphSettings.showGrid must be boolean.')
+                    }
+                }
+                if (newData.graphSettings.graphHeight !== undefined) {
+                    if (Number.isFinite(newData.graphSettings.graphHeight)) {
+                        nextGraphSettings.graphHeight = clampNumber(
+                            Math.round(newData.graphSettings.graphHeight),
+                            MIN_GRAPH_HEIGHT,
+                            MAX_GRAPH_HEIGHT
+                        )
+                    } else {
+                        errors.push('graphSettings.graphHeight must be a valid number.')
+                    }
+                }
+                graphSettings.value = nextGraphSettings
+            } else {
+                errors.push('graphSettings must be an object.')
+            }
+        }
+
+        if (newData.activeTabId !== undefined) {
+            if (typeof newData.activeTabId === 'string' && newData.activeTabId.length > 0) {
+                activeTabId.value = newData.activeTabId
+            } else {
+                errors.push('activeTabId must be a non-empty string.')
+            }
+        }
+
+        if (newData.selectedDashboardKeys !== undefined) {
+            if (Array.isArray(newData.selectedDashboardKeys) && newData.selectedDashboardKeys.every((key) => typeof key === 'string')) {
+                selectedDashboardKeys.value = newData.selectedDashboardKeys
+            } else {
+                errors.push('selectedDashboardKeys must be an array of strings.')
+            }
+        }
+        if (newData.showDashboardMetrics !== undefined) {
+            if (typeof newData.showDashboardMetrics === 'boolean') {
+                showDashboardMetrics.value = newData.showDashboardMetrics
+            } else {
+                errors.push('showDashboardMetrics must be boolean.')
+            }
+        }
+        if (newData.hideLapsDisclaimer !== undefined) {
+            if (typeof newData.hideLapsDisclaimer === 'boolean') {
+                hideLapsDisclaimer.value = newData.hideLapsDisclaimer
+            } else {
+                errors.push('hideLapsDisclaimer must be boolean.')
+            }
+        }
+        if (newData.hideHistoryClearConfirmation !== undefined) {
+            if (typeof newData.hideHistoryClearConfirmation === 'boolean') {
+                hideHistoryClearConfirmation.value = newData.hideHistoryClearConfirmation
+            } else {
+                errors.push('hideHistoryClearConfirmation must be boolean.')
+            }
+        }
+        if (newData.showGraphHelp !== undefined) {
+            if (typeof newData.showGraphHelp === 'boolean') {
+                showGraphHelp.value = newData.showGraphHelp
+            } else {
+                errors.push('showGraphHelp must be boolean.')
+            }
+        }
+        if (newData.dataCardOrder !== undefined) {
+            if (Array.isArray(newData.dataCardOrder) && newData.dataCardOrder.every((key) => typeof key === 'string')) {
+                dataCardOrder.value = newData.dataCardOrder
+            } else {
+                errors.push('dataCardOrder must be an array of strings.')
+            }
+        }
+        if (newData.races !== undefined) {
+            if (isObjectRecord(newData.races)) {
+                races.value = { ...races.value, ...newData.races }
+            } else {
+                errors.push('races must be an object map.')
+            }
+        }
+
+        return { success: errors.length === 0, errors }
     }
 
     return {

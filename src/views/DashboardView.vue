@@ -91,7 +91,7 @@ const tabs = computed(() => {
     { id: 'laps', label: 'Laps', icon: FlagIcon, component: LapsTab },
   ]
 
-  if (auth.user?.isAdmin) {
+  if (auth.isAdmin) {
     baseTabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheckIcon, component: AdminTab })
   }
 

@@ -10,6 +10,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
 import { API_BASE_URL } from '../config'
+import { getPublicLatestTelemetryPath } from '../constants/accessPolicy'
 
 /**
  * @brief Admin store for managing admin panel state and API calls.
@@ -224,7 +225,7 @@ export const useAdminStore = defineStore('admin', () => {
      */
     async function fetchLatestData(id) {
         try {
-            const res = await api.get(`/api/get/${id}`)
+            const res = await api.get(getPublicLatestTelemetryPath(id))
             return res.data
         } catch (e) {
             console.error('Fetch latest data failed', e)

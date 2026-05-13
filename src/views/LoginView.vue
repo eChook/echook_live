@@ -26,11 +26,6 @@ import { onMounted, onUnmounted } from 'vue'
 
 const spectatorStore = useSpectatorStore()
 
-// Connect to public namespace for track list
-onMounted(() => {
-  spectatorStore.connectPublic()
-})
-
 onUnmounted(() => {
   spectatorStore.disconnectPublic()
 })
@@ -77,6 +72,7 @@ const handleLogin = async () => {
 const showCookieNotice = ref(false)
 
 onMounted(() => {
+  // Connect once for track list updates and initialize cookie notice.
   spectatorStore.connectPublic()
   if (!localStorage.getItem('cookie_notice_accepted')) {
     showCookieNotice.value = true

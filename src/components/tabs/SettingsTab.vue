@@ -66,9 +66,17 @@ const handleFileLoad = (event) => {
   reader.onload = (e) => {
     try {
       const json = JSON.parse(e.target.result)
-      settings.importSettings(json)
+      const result = settings.importSettings(json)
+      if (!result.success) {
+        showMessage('Invalid Settings File', result.errors.join(' '), 'error')
+        return
+      }
+      showMessage('Success', 'Settings imported successfully.', 'success')
     } catch (err) {
       console.error('Failed to load settings file', err)
+      showMessage('Invalid Settings File', 'Unable to parse the selected file as valid JSON.', 'error')
+    } finally {
+      event.target.value = ''
     }
   }
   reader.readAsText(file)
@@ -171,7 +179,8 @@ const handleCopy = async (text, type) => {
 
 // URLs
 import { API_BASE_URL, WS_URL } from '../../config'
-const apiUrl = computed(() => `${API_BASE_URL}/api/get/${auth.user ? auth.user.id : ':id'}`)
+import { getPublicLatestTelemetryPath } from '../../constants/accessPolicy'
+const apiUrl = computed(() => `${API_BASE_URL}${getPublicLatestTelemetryPath(auth.user ? auth.user.id : ':id')}`)
 const wsUrl = WS_URL
 
 </script>

@@ -22,6 +22,42 @@ export const useAuthStore = defineStore('auth', () => {
 
     /** @brief Current authenticated user object or null if not logged in */
     const user = ref(null)
+    /**
+     * @brief Trusted admin flag from live server-authenticated responses.
+     * @description This is intentionally non-persisted to avoid privilege trust
+     *              from local storage hydration.
+     */
+    const trustedIsAdmin = ref(false)
+
+    /**
+     * @brief Sanitize user profile data for client-side state usage.
+     * @param {Object|null} rawUser - Raw user object from backend response
+     * @returns {Object|null} Sanitized profile without privileged fields
+     */
+    function sanitizeUser(rawUser) {
+        if (!rawUser || typeof rawUser !== 'object') return null
+        const sanitized = { ...rawUser }
+        delete sanitized.isAdmin
+        delete sanitized.role
+        delete sanitized.roles
+        delete sanitized.permissions
+        return sanitized
+    }
+
+    /**
+     * @brief Apply user payload from trusted auth responses.
+     * @param {Object|null} rawUser - User payload from authenticated endpoint
+     */
+    function applyTrustedUser(rawUser) {
+        user.value = sanitizeUser(rawUser)
+        trustedIsAdmin.value = !!rawUser?.isAdmin
+    }
+
+    // Strip any privileged fields if store is hydrated from persisted storage.
+    if (user.value) {
+        user.value = sanitizeUser(user.value)
+        trustedIsAdmin.value = false
+    }
 
     // ============================================
     // Computed Properties
@@ -34,6 +70,8 @@ export const useAuthStore = defineStore('auth', () => {
     const isAuthenticated = computed(() => !!user.value)
     /** @brief Normalized user identifier for mixed backend id fields. */
     const userId = computed(() => user.value?.id || user.value?._id || null)
+    /** @brief Whether user has trusted admin role in current runtime session. */
+    const isAdmin = computed(() => trustedIsAdmin.value)
 
     // ============================================
     // Authentication Actions
@@ -51,7 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
             const response = await authApi.post('/login', credentials)
             const body = response?.data || {}
             if (body.success && body.user) {
-                user.value = body.user
+                applyTrustedUser(body.user)
                 return { success: true }
             }
             return { success: false, error: body.message || 'Login failed' }
@@ -75,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
             const body = response?.data || {}
             if (body.success) {
                 if (body.user) {
-                    user.value = body.user
+                    applyTrustedUser(body.user)
                 }
                 return { success: true }
             }
@@ -148,7 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             const response = await api.post('/account/update', data, { withCredentials: true })
             if (response.data.success && response.data.user) {
-                user.value = response.data.user
+                applyTrustedUser(response.data.user)
                 return { success: true }
             }
             return { success: false, error: response.data.message || 'Update failed' }
@@ -168,7 +206,7 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             const response = await authApi.get('/demo')
             if (response.data.success) {
-                user.value = response.data.user
+                applyTrustedUser(response.data.user)
                 return { success: true }
             }
             return { success: false, error: response.data.message || 'Failed to start demo' }
@@ -184,6 +222,7 @@ export const useAuthStore = defineStore('auth', () => {
      */
     function logout() {
         user.value = null
+        trustedIsAdmin.value = false
     }
 
     return {
@@ -191,6 +230,7 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         isAuthenticated,
         userId,
+        isAdmin,
 
         // Actions
         login,
@@ -202,5 +242,7 @@ export const useAuthStore = defineStore('auth', () => {
         startDemo
     }
 }, {
-    persist: true
+    persist: {
+        pick: ['user']
+    }
 })
