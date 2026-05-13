@@ -183,18 +183,25 @@ import { getPublicLatestTelemetryPath } from '../../constants/accessPolicy'
 const apiUrl = computed(() => `${API_BASE_URL}${getPublicLatestTelemetryPath(auth.user ? auth.user.id : ':id')}`)
 const wsUrl = WS_URL
 
+/** @brief Options for the appearance (theme) control. */
+const themeOptions = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'Auto' }
+]
+
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto bg-neutral-900 text-gray-300 p-6">
+  <div class="h-full overflow-y-auto bg-zinc-100 text-zinc-700 dark:bg-neutral-900 dark:text-gray-300 p-6">
     <div class="max-w-4xl mx-auto space-y-8">
 
       <!-- Header -->
       <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-white">Settings</h2>
+        <h2 class="text-2xl font-bold text-zinc-900 dark:text-white">Settings</h2>
 
         <Menu as="div" class="relative">
-          <MenuButton class="p-2 hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 hover:text-white">
+          <MenuButton class="p-2 hover:bg-zinc-200 dark:hover:bg-neutral-800 rounded-lg transition-colors text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white">
             <EllipsisVerticalIcon class="w-6 h-6" />
           </MenuButton>
 
@@ -203,11 +210,11 @@ const wsUrl = WS_URL
             leave-active-class="transition duration-75 ease-in" leave-from-class="transform scale-100 opacity-100"
             leave-to-class="transform scale-95 opacity-0">
             <MenuItems
-              class="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-neutral-700 rounded-xl bg-neutral-800 shadow-2xl ring-1 ring-white/5 focus:outline-none z-50">
+              class="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-zinc-200 dark:divide-neutral-700 rounded-xl bg-white dark:bg-neutral-800 shadow-2xl ring-1 ring-black/5 dark:ring-white/5 focus:outline-none z-50">
               <div class="px-1 py-1">
                 <MenuItem v-slot="{ active }">
                 <button @click="downloadSettings" :class="[
-                  active ? 'bg-primary text-white' : 'text-gray-300',
+                  active ? 'bg-primary text-white' : 'text-zinc-700 dark:text-gray-300',
                   'group flex w-full items-center rounded-lg px-3 py-2 text-sm'
                 ]">
                   <ArrowDownTrayIcon class="mr-2 h-5 w-5" />
@@ -216,7 +223,7 @@ const wsUrl = WS_URL
                 </MenuItem>
                 <MenuItem v-slot="{ active }">
                 <button @click="triggerFileLoad" :class="[
-                  active ? 'bg-primary text-white' : 'text-gray-300',
+                  active ? 'bg-primary text-white' : 'text-zinc-700 dark:text-gray-300',
                   'group flex w-full items-center rounded-lg px-3 py-2 text-sm'
                 ]">
                   <ArrowUpTrayIcon class="mr-2 h-5 w-5" />
@@ -233,36 +240,61 @@ const wsUrl = WS_URL
           @change="handleFileLoad" />
       </div>
 
+      <!-- Appearance: light / dark / system -->
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-2 border-b border-zinc-200 dark:border-neutral-700 pb-2">Appearance</h3>
+        <p class="text-sm text-zinc-600 dark:text-gray-400 mb-4">
+          Light, dark, or Auto to follow your device theme.
+        </p>
+        <div class="flex flex-wrap gap-3" role="group" aria-label="Theme">
+          <button
+            v-for="opt in themeOptions"
+            :key="opt.value"
+            type="button"
+            @click="settings.themeMode = opt.value"
+            class="px-4 py-2 rounded-lg border text-sm font-medium transition"
+            :class="settings.themeMode === opt.value
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'border-zinc-300 dark:border-neutral-600 text-zinc-700 dark:text-gray-300 hover:border-primary/50'"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <p v-if="settings.themeMode === 'system'" class="text-xs text-zinc-500 dark:text-gray-500 mt-3">
+          Currently using <span class="font-semibold">{{ settings.resolvedTheme }}</span> from your system preference.
+        </p>
+      </section>
+
       <!-- Account Section -->
-      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Account</h3>
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">Account</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Car Name -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Car Name</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Car Name</label>
             <input v-model="form.car" type="text"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter car name..." />
           </div>
           <!-- Car Number -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Car Number</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Car Number</label>
             <input v-model="form.number" type="text"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter car number..." />
           </div>
           <!-- Team Name -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Team Name</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Team Name</label>
             <input v-model="form.team" type="text"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter team name..." />
           </div>
           <!-- Email -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Email</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Email</label>
             <input v-model="form.email" type="email"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               placeholder="Enter email address..." />
           </div>
 
@@ -271,19 +303,19 @@ const wsUrl = WS_URL
             <SwitchGroup>
               <div class="flex items-center justify-between">
                 <div class="flex flex-col">
-                  <SwitchLabel class="text-sm font-medium text-gray-300">Spectator View Opt-Out</SwitchLabel>
-                  <span class="text-s text-gray-500 mt-1">
+                  <SwitchLabel class="text-sm font-medium text-zinc-700 dark:text-gray-300">Spectator View Opt-Out</SwitchLabel>
+                  <span class="text-sm text-zinc-500 dark:text-gray-500 mt-1">
                     {{ form.publicOptOut ? 'Opted Out :(' : 'Opted In :)' }}
                   </span>
-                  <span class="text-xs text-gray-500 mt-1 max-w-lg">
+                  <span class="text-xs text-zinc-500 dark:text-gray-500 mt-1 max-w-lg">
                     If there are three or more cars opted in on the same known track, their speed and location will be
                     visible in the public spectator view. This is no more than would be visible to a spectator at the
                     track. (We'd really appreciate it if you don't opt out!)
                   </span>
                 </div>
                 <Switch v-model="form.publicOptOut"
-                  :class="form.publicOptOut ? 'bg-red-900 ring-1 ring-red-500' : 'bg-neutral-600'"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-neutral-900">
+                  :class="form.publicOptOut ? 'bg-red-900 ring-1 ring-red-500' : 'bg-zinc-300 dark:bg-neutral-600'"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-neutral-900">
                   <span :class="form.publicOptOut ? 'translate-x-6' : 'translate-x-1'"
                     class="inline-block h-4 w-4 transform rounded-full bg-white transition" />
                 </Switch>
@@ -293,7 +325,7 @@ const wsUrl = WS_URL
         </div>
 
         <!-- Account Actions -->
-        <div class="mt-6 flex space-x-4 border-t border-neutral-700 pt-4">
+        <div class="mt-6 flex space-x-4 border-t border-zinc-200 dark:border-neutral-700 pt-4">
           <button @click="saveProfile" :disabled="isSaving"
             class="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded transition text-sm font-bold flex items-center">
             <ArrowPathIcon v-if="isSaving" class="mr-2 h-4 w-4 animate-spin" />
@@ -301,7 +333,7 @@ const wsUrl = WS_URL
           </button>
           <div class="flex-1"></div>
           <button
-            class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium">
+            class="px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded transition text-sm font-medium">
             Change Password
           </button>
           <button
@@ -314,8 +346,8 @@ const wsUrl = WS_URL
       <!-- Storage Info -->
       <div class="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start space-x-3">
         <InformationCircleIcon class="w-5 h-5 text-primary shrink-0 mt-0.5" />
-        <div class="text-xs text-gray-400 leading-relaxed">
-          <p class="font-bold text-gray-300 mb-1 uppercase tracking-wider">Browser Storage</p>
+        <div class="text-xs text-zinc-600 dark:text-gray-400 leading-relaxed">
+          <p class="font-bold text-zinc-800 dark:text-gray-300 mb-1 uppercase tracking-wider">Browser Storage</p>
           Unit, visual, and performance settings are saved automatically to your browser's local storage for this
           device.
           Use the menu at the top to download a backup file or load settings on a different machine.
@@ -323,14 +355,14 @@ const wsUrl = WS_URL
       </div>
 
       <!-- Units -->
-      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Units</h3>
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">Units</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Speed -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Speed Unit</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Speed Unit</label>
             <select v-model="settings.unitSettings.speedUnit"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
               <option value="mph">Miles per Hour (mph)</option>
               <option value="kph">Kilometers per Hour (km/h)</option>
               <option value="ms">Meters per Second (m/s)</option>
@@ -339,9 +371,9 @@ const wsUrl = WS_URL
 
           <!-- Temperature -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Temperature Unit</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Temperature Unit</label>
             <select v-model="settings.unitSettings.tempUnit"
-              class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+              class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
               <option value="c">Celsius (°C)</option>
               <option value="f">Fahrenheit (°F)</option>
             </select>
@@ -350,19 +382,19 @@ const wsUrl = WS_URL
       </section>
 
       <!-- Performance -->
-      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">Performance and Visuals</h3>
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">Performance and Visuals</h3>
 
         <div class="space-y-6">
           <!-- Max History -->
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-sm font-medium text-gray-300">Max History Points</label>
+              <label class="text-sm font-medium text-zinc-700 dark:text-gray-300">Max History Points</label>
               <span class="text-sm font-mono text-primary">{{ settings.maxHistoryPoints.toLocaleString() }}</span>
             </div>
             <input type="range" v-model.number="settings.maxHistoryPoints" min="5000" max="50000" step="1000"
-              class="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
-            <p class="text-xs text-gray-500 mt-1">Lower values improve performance on slower devices. (Default: 50,000)
+              class="w-full h-2 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
+            <p class="text-xs text-zinc-500 dark:text-gray-500 mt-1">Lower values improve performance on slower devices. (Default: 50,000)
             </p>
           </div>
 
@@ -371,11 +403,11 @@ const wsUrl = WS_URL
           <!-- Graph Height -->
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-sm font-medium text-gray-300">Graph Height</label>
+              <label class="text-sm font-medium text-zinc-700 dark:text-gray-300">Graph Height</label>
               <span class="text-sm font-mono text-primary">{{ settings.graphSettings.graphHeight }}px</span>
             </div>
             <input type="range" v-model.number="settings.graphSettings.graphHeight" min="200" max="800" step="10"
-              class="w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
+              class="w-full h-2 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary" />
           </div>
 
           <!-- Toggles -->
@@ -383,10 +415,10 @@ const wsUrl = WS_URL
             <!-- Animations -->
             <SwitchGroup>
               <div class="flex items-center">
-                <SwitchLabel class="mr-4 text-sm font-medium text-gray-300 w-32">Graph Animations</SwitchLabel>
+                <SwitchLabel class="mr-4 text-sm font-medium text-zinc-700 dark:text-gray-300 w-32">Graph Animations</SwitchLabel>
                 <Switch v-model="settings.graphSettings.showAnimations"
-                  :class="settings.graphSettings.showAnimations ? 'bg-primary' : 'bg-neutral-600'"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-neutral-900">
+                  :class="settings.graphSettings.showAnimations ? 'bg-primary' : 'bg-zinc-300 dark:bg-neutral-600'"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-neutral-900">
                   <span :class="settings.graphSettings.showAnimations ? 'translate-x-6' : 'translate-x-1'"
                     class="inline-block h-4 w-4 transform rounded-full bg-white transition" />
                 </Switch>
@@ -396,10 +428,10 @@ const wsUrl = WS_URL
             <!-- Lap Highlights -->
             <SwitchGroup>
               <div class="flex items-center">
-                <SwitchLabel class="mr-4 text-sm font-medium text-gray-300 w-32">Lap Highlights</SwitchLabel>
+                <SwitchLabel class="mr-4 text-sm font-medium text-zinc-700 dark:text-gray-300 w-32">Lap Highlights</SwitchLabel>
                 <Switch v-model="settings.graphSettings.showLapHighlights"
-                  :class="settings.graphSettings.showLapHighlights ? 'bg-primary' : 'bg-neutral-600'"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-neutral-900">
+                  :class="settings.graphSettings.showLapHighlights ? 'bg-primary' : 'bg-zinc-300 dark:bg-neutral-600'"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-neutral-900">
                   <span :class="settings.graphSettings.showLapHighlights ? 'translate-x-6' : 'translate-x-1'"
                     class="inline-block h-4 w-4 transform rounded-full bg-white transition" />
                 </Switch>
@@ -411,10 +443,10 @@ const wsUrl = WS_URL
             <!-- Grid -->
             <SwitchGroup>
               <div class="flex items-center">
-                <SwitchLabel class="mr-4 text-sm font-medium text-gray-300 w-32">Show Grid</SwitchLabel>
+                <SwitchLabel class="mr-4 text-sm font-medium text-zinc-700 dark:text-gray-300 w-32">Show Grid</SwitchLabel>
                 <Switch v-model="settings.graphSettings.showGrid"
-                  :class="settings.graphSettings.showGrid ? 'bg-primary' : 'bg-neutral-600'"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-neutral-900">
+                  :class="settings.graphSettings.showGrid ? 'bg-primary' : 'bg-zinc-300 dark:bg-neutral-600'"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-zinc-100 dark:focus:ring-offset-neutral-900">
                   <span :class="settings.graphSettings.showGrid ? 'translate-x-6' : 'translate-x-1'"
                     class="inline-block h-4 w-4 transform rounded-full bg-white transition" />
                 </Switch>
@@ -423,9 +455,9 @@ const wsUrl = WS_URL
           </div>
 
           <!-- Shortcuts Button -->
-          <div class="pt-4 border-t border-neutral-700 mt-4 flex justify-end">
+          <div class="pt-4 border-t border-zinc-200 dark:border-neutral-700 mt-4 flex justify-end">
             <button @click="settings.showShortcutsModal = true"
-              class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium flex items-center">
+              class="px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded transition text-sm font-medium flex items-center">
               <InformationCircleIcon class="w-4 h-4 mr-2" />
               View Keyboard Shortcuts
             </button>
@@ -436,18 +468,18 @@ const wsUrl = WS_URL
 
 
       <!-- API Section -->
-      <section class="bg-neutral-800/50 rounded-lg p-6 border border-neutral-700">
-        <h3 class="text-lg font-semibold text-white mb-4 border-b border-neutral-700 pb-2">API Access</h3>
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">API Access</h3>
 
         <div class="space-y-6">
           <!-- Car ID -->
           <div v-if="auth.user?.id">
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Car ID</label>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Car ID</label>
             <div class="flex space-x-2">
               <input type="text" readonly :value="auth.user.id"
-                class="flex-1 bg-neutral-900 text-gray-400 font-mono text-sm px-3 py-2 rounded border border-neutral-700 focus:outline-none" />
+                class="flex-1 bg-zinc-100 dark:bg-neutral-900 text-zinc-600 dark:text-gray-400 font-mono text-sm px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:outline-none" />
               <button @click="handleCopy(auth.user.id, 'id')"
-                class="px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-white transition flex items-center">
+                class="px-3 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 rounded text-zinc-900 dark:text-white transition flex items-center">
                 <ClipboardDocumentCheckIcon v-if="copiedId" class="w-5 h-5 text-green-400" />
                 <ClipboardDocumentIcon v-else class="w-5 h-5" />
               </button>
@@ -456,13 +488,13 @@ const wsUrl = WS_URL
 
           <!-- GET API -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Get Live Data (Polling)</label>
-            <p class="text-xs text-gray-400 mb-2">GET API to retrieve the latest live data packet.</p>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Get Live Data (Polling)</label>
+            <p class="text-xs text-zinc-600 dark:text-gray-400 mb-2">GET API to retrieve the latest live data packet.</p>
             <div class="flex space-x-2">
               <input type="text" readonly :value="apiUrl"
-                class="flex-1 bg-neutral-900 text-primary font-mono text-sm px-3 py-2 rounded border border-neutral-700 focus:outline-none" />
+                class="flex-1 bg-zinc-100 dark:bg-neutral-900 text-primary font-mono text-sm px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:outline-none" />
               <button @click="handleCopy(apiUrl, 'get')"
-                class="px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-white transition flex items-center">
+                class="px-3 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 rounded text-zinc-900 dark:text-white transition flex items-center">
                 <ClipboardDocumentCheckIcon v-if="copiedGet" class="w-5 h-5 text-green-400" />
                 <ClipboardDocumentIcon v-else class="w-5 h-5" />
               </button>
@@ -471,19 +503,19 @@ const wsUrl = WS_URL
 
           <!-- WebSocket Guide -->
           <div>
-            <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Get Live Data (WebSockets)</label>
-            <p class="text-xs text-gray-400 mb-2">Example for Node.js using Socket.io.</p>
+            <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Get Live Data (WebSockets)</label>
+            <p class="text-xs text-zinc-600 dark:text-gray-400 mb-2">Example for Node.js using Socket.io.</p>
             <div
-              class="bg-neutral-900 rounded border border-neutral-700 p-4 text-sm font-mono text-gray-300 overflow-x-auto space-y-4">
+              class="bg-zinc-100 dark:bg-neutral-900 rounded border border-zinc-300 dark:border-neutral-700 p-4 text-sm font-mono text-zinc-700 dark:text-gray-300 overflow-x-auto space-y-4">
               <div>
-                <span class="text-gray-500">// 1. Connect and Join Room</span><br />
+                <span class="text-zinc-500 dark:text-gray-500">// 1. Connect and Join Room</span><br />
                 <span class="text-purple-400">const</span> socket = <span class="text-blue-400">io</span>(<span
                   class="text-green-400">'{{ wsUrl }}'</span>);<br />
                 socket.<span class="text-blue-400">emit</span>(<span class="text-green-400">'join'</span>, <span
                   class="text-green-400">'{{ auth.user?.id || "YOUR_CAR_ID" }}'</span>);
               </div>
               <div>
-                <span class="text-gray-500">// 2. Listen for Data</span><br />
+                <span class="text-zinc-500 dark:text-gray-500">// 2. Listen for Data</span><br />
                 socket.<span class="text-blue-400">on</span>(<span class="text-green-400">'data'</span>, (packet) =>
                 {<br />
                 &nbsp;&nbsp;<span class="text-blue-400">console</span>.log(packet); <br />
@@ -510,12 +542,12 @@ const wsUrl = WS_URL
               enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
               leave-to="opacity-0 scale-95">
               <DialogPanel
-                class="w-full max-w-md transform overflow-hidden rounded-2xl bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-neutral-700">
-                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-white mb-2">
+                class="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-zinc-200 dark:border-neutral-700">
+                <DialogTitle as="h3" class="text-lg font-medium leading-6 text-zinc-900 dark:text-white mb-2">
                   Verify Account Update
                 </DialogTitle>
                 <div class="mt-2">
-                  <p class="text-sm text-gray-300 mb-4">
+                  <p class="text-sm text-zinc-700 dark:text-gray-300 mb-4">
                     A 6-digit verification code has been sent to your email address. Please enter it below to confirm
                     your
                     changes. This code is valid for 10 minutes.
@@ -523,9 +555,9 @@ const wsUrl = WS_URL
 
                   <div class="space-y-4">
                     <div>
-                      <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Verification Code</label>
+                      <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">Verification Code</label>
                       <input v-model="verificationCode" type="text" maxlength="6"
-                        class="w-full bg-neutral-900 text-white px-3 py-2 rounded border border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none tracking-widest text-center text-lg font-mono"
+                        class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none tracking-widest text-center text-lg font-mono"
                         placeholder="000000" />
                     </div>
                     <p v-if="verificationError" class="text-sm text-red-400 font-medium animate-pulse">
@@ -535,7 +567,7 @@ const wsUrl = WS_URL
                 </div>
 
                 <div class="mt-6 flex justify-end space-x-3">
-                  <button type="button" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition"
+                  <button type="button" class="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white transition"
                     @click="isVerificationModalOpen = false">
                     Cancel
                   </button>
@@ -567,7 +599,7 @@ const wsUrl = WS_URL
               enter-to="opacity-100 scale-100" leave="duration-200 ease-in" leave-from="opacity-100 scale-100"
               leave-to="opacity-0 scale-95">
               <DialogPanel
-                class="w-full max-w-sm transform overflow-hidden rounded-2xl bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-neutral-700">
+                class="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white dark:bg-neutral-800 p-6 text-left align-middle shadow-xl transition-all border border-zinc-200 dark:border-neutral-700">
                 <div class="flex items-center space-x-3 mb-4">
                   <div v-if="messageType === 'success'" class="p-2 bg-green-500/20 rounded-full">
                     <CheckCircleIcon class="w-6 h-6 text-green-500" />
@@ -578,20 +610,20 @@ const wsUrl = WS_URL
                   <div v-else class="p-2 bg-primary/20 rounded-full">
                     <InformationCircleIcon class="w-6 h-6 text-primary" />
                   </div>
-                  <DialogTitle as="h3" class="text-lg font-medium leading-6 text-white">
+                  <DialogTitle as="h3" class="text-lg font-medium leading-6 text-zinc-900 dark:text-white">
                     {{ messageTitle }}
                   </DialogTitle>
                 </div>
 
                 <div class="mt-2">
-                  <p class="text-sm text-gray-300">
+                  <p class="text-sm text-zinc-700 dark:text-gray-300">
                     {{ messageBody }}
                   </p>
                 </div>
 
                 <div class="mt-6 flex justify-end">
                   <button type="button"
-                    class="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded transition text-sm font-medium"
+                    class="px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded transition text-sm font-medium"
                     @click="isMessageModalOpen = false">
                     Close
                   </button>

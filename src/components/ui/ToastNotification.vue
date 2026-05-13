@@ -53,7 +53,7 @@ const colorMap = {
         enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100"
         leave-from-class="opacity-100" leave-to-class="opacity-0">
         <div v-if="isVisible"
-            class="fixed bottom-4 right-4 z-[9999] flex items-center w-full max-w-xs p-4 space-x-4 text-white bg-neutral-800 rounded-lg shadow-2xl border border-neutral-700"
+            class="fixed bottom-4 right-4 z-[9999] flex items-center w-full max-w-xs p-4 space-x-4 text-zinc-900 dark:text-white bg-white dark:bg-neutral-800 rounded-lg shadow-2xl border border-zinc-200 dark:border-neutral-700"
             role="alert">
             <div
                 :class="`inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg ${colorMap[type] || colorMap.info}`">
@@ -61,7 +61,7 @@ const colorMap = {
             </div>
             <div class="ml-3 text-sm font-normal">{{ message }}</div>
             <button type="button" @click="hideToast"
-                class="ml-auto -mx-1.5 -my-1.5 bg-neutral-800 text-gray-400 hover:text-white rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-neutral-700 inline-flex items-center justify-center h-8 w-8"
+                class="ml-auto -mx-1.5 -my-1.5 bg-transparent text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white rounded-lg focus:ring-2 focus:ring-zinc-300 dark:focus:ring-gray-600 p-1.5 hover:bg-zinc-100 dark:hover:bg-neutral-700 inline-flex items-center justify-center h-8 w-8"
                 aria-label="Close">
                 <span class="sr-only">Close</span>
                 <XMarkIcon class="w-4 h-4" />

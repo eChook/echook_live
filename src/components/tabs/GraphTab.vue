@@ -21,7 +21,7 @@
  * - selectedDashboardKeys: Which metrics are visible
  * - showDashboardMetrics: Whether sidebar is expanded
  */
-import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import { connect } from 'echarts/core'
@@ -29,6 +29,7 @@ import TelemetryGraph from '../../components/TelemetryGraph.vue'
 import MasterZoom from '../../components/MasterZoom.vue'
 import GraphHelpModal from '../../components/GraphHelpModal.vue'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { getMetricColorMap, getFallbackMetricColors } from '../../constants/chartTheme'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
@@ -63,34 +64,6 @@ const toggleMetrics = () => {
 }
 
 /**
- * @brief Predefined colors for common metrics.
- */
-const metricColors = {
-  speed: '#2dd4bf',
-  rpm: '#fbbf24',
-  current: '#f87171',
-  voltage: '#34d399',
-  throttle: '#60a5fa',
-  temp1: '#fb923c',
-  temp2: '#f97316',
-  ampH: '#a78bfa',
-  gear: '#818cf8',
-  brake: '#f43f5e',
-  voltageLower: '#10b981',
-  voltageHigh: '#059669',
-  voltageDiff: '#047857',
-  tempDiff: '#c2410c'
-}
-
-/**
- * @brief Fallback colors for unknown metrics.
- */
-const fallbackColors = [
-  '#2dd4bf', '#f472b6', '#fbbf24', '#60a5fa', '#a78bfa',
-  '#34d399', '#f87171', '#818cf8', '#fb923c'
-]
-
-/**
  * @brief Toggle a metric's visibility.
  * @param {string} key - Metric key to toggle
  */
@@ -105,20 +78,34 @@ const toggleKey = (key) => {
 }
 
 /**
+ * @brief Per-metric line colors for the current resolved theme.
+ * @type {ComputedRef<Readonly<Record<string, string>>>}
+ */
+const metricColors = computed(() => getMetricColorMap(settings.resolvedTheme))
+
+/**
+ * @brief Fallback palette for unknown metric keys (theme-aware).
+ * @type {ComputedRef<Readonly<string[]>>}
+ */
+const fallbackColors = computed(() => getFallbackMetricColors(settings.resolvedTheme))
+
+/**
  * @brief Get color for a metric key.
  * @param {string} key - Metric key
  * @returns {string} Hex color string
  */
 const getColor = (key) => {
-  if (metricColors[key]) return metricColors[key]
+  const map = metricColors.value
+  if (map[key]) return map[key]
 
+  const palette = fallbackColors.value
   // Deterministic fallback based on key hash
   let hash = 0;
   for (let i = 0; i < key.length; i++) {
     hash = key.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % fallbackColors.length
-  return fallbackColors[index]
+  const index = Math.abs(hash) % palette.length
+  return palette[index]
 }
 
 const showHelp = ref(false)
@@ -154,28 +141,28 @@ onActivated(() => {
   <div class="flex-1 flex overflow-hidden h-full relative">
     <!-- Metrics Sidebar (Collapsible) -->
     <aside
-      class="bg-neutral-900 border-r border-neutral-800 transition-all duration-300 overflow-hidden flex flex-col pt-14 md:pt-0"
+      class="bg-zinc-50 dark:bg-neutral-900 border-r border-zinc-200 dark:border-neutral-800 transition-all duration-300 overflow-hidden flex flex-col pt-14 md:pt-0"
       :class="showMetrics ? 'w-44 opacity-100' : 'w-0 opacity-0 border-r-0'">
       <div class="w-44 p-4 overflow-y-auto h-full">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-gray-400 uppercase text-xs font-bold tracking-wider">Visible Metrics</h3>
-          <button @click="toggleMetrics" class="text-gray-500 hover:text-white transition">
+          <h3 class="text-zinc-500 dark:text-gray-400 uppercase text-xs font-bold tracking-wider">Visible Metrics</h3>
+          <button @click="toggleMetrics" class="text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition">
             <ChevronLeftIcon class="w-5 h-5" />
           </button>
         </div>
 
         <div class="space-y-2">
           <div v-for="key in telemetry.graphKeys" :key="key"
-            class="flex items-center space-x-3 cursor-pointer hover:bg-neutral-800 p-2 rounded transition"
+            class="flex items-center space-x-3 cursor-pointer hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition"
             @click="toggleKey(key)">
             <div class="w-4 h-4 rounded border flex items-center justify-center transition"
-              :class="selectedKeys.has(key) ? 'bg-primary border-primary' : 'border-neutral-600'">
-              <svg v-if="selectedKeys.has(key)" class="w-3 h-3 text-neutral-900" fill="none" stroke="currentColor"
+              :class="selectedKeys.has(key) ? 'bg-primary border-primary' : 'border-zinc-300 dark:border-neutral-600'">
+              <svg v-if="selectedKeys.has(key)" class="w-3 h-3 text-white" fill="none" stroke="currentColor"
                 viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <span :class="selectedKeys.has(key) ? 'text-white' : 'text-gray-400'">{{ telemetry.getDisplayName(key)
+            <span :class="selectedKeys.has(key) ? 'text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-gray-400'">{{ telemetry.getDisplayName(key)
             }}</span>
           </div>
         </div>
@@ -184,15 +171,15 @@ onActivated(() => {
 
     <!-- Collapsed Toggle Button -->
     <div v-if="!showMetrics" class="absolute top-[calc(0.75rem)] left-1 z-20">
-      <button @click="toggleMetrics" class="p-1 text-gray-500 hover:text-white transition" title="Show Metrics">
+      <button @click="toggleMetrics" class="p-1 text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition" title="Show Metrics">
         <ChevronRightIcon class="w-5 h-5" />
       </button>
     </div>
 
     <!-- Graphs Area -->
-    <main class="flex-1 flex flex-col overflow-hidden bg-neutral-900">
+    <main class="flex-1 flex flex-col overflow-hidden bg-zinc-100 dark:bg-neutral-900">
       <!-- Master Zoom Timeline -->
-      <div class="flex-shrink-0 z-10 bg-neutral-900">
+      <div class="flex-shrink-0 z-10 bg-zinc-100 dark:bg-neutral-900">
         <MasterZoom v-if="telemetry.history.length > 0" :data="telemetry.displayHistory" :group="CHART_GROUP" />
       </div>
 
@@ -203,7 +190,7 @@ onActivated(() => {
               :color="getColor(key)" />
           </div>
         </div>
-        <div v-else class="h-full flex items-center justify-center text-gray-500">
+        <div v-else class="h-full flex items-center justify-center text-zinc-500 dark:text-gray-500">
           Select metrics to view graph data
         </div>
       </div>

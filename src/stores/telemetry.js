@@ -27,6 +27,7 @@ import {
     getDisplayName,
     getDescription
 } from '../utils/telemetryKeys'
+import { getChartTokens } from '../constants/chartTheme'
 
 /**
  * @brief Telemetry store for real-time car data.
@@ -187,6 +188,9 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const areas = []
         const isValidTs = (ts) => ts && Number.isFinite(ts) && ts > 946684800000
 
+        /** Theme-aware lap band colors (see chartTheme lap tokens). */
+        const chartTokens = getChartTokens(settings.resolvedTheme)
+
         let lastFinish = null
 
         // Sort races by start time
@@ -201,8 +205,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                         {
                             xAxis: lap.startTime,
                             itemStyle: {
-                                color: lap.lapNumber % 2 === 0 ? '#360a31ff' : '#ffffff',
-                                opacity: 0.1
+                                color: lap.lapNumber % 2 === 0 ? chartTokens.lapEven : chartTokens.lapOdd,
+                                opacity: chartTokens.lapOpacity
                             }
                         },
                         {
@@ -224,8 +228,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                     {
                         xAxis: lastFinish,
                         itemStyle: {
-                            color: currentLapNum % 2 === 0 ? '#360a31ff' : '#ffffff',
-                            opacity: 0.1
+                            color: currentLapNum % 2 === 0 ? chartTokens.lapEven : chartTokens.lapOdd,
+                            opacity: chartTokens.lapOpacity
                         }
                     },
                     {

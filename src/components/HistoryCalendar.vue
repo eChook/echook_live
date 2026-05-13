@@ -159,23 +159,23 @@ const selectDay = (day) => {
 </script>
 
 <template>
-    <div class="calendar w-64 bg-neutral-900 border border-neutral-700 rounded-lg p-4">
+    <div class="calendar w-64 bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 rounded-lg p-4">
         <!-- Month Navigation Header -->
         <div class="header flex justify-between items-center mb-4">
             <button @click="prevMonth" :disabled="!canPrev"
-                class="p-1 hover:bg-neutral-800 rounded disabled:opacity-30">
-                <ChevronLeftIcon class="w-5 h-5 text-gray-400" />
+                class="p-1 hover:bg-zinc-100 dark:hover:bg-neutral-800 rounded disabled:opacity-30">
+                <ChevronLeftIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400" />
             </button>
-            <span class="text-sm font-bold text-gray-200">{{ displayMonth }}</span>
+            <span class="text-sm font-bold text-zinc-900 dark:text-gray-200">{{ displayMonth }}</span>
             <button @click="nextMonth" :disabled="!canNext"
-                class="p-1 hover:bg-neutral-800 rounded disabled:opacity-30">
-                <ChevronRightIcon class="w-5 h-5 text-gray-400" />
+                class="p-1 hover:bg-zinc-100 dark:hover:bg-neutral-800 rounded disabled:opacity-30">
+                <ChevronRightIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400" />
             </button>
         </div>
 
         <!-- Day Names Header -->
         <div class="grid grid-cols-7 gap-1 text-center mb-2">
-            <div v-for="d in ['M', 'T', 'W', 'T', 'F', 'S', 'S']" :key="d" class="text-xs font-bold text-gray-500">
+            <div v-for="d in ['M', 'T', 'W', 'T', 'F', 'S', 'S']" :key="d" class="text-xs font-bold text-zinc-500 dark:text-gray-500">
                 {{ d }}
             </div>
         </div>
@@ -185,10 +185,10 @@ const selectDay = (day) => {
             <button v-for="(day, idx) in calendarDays" :key="idx" @click="selectDay(day)"
                 class="h-8 w-8 text-xs rounded-full flex items-center justify-center transition-colors" :class="[
                     day.disabled
-                        ? 'text-neutral-700 cursor-default'
+                        ? 'text-zinc-300 dark:text-neutral-700 cursor-default'
                         : day.hasData
                             ? 'bg-primary text-white hover:bg-primary/80 font-bold shadow-lg shadow-primary/20'
-                            : 'text-gray-400 hover:bg-neutral-800'
+                            : 'text-zinc-500 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800'
                 ]" :disabled="day.disabled">
                 {{ day.day }}
             </button>

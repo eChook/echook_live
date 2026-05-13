@@ -293,7 +293,7 @@ const downloadAllData = () => {
 
 <template>
   <header
-    class="h-14 md:h-16 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-3 md:px-6 sticky top-0 z-50">
+    class="h-14 md:h-16 bg-white dark:bg-neutral-900 border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-3 md:px-6 sticky top-0 z-50">
     <!-- Brand / Left Side -->
     <div class="flex items-center space-x-2 md:space-x-4">
       <!-- Mobile/Tablet: eC -->
@@ -302,19 +302,19 @@ const downloadAllData = () => {
       </div>
       <!-- Desktop: Full logo -->
       <router-link to="/login"
-        class="hidden lg:block font-bold text-xl text-white tracking-tight hover:opacity-80 transition cursor-pointer">
+        class="hidden lg:block font-bold text-xl text-zinc-900 dark:text-white tracking-tight hover:opacity-80 transition cursor-pointer">
         <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Telemetry</span>
       </router-link>
-      <div class="h-6 w-px bg-neutral-700 hidden lg:block"></div>
+      <div class="h-6 w-px bg-zinc-300 dark:bg-neutral-700 hidden lg:block"></div>
       <!-- Car Info Display - condensed on mobile -->
       <div v-if="displayedCar" class="flex flex-col">
         <span
-          class="text-xs md:text-sm text-white font-semibold flex items-center truncate max-w-[100px] md:max-w-none">
+          class="text-xs md:text-sm text-zinc-900 dark:text-white font-semibold flex items-center truncate max-w-[100px] md:max-w-none">
           {{ displayedCar.carName }}
           <span v-if="isViewingOther"
             class="ml-1 md:ml-2 text-[8px] md:text-[10px] text-yellow-500 uppercase tracking-wider">(V)</span>
         </span>
-        <span class="text-[10px] md:text-xs text-gray-400 truncate max-w-[100px] md:max-w-none">{{ displayedCar.teamName
+        <span class="text-[10px] md:text-xs text-zinc-500 dark:text-gray-400 truncate max-w-[100px] md:max-w-none">{{ displayedCar.teamName
         }} #{{ displayedCar.number || '00' }}</span>
       </div>
     </div>
@@ -331,13 +331,13 @@ const downloadAllData = () => {
       <!-- Mobile/Tablet: History dropdown trigger + Play/Pause -->
       <div class="lg:hidden flex items-center space-x-2">
         <button @click="toggleHistoryMenu"
-          class="flex items-center justify-center w-8 h-8 rounded bg-neutral-800 border border-neutral-700 text-gray-300 hover:bg-neutral-700 transition"
+          class="flex items-center justify-center w-8 h-8 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300 hover:bg-zinc-300 dark:hover:bg-neutral-700 transition"
           :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="History">
           <ClockIcon class="w-5 h-5" />
         </button>
         <!-- Pause/Resume -->
         <button @click="handlePlayButton" class="flex items-center justify-center w-8 h-8 rounded border transition"
-          :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' : 'bg-neutral-800 border-neutral-700 text-gray-300'"
+          :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' : 'bg-zinc-200 dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300'"
           :title="playButtonTitle">
           <PlayIcon v-if="telemetry.isPaused" class="w-5 h-5" />
           <PauseIcon v-else class="w-5 h-5" />
@@ -355,10 +355,10 @@ const downloadAllData = () => {
             <ExclamationTriangleIcon class="w-5 h-5" />
           </div>
           <div @click="toggleHistoryMenu"
-            class="h-8 flex items-center text-xs font-mono text-gray-400 bg-neutral-800 px-3 rounded border border-neutral-700 whitespace-nowrap cursor-pointer hover:bg-neutral-700 hover:text-gray-300 transition select-none"
+            class="h-8 flex items-center text-xs font-mono text-zinc-600 dark:text-gray-400 bg-zinc-200 dark:bg-neutral-800 px-3 rounded border border-zinc-300 dark:border-neutral-700 whitespace-nowrap cursor-pointer hover:bg-zinc-300 dark:hover:bg-neutral-700 hover:text-zinc-900 dark:hover:text-gray-300 transition select-none"
             :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="Manage Loaded History">
             Loaded Data:
-            <span class="text-white font-bold ml-2 flex items-center">
+            <span class="text-zinc-900 dark:text-white font-bold ml-2 flex items-center">
               {{ statusText }}
             </span>
           </div>
@@ -368,7 +368,7 @@ const downloadAllData = () => {
         <!-- Pause/Resume/Reset -->
         <button @click="handlePlayButton"
           class="flex items-center justify-center w-8 h-8 rounded border transition relative z-10"
-          :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/30' : 'bg-neutral-800 border-neutral-700 text-gray-300 hover:bg-neutral-700'"
+          :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/30' : 'bg-zinc-200 dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300 hover:bg-zinc-300 dark:hover:bg-neutral-700'"
           :title="playButtonTitle">
           <PlayIcon v-if="telemetry.isPaused" class="w-5 h-5" />
           <PauseIcon v-else class="w-5 h-5" />
@@ -376,7 +376,7 @@ const downloadAllData = () => {
 
         <!-- Clear Data -->
         <button @click="telemetry.clearHistory()"
-          class="flex items-center justify-center w-8 h-8 rounded bg-neutral-800 border border-neutral-700 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/50 text-gray-300 transition relative z-10"
+          class="flex items-center justify-center w-8 h-8 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/50 text-zinc-700 dark:text-gray-300 transition relative z-10"
           title="Clear All Data">
           <TrashIcon class="w-5 h-5" />
         </button>
@@ -384,19 +384,19 @@ const downloadAllData = () => {
 
       <!-- History Dropdown (shared by mobile and desktop triggers) -->
       <div v-if="showHistoryMenu"
-        class="fixed lg:absolute top-14 lg:top-16 right-0 lg:right-6 bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg p-3 lg:p-4 z-[60] flex flex-col w-[calc(100vw-1rem)] max-w-md lg:max-w-none lg:w-auto lg:min-w-[700px] mx-auto lg:mx-0 max-h-[70vh] overflow-y-auto">
+        class="fixed lg:absolute top-14 lg:top-16 right-0 lg:right-6 bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-700 shadow-2xl rounded-lg p-3 lg:p-4 z-[60] flex flex-col w-[calc(100vw-1rem)] max-w-md lg:max-w-none lg:w-auto lg:min-w-[700px] mx-auto lg:mx-0 max-h-[70vh] overflow-y-auto">
 
         <!-- Mobile: Loaded Data Status Header -->
-        <div class="lg:hidden flex items-center justify-between pb-3 border-b border-neutral-700">
+        <div class="lg:hidden flex items-center justify-between pb-3 border-b border-zinc-300 dark:border-neutral-700">
           <div class="flex items-center space-x-2">
-            <span class="text-xs text-gray-400">Loaded:</span>
-            <span class="text-xs font-mono text-white font-bold">{{ statusText }}</span>
+            <span class="text-xs text-zinc-500 dark:text-gray-400">Loaded:</span>
+            <span class="text-xs font-mono text-zinc-900 dark:text-white font-bold">{{ statusText }}</span>
             <div v-if="telemetry.isHistoryTruncated" class="text-yellow-500" title="Data is truncated">
               <ExclamationTriangleIcon class="w-4 h-4" />
             </div>
           </div>
           <button @click="telemetry.clearHistory()"
-            class="flex items-center space-x-1 text-xs text-gray-400 hover:text-rose-500 transition"
+            class="flex items-center space-x-1 text-xs text-zinc-500 dark:text-gray-400 hover:text-rose-500 transition"
             title="Clear All Data">
             <TrashIcon class="w-4 h-4" />
             <span>Clear</span>
@@ -407,17 +407,17 @@ const downloadAllData = () => {
         <div class="flex flex-col lg:flex-row lg:space-x-6">
           <!-- Quick Load Buttons (horizontal row on mobile) -->
           <div
-            class="flex flex-col lg:flex-row lg:flex-col space-y-2 lg:space-y-0 lg:w-32 lg:border-r lg:border-neutral-800 lg:pr-4">
-            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Quick Add</h3>
+            class="flex flex-col lg:flex-row lg:flex-col space-y-2 lg:space-y-0 lg:w-32 lg:border-r lg:border-r-zinc-200 dark:lg:border-r-neutral-800 lg:pr-4">
+            <h3 class="text-xs font-bold text-zinc-500 dark:text-gray-500 uppercase tracking-wider">Quick Add</h3>
             <div class="flex flex-row space-x-2 lg:flex-col lg:space-x-0 lg:space-y-2">
               <button @click="loadExtra(10)"
-                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+10m</button>
+                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition">+10m</button>
               <button @click="loadExtra(30)"
-                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+30m</button>
+                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition">+30m</button>
               <button @click="loadExtra(60)"
-                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+1h</button>
+                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition">+1h</button>
               <button @click="loadExtra(180)"
-                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-gray-300 hover:text-white hover:bg-neutral-800 p-2 rounded transition">+3h</button>
+                class="flex-1 lg:flex-none text-center lg:text-left text-sm text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition">+3h</button>
             </div>
           </div>
 
@@ -425,24 +425,24 @@ const downloadAllData = () => {
           <div class="flex lg:hidden space-x-3">
             <!-- Calendar -->
             <div class="flex-1">
-              <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Load History</h3>
+              <h3 class="text-xs font-bold text-zinc-500 dark:text-gray-500 uppercase tracking-wider mb-2">Load History</h3>
               <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
             </div>
 
             <!-- Date Selection & Time -->
             <div class="flex flex-col space-y-2 w-28">
               <div v-if="selectedDate" class="text-sm font-bold text-primary">{{ selectedDate }}</div>
-              <div v-else class="text-xs text-gray-500">Select a day</div>
+              <div v-else class="text-xs text-zinc-500 dark:text-gray-500">Select a day</div>
 
               <div class="flex flex-col space-y-1">
-                <label class="text-[10px] text-gray-500">Start</label>
+                <label class="text-[10px] text-zinc-500 dark:text-gray-500">Start</label>
                 <input v-model="startTime" type="time"
-                  class="bg-neutral-800 border border-neutral-600 rounded px-1 py-0.5 text-white text-xs focus:border-primary outline-none w-full">
+                  class="bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-600 rounded px-1 py-0.5 text-zinc-900 dark:text-white text-xs focus:border-primary outline-none w-full">
               </div>
               <div class="flex flex-col space-y-1">
-                <label class="text-[10px] text-gray-500">End</label>
+                <label class="text-[10px] text-zinc-500 dark:text-gray-500">End</label>
                 <input v-model="endTime" type="time"
-                  class="bg-neutral-800 border border-neutral-600 rounded px-1 py-0.5 text-white text-xs focus:border-primary outline-none w-full">
+                  class="bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-600 rounded px-1 py-0.5 text-zinc-900 dark:text-white text-xs focus:border-primary outline-none w-full">
               </div>
 
               <button @click="triggerLoadDay" :disabled="!selectedDate"
@@ -454,13 +454,13 @@ const downloadAllData = () => {
 
           <!-- Desktop: Load History Section (Calendar + Time + Load button) -->
           <div class="hidden lg:flex flex-col space-y-3">
-            <h3 class="text-sm font-bold text-gray-400">Load History</h3>
+            <h3 class="text-sm font-bold text-zinc-600 dark:text-gray-400">Load History</h3>
 
             <div class="flex space-x-4">
               <!-- Calendar -->
               <div class="flex flex-col">
                 <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
-                <p class="text-[10px] text-gray-500 max-w-[250px] leading-tight mt-2 cursor-help"
+                <p class="text-[10px] text-zinc-500 dark:text-gray-500 max-w-[250px] leading-tight mt-2 cursor-help"
                   title="After 10 days the data resolution is reduced to 10s. Depending on database size and server storage, it will be deleted at a later date.">
                   <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
                   Data stored on the server is not permanent.
@@ -473,21 +473,21 @@ const downloadAllData = () => {
                 <div v-if="selectedDate" class="text-sm font-bold text-primary">
                   {{ selectedDate }}
                 </div>
-                <div v-else class="text-sm text-gray-500 italic">
+                <div v-else class="text-sm text-zinc-500 dark:text-gray-500 italic">
                   Select a day...
                 </div>
 
                 <!-- Time Inputs -->
                 <div class="flex flex-col space-y-2">
                   <div class="flex flex-col space-y-1">
-                    <label class="text-[10px] text-gray-500 uppercase tracking-wider">Start Time</label>
+                    <label class="text-[10px] text-zinc-500 dark:text-gray-500 uppercase tracking-wider">Start Time</label>
                     <input v-model="startTime" type="time"
-                      class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1.5 text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
+                      class="bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-600 rounded px-2 py-1.5 text-zinc-900 dark:text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
                   </div>
                   <div class="flex flex-col space-y-1">
-                    <label class="text-[10px] text-gray-500 uppercase tracking-wider">End Time</label>
+                    <label class="text-[10px] text-zinc-500 dark:text-gray-500 uppercase tracking-wider">End Time</label>
                     <input v-model="endTime" type="time"
-                      class="bg-neutral-800 border border-neutral-600 rounded px-2 py-1.5 text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
+                      class="bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-600 rounded px-2 py-1.5 text-zinc-900 dark:text-white text-sm focus:border-primary outline-none w-full cursor-pointer">
                   </div>
                 </div>
 
@@ -503,9 +503,9 @@ const downloadAllData = () => {
         </div>
 
         <!-- Divider & Download All -->
-        <div class="border-t border-neutral-800 pt-3 mt-4">
+        <div class="border-t border-zinc-200 dark:border-neutral-800 pt-3 mt-4">
           <button @click="downloadAllData" :disabled="telemetry.history.length === 0"
-            class="w-full flex items-center justify-center space-x-2 bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white font-medium py-2 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed border border-neutral-700">
+            class="w-full flex items-center justify-center space-x-2 bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-800 dark:text-gray-300 hover:text-zinc-950 dark:hover:text-white font-medium py-2 rounded text-sm transition disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-300 dark:border-neutral-700">
             <ArrowDownTrayIcon class="w-4 h-4" />
             <span>Download All Loaded Data</span>
           </button>
@@ -515,37 +515,37 @@ const downloadAllData = () => {
       <div v-if="showHistoryMenu" class="fixed inset-0 z-50" @click="closeHistoryMenu"></div>
 
       <!-- Divider -->
-      <div class="h-8 w-px bg-neutral-800 hidden lg:block"></div>
+      <div class="h-8 w-px bg-zinc-200 dark:bg-neutral-800 hidden lg:block"></div>
 
       <!-- Server Status - Icons only on mobile/tablet -->
       <div class="flex items-center">
         <div
-          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700"
+          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700"
           title="Server Status">
           <div class="w-2 h-2 rounded-full"
             :class="telemetry.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'">
           </div>
-          <ServerIcon class="w-4 h-4 text-gray-400 lg:hidden" />
-          <span class="text-xs font-medium text-gray-300 hidden lg:inline">SERVER</span>
+          <ServerIcon class="w-4 h-4 text-zinc-500 dark:text-gray-400 lg:hidden" />
+          <span class="text-xs font-medium text-zinc-700 dark:text-gray-300 hidden lg:inline">SERVER</span>
         </div>
       </div>
 
       <!-- Car Status - Icons only on mobile/tablet -->
       <div class="flex items-center">
         <div
-          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-neutral-800 border border-neutral-700"
+          class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700"
           title="Car Status">
           <div class="w-2 h-2 rounded-full transition-colors duration-300" :class="carStatusColor"></div>
-          <TruckIcon class="w-4 h-4 text-gray-400 lg:hidden" />
-          <span class="text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:inline">Car</span>
-          <span class="text-[10px] font-bold text-white whitespace-nowrap hidden lg:inline">{{ lastUpdatedText
+          <TruckIcon class="w-4 h-4 text-zinc-500 dark:text-gray-400 lg:hidden" />
+          <span class="text-xs font-medium text-zinc-700 dark:text-gray-300 uppercase tracking-wider hidden lg:inline">Car</span>
+          <span class="text-[10px] font-bold text-zinc-900 dark:text-white whitespace-nowrap hidden lg:inline">{{ lastUpdatedText
           }}</span>
         </div>
       </div>
 
       <!-- Logout: Icon on mobile/tablet, text on desktop -->
       <!-- Logout: Icon always -->
-      <button @click="handleLogout" class="text-gray-400 hover:text-white transition cursor-pointer" title="Logout">
+      <button @click="handleLogout" class="text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer" title="Logout">
         <ArrowRightOnRectangleIcon class="w-5 h-5" />
       </button>
     </div>
@@ -557,8 +557,8 @@ const downloadAllData = () => {
       <template #body>
         <div class="flex items-center mt-2">
           <input type="checkbox" id="dontAsk" v-model="dontAskAgain"
-            class="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-primary focus:ring-primary">
-          <label for="dontAsk" class="ml-2 text-xs text-gray-400 select-none">Don't ask me again</label>
+            class="w-4 h-4 rounded border-zinc-300 dark:border-neutral-600 bg-zinc-200 dark:bg-neutral-800 text-primary focus:ring-primary">
+          <label for="dontAsk" class="ml-2 text-xs text-zinc-500 dark:text-gray-400 select-none">Don't ask me again</label>
         </div>
       </template>
     </ConfirmationModal>

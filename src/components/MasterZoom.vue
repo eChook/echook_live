@@ -21,6 +21,8 @@
  */
 import { computed, ref, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
+import { useSettingsStore } from '../stores/settings'
+import { getChartTokens } from '../constants/chartTheme'
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart } from "echarts/charts";
@@ -57,6 +59,7 @@ const props = defineProps({
 })
 
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 const chartRef = ref(null)
 const MAX_ZOOM_POINTS = 500
 
@@ -118,6 +121,7 @@ onMounted(() => {
  * @type {ComputedRef<Object>}
  */
 const option = computed(() => {
+  const t = getChartTokens(settings.resolvedTheme)
   return {
     animation: false,
     grid: {
@@ -132,7 +136,7 @@ const option = computed(() => {
       axisLabel: {
         show: true,
         formatter: '{HH}:{mm}:{ss}',
-        color: '#a3a3a3',
+        color: t.axisLabel,
         margin: 8
       },
       axisTick: { show: false },
@@ -152,16 +156,16 @@ const option = computed(() => {
         filterMode: 'empty',
         height: 30,
         bottom: 5,
-        borderColor: '#404040',
-        textStyle: { color: '#a3a3a3' },
-        handleStyle: { color: '#cb1557' },
+        borderColor: t.zoomBorder,
+        textStyle: { color: t.zoomText },
+        handleStyle: { color: t.zoomHandle },
         dataBackground: {
-          lineStyle: { color: '#525252' },
-          areaStyle: { color: '#262626' }
+          lineStyle: { color: t.zoomDataLine },
+          areaStyle: { color: t.zoomDataArea }
         },
         selectedDataBackground: {
-          lineStyle: { color: '#cb1557' },
-          areaStyle: { color: '#9f1245' }
+          lineStyle: { color: t.zoomSelectedLine },
+          areaStyle: { color: t.zoomSelectedArea }
         }
       }
     ],
@@ -178,7 +182,7 @@ const option = computed(() => {
 </script>
 
 <template>
-  <div class="h-16 bg-neutral-900 border-b border-neutral-800 flex items-center w-full px-4">
+  <div class="h-16 bg-zinc-100 dark:bg-neutral-900 border-b border-zinc-200 dark:border-neutral-800 flex items-center w-full px-4">
     <div class="w-full h-full">
       <VChart ref="chartRef" class="w-full h-full" :option="option" autoresize :group="group" />
     </div>

@@ -16,6 +16,8 @@ describe('settings store', () => {
         expect(settings.graphSettings.showLapHighlights).toBe(true)
         expect(settings.graphSettings.showAnimations).toBe(false)
         expect(settings.activeTabId).toBe('graph')
+        expect(settings.themeMode).toBe('system')
+        expect(settings.resolvedTheme).toBe('light')
     })
 
     it('allows updating unit settings', () => {
@@ -69,6 +71,27 @@ describe('settings store', () => {
 
             expect(settings.graphSettings.showAnimations).toBe(true)
             expect(settings.graphSettings.graphHeight).toBe(500)
+        })
+
+        it('imports themeMode', () => {
+            const settings = useSettingsStore()
+
+            settings.importSettings({ themeMode: 'dark' })
+            expect(settings.themeMode).toBe('dark')
+            expect(settings.resolvedTheme).toBe('dark')
+
+            settings.importSettings({ themeMode: 'light' })
+            expect(settings.themeMode).toBe('light')
+        })
+
+        it('falls back themeMode to system when invalid', () => {
+            const settings = useSettingsStore()
+            settings.themeMode = 'dark'
+
+            const result = settings.importSettings({ themeMode: 'invalid' })
+
+            expect(settings.themeMode).toBe('system')
+            expect(result.success).toBe(false)
         })
 
         it('handles null input gracefully', () => {

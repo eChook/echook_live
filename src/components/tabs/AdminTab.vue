@@ -6,19 +6,19 @@
                Provides CRUD operations for users and car data viewing.
 -->
 <template>
-    <div class="h-full flex overflow-hidden bg-neutral-900 text-gray-300">
+    <div class="h-full flex overflow-hidden bg-zinc-100 text-zinc-800 dark:bg-neutral-900 dark:text-gray-300">
 
         <!-- Vertical Sidebar for Admin Tabs -->
-        <div class="w-48 bg-neutral-800/50 border-r border-neutral-700 flex flex-col pt-6">
+        <div class="w-48 bg-white/90 dark:bg-neutral-800/50 border-r border-zinc-200 dark:border-neutral-700 flex flex-col pt-6">
             <div class="px-4 mb-6">
-                <h2 class="text-xl font-bold text-white">Admin</h2>
+                <h2 class="text-xl font-bold text-zinc-900 dark:text-white">Admin</h2>
             </div>
             <nav class="space-y-1 px-2">
                 <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
                     class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                    :class="currentTab === tab.id ? 'bg-primary/20 text-white' : 'text-gray-400 hover:bg-neutral-700 hover:text-white'">
+                    :class="currentTab === tab.id ? 'bg-primary/20 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-gray-400 hover:bg-zinc-200 dark:hover:bg-neutral-700 hover:text-zinc-900 dark:hover:text-white'">
                     <component :is="tab.icon" class="mr-3 flex-shrink-0 h-5 w-5"
-                        :class="currentTab === tab.id ? 'text-primary' : 'text-gray-500'" aria-hidden="true" />
+                        :class="currentTab === tab.id ? 'text-primary' : 'text-zinc-400 dark:text-gray-500'" aria-hidden="true" />
                     {{ tab.name }}
                 </button>
             </nav>
@@ -29,33 +29,33 @@
             <!-- Active Cars Panel -->
             <div v-if="currentTab === 'cars'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-medium text-white">Active Cars ({{ adminStore.activeCars.length }})</h3>
-                    <button @click="refreshCars" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
-                        <ArrowPathIcon class="w-5 h-5 text-gray-400"
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-white">Active Cars ({{ adminStore.activeCars.length }})</h3>
+                    <button @click="refreshCars" class="p-2 bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition">
+                        <ArrowPathIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400"
                             :class="{ 'animate-spin': adminStore.isLoading }" />
                     </button>
                 </div>
 
-                <div v-if="adminStore.activeCars.length === 0" class="text-gray-500 italic">No active cars found.</div>
+                <div v-if="adminStore.activeCars.length === 0" class="text-zinc-500 dark:text-gray-500 italic">No active cars found.</div>
 
                 <div class="grid gap-4">
                     <div v-for="car in adminStore.activeCars" :key="car.carID || car.id"
-                        class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 shadow-sm">
+                        class="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-zinc-200 dark:border-neutral-700 shadow-sm">
                         <div class="flex items-center justify-between mb-2">
                             <div>
-                                <div class="text-white font-bold text-lg">{{ car.carName || 'Unknown Car' }}</div>
-                                <div class="text-sm text-gray-400">{{ car.teamName || 'Unknown Team' }}</div>
-                                <div class="text-xs text-gray-500 font-mono mt-1">{{ car.carID }}</div>
+                                <div class="text-zinc-900 dark:text-white font-bold text-lg">{{ car.carName || 'Unknown Car' }}</div>
+                                <div class="text-sm text-zinc-600 dark:text-gray-400">{{ car.teamName || 'Unknown Team' }}</div>
+                                <div class="text-xs text-zinc-500 dark:text-gray-500 font-mono mt-1">{{ car.carID }}</div>
                             </div>
                             <div class="flex space-x-2">
                                 <!-- JSON View -->
                                 <button @click="toggleJson(car.carID)"
-                                    class="px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded text-xs text-white">
+                                    class="px-3 py-1 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 rounded text-xs text-zinc-900 dark:text-white">
                                     JSON
                                 </button>
                                 <!-- Edit -->
                                 <button @click="editUser(car)"
-                                    class="px-3 py-1 bg-blue-900/50 hover:bg-blue-900 border border-blue-900 rounded text-xs text-blue-200">
+                                    class="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-900 border border-blue-300 dark:border-blue-900 rounded text-xs text-blue-900 dark:text-blue-200">
                                     Edit
                                 </button>
                                 <!-- View Telemetry -->
@@ -68,9 +68,9 @@
 
                         <!-- JSON Disclosure -->
                         <div v-if="jsonState[car.carID]"
-                            class="mt-4 bg-neutral-900 rounded p-4 border border-neutral-700 overflow-x-auto">
+                            class="mt-4 bg-zinc-100 dark:bg-neutral-900 rounded p-4 border border-zinc-200 dark:border-neutral-700 overflow-x-auto">
                             <pre
-                                class="text-xs text-green-400 font-mono">{{ jsonData[car.carID] || 'Loading...' }}</pre>
+                                class="text-xs text-green-800 dark:text-green-400 font-mono">{{ jsonData[car.carID] || 'Loading...' }}</pre>
                         </div>
                     </div>
                 </div>
@@ -79,82 +79,82 @@
             <!-- Users Panel -->
             <div v-else-if="currentTab === 'users'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-medium text-white">All Users ({{ adminStore.users.length }})</h3>
-                    <button @click="refreshUsers" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
-                        <ArrowPathIcon class="w-5 h-5 text-gray-400"
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-white">All Users ({{ adminStore.users.length }})</h3>
+                    <button @click="refreshUsers" class="p-2 bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition">
+                        <ArrowPathIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400"
                             :class="{ 'animate-spin': adminStore.isLoading }" />
                     </button>
                 </div>
 
-                <div class="overflow-x-auto rounded-lg border border-neutral-700">
-                    <table class="min-w-full divide-y divide-neutral-700 bg-neutral-800">
-                        <thead class="bg-neutral-900">
+                <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-neutral-700">
+                    <table class="min-w-full divide-y divide-zinc-200 dark:divide-neutral-700 bg-white dark:bg-neutral-800">
+                        <thead class="bg-zinc-100 dark:bg-neutral-900">
                             <tr>
                                 <th @click="sortUsers('number')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Number
                                     <span v-if="sortKey === 'number'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th @click="sortUsers('car')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Car
                                     <span v-if="sortKey === 'car'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th @click="sortUsers('team')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Team
                                     <span v-if="sortKey === 'team'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th @click="sortUsers('lastLogin')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Last Login
                                     <span v-if="sortKey === 'lastLogin'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th @click="sortUsers('created')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Created
                                     <span v-if="sortKey === 'created'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th @click="sortUsers('isAdmin')"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white">
+                                    class="px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-zinc-900 dark:hover:text-white">
                                     Role
                                     <span v-if="sortKey === 'isAdmin'">{{ sortAsc ? '↑' : '↓' }}</span>
                                 </th>
                                 <th
-                                    class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                    class="px-6 py-3 text-right text-xs font-medium text-zinc-500 dark:text-gray-400 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-neutral-700">
+                        <tbody class="divide-y divide-zinc-200 dark:divide-neutral-700">
                             <tr v-for="user in sortedUsers" :key="user.id || user._id">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono">{{ user.number
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-700 dark:text-gray-300 font-mono">{{ user.number
                                 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{{ user.car }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-white">{{ user.car }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{{ user.team }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-700 dark:text-gray-300">{{ user.team }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-gray-400">{{
                                     formatDate(user.lastLogin) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-zinc-600 dark:text-gray-400">{{
                                     formatDate(user.created) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <span v-if="user.isAdmin"
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-900 text-purple-200">Admin</span>
+                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-200 text-purple-900 dark:bg-purple-900 dark:text-purple-200">Admin</span>
                                     <span v-else
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-900 text-green-200">User</span>
+                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-200">User</span>
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end space-x-2">
-                                    <button @click="viewCar(user)" class="text-gray-400 hover:text-green-500 transition"
+                                    <button @click="viewCar(user)" class="text-zinc-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-500 transition"
                                         title="View Telemetry">
                                         <EyeIcon class="w-5 h-5" />
                                     </button>
-                                    <button @click="editUser(user)" class="text-gray-400 hover:text-blue-400 transition"
+                                    <button @click="editUser(user)" class="text-zinc-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
                                         title="Edit User">
                                         <PencilSquareIcon class="w-5 h-5" />
                                     </button>
                                     <button @click="confirmDelete(user)"
-                                        class="text-gray-400 hover:text-red-500 transition" title="Delete User">
+                                        class="text-zinc-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition" title="Delete User">
                                         <TrashIcon class="w-5 h-5" />
                                     </button>
                                 </td>
@@ -167,19 +167,19 @@
             <!-- Emails Panel -->
             <div v-else-if="currentTab === 'emails'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-lg font-medium text-white">Unique Emails</h3>
-                    <button @click="refreshEmails" class="p-2 bg-neutral-800 rounded hover:bg-neutral-700 transition">
-                        <ArrowPathIcon class="w-5 h-5 text-gray-400"
+                    <h3 class="text-lg font-medium text-zinc-900 dark:text-white">Unique Emails</h3>
+                    <button @click="refreshEmails" class="p-2 bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition">
+                        <ArrowPathIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400"
                             :class="{ 'animate-spin': adminStore.isLoading }" />
                     </button>
                 </div>
 
-                <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                <div class="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-zinc-200 dark:border-neutral-700">
                     <div class="flex justify-between mb-2">
-                        <span class="text-sm text-gray-500">Comma separated list</span>
+                        <span class="text-sm text-zinc-500 dark:text-gray-500">Comma separated list</span>
                         <button @click="copyEmails" class="text-xs text-primary hover:underline">Copy All</button>
                     </div>
-                    <div class="bg-neutral-900 p-4 rounded text-sm text-gray-300 font-mono break-all leading-loose">
+                    <div class="bg-zinc-100 dark:bg-neutral-900 p-4 rounded text-sm text-zinc-800 dark:text-gray-300 font-mono break-all leading-loose">
                         {{ adminStore.emails.join(', ') }}
                     </div>
                 </div>

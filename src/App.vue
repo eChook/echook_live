@@ -36,7 +36,8 @@ watch(() => auth.user, (newUser) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-900 text-white font-sans antialiased">
+  <div
+    class="min-h-screen font-sans antialiased bg-[color:var(--app-bg)] text-[color:var(--app-text)]">
     <RouterView />
     <ToastNotification />
   </div>

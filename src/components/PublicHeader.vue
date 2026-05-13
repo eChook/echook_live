@@ -33,23 +33,23 @@ onMounted(() => {
 
 <template>
     <header
-        class="h-16 bg-neutral-900/90 backdrop-blur border-b border-neutral-800 flex items-center justify-between px-6 fixed top-0 w-full z-50">
+        class="h-16 bg-white/90 dark:bg-neutral-900/90 backdrop-blur border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-6 fixed top-0 w-full z-50">
         <!-- Brand / Left Side -->
         <div class="flex items-center space-x-4">
             <router-link to="/login"
-                class="font-bold text-xl text-white tracking-tight hover:opacity-80 transition cursor-pointer">
+                class="font-bold text-xl text-zinc-900 dark:text-white tracking-tight hover:opacity-80 transition cursor-pointer">
                 <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Live</span>
             </router-link>
         </div>
 
         <!-- Right Side: Server Stats -->
-        <div class="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-gray-400">
+        <div class="flex items-center space-x-3 md:space-x-6 text-xs md:text-sm text-zinc-600 dark:text-gray-400">
             <!-- Active Cars -->
             <div class="flex items-center space-x-1 md:space-x-2" title="Active Cars">
                 <BoltIcon class="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 <span>
                     <span class="hidden md:inline">Active Cars: </span>
-                    <span class="text-white font-bold">{{ spectatorStore.serverStats.activeCars }}</span>
+                    <span class="text-zinc-900 dark:text-white font-bold">{{ spectatorStore.serverStats.activeCars }}</span>
                 </span>
             </div>
             <!-- Pit Crews (Private Spectators) -->
@@ -57,7 +57,7 @@ onMounted(() => {
                 <UsersIcon class="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                 <span>
                     <span class="hidden md:inline">Pit Crews: </span>
-                    <span class="text-white font-bold">{{ spectatorStore.serverStats.privateSpectators }}</span>
+                    <span class="text-zinc-900 dark:text-white font-bold">{{ spectatorStore.serverStats.privateSpectators }}</span>
                 </span>
             </div>
             <!-- Public Spectators -->
@@ -65,7 +65,7 @@ onMounted(() => {
                 <EyeIcon class="w-4 h-4 md:w-5 md:h-5 text-green-400" />
                 <span>
                     <span class="hidden md:inline">Spectators: </span>
-                    <span class="text-white font-bold">{{ spectatorStore.serverStats.publicSpectators }}</span>
+                    <span class="text-zinc-900 dark:text-white font-bold">{{ spectatorStore.serverStats.publicSpectators }}</span>
                 </span>
             </div>
         </div>

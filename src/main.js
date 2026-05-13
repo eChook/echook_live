@@ -11,6 +11,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import { setupThemeApplication } from './composables/useTheme'
 
 // Create Vue application instance
 const app = createApp(App)
@@ -21,5 +22,7 @@ pinia.use(piniaPluginPersistedstate)
 
 // Register plugins and mount
 app.use(pinia)
+// Apply persisted / system theme to <html> before first paint of routed views
+setupThemeApplication()
 app.use(router)
 app.mount('#app')

@@ -28,6 +28,8 @@
  */
 import { computed, defineProps, ref, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
+import { useSettingsStore } from '../stores/settings'
+import { getChartTokens } from '../constants/chartTheme'
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart } from "echarts/charts";
@@ -99,6 +101,7 @@ const props = defineProps({
 })
 
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 const chart = ref(null)
 
 /**
@@ -264,15 +267,17 @@ const getDisplayUnit = (key) => {
 const option = computed(() => {
   const showGrid = telemetry.graphSettings.showGrid
   const showHighlights = props.showLaps && telemetry.graphSettings.showLapHighlights
+  /** ECharts chrome colors follow app resolved theme (light/dark). */
+  const t = getChartTokens(settings.resolvedTheme)
 
   return {
     animation: telemetry.graphSettings.showAnimations,
     color: [props.color],
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(23, 23, 23, 0.9)',
-      borderColor: '#333',
-      textStyle: { color: '#fff' },
+      backgroundColor: t.tooltipBg,
+      borderColor: t.tooltipBorder,
+      textStyle: { color: t.tooltipText },
       formatter: (params) => {
         if (!params.length) return ''
         const date = new Date(params[0].axisValue)
@@ -287,7 +292,7 @@ const option = computed(() => {
           result += `
             <div class="flex items-center justify-between space-x-4">
               <span style="color: ${item.color}">● ${item.seriesName}</span>
-              <span class="font-mono font-bold">${formatted} <span class="text-xs text-gray-400">${unit}</span></span>
+              <span class="font-mono font-bold">${formatted} <span class="text-xs" style="color:${t.tooltipUnit}">${unit}</span></span>
             </div>
            `
         })
@@ -303,14 +308,16 @@ const option = computed(() => {
     xAxis: {
       type: 'time',
       boundaryGap: false,
-      axisLine: { lineStyle: { color: '#525252' } },
-      splitLine: { show: showGrid, lineStyle: { color: '#262626' } }
+      axisLine: { lineStyle: { color: t.axisLine } },
+      axisLabel: { color: t.axisLabel },
+      splitLine: { show: showGrid, lineStyle: { color: t.grid } }
     },
     yAxis: {
       type: 'value',
       scale: true,
-      axisLine: { lineStyle: { color: '#525252' } },
-      splitLine: { show: showGrid, lineStyle: { color: '#262626' } }
+      axisLine: { lineStyle: { color: t.axisLine } },
+      axisLabel: { color: t.axisLabel },
+      splitLine: { show: showGrid, lineStyle: { color: t.grid } }
     },
     large: true,
     largeThreshold: 10000,
@@ -349,7 +356,7 @@ const option = computed(() => {
             align: 'center',
             verticalAlign: 'top',
             distance: 0,
-            color: '#666',
+            color: t.markAreaLabel,
             fontFamily: 'monospace',
             fontSize: 10
           },
@@ -374,7 +381,7 @@ const handleWheel = (e) => {
 <template>
   <div class="relative overflow-hidden" @wheel.capture="handleWheel"
     :style="{ height: height ? (typeof height === 'number' ? height + 'px' : height) : telemetry.graphSettings.graphHeight + 'px' }">
-    <h3 v-if="showTitle" class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-gray-400 z-10">{{
+    <h3 v-if="showTitle" class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-gray-400 z-10">{{
       telemetry.getDisplayName(dataKey) }}</h3>
     <VChart ref="chart" class="w-full h-full" :option="option" autoresize :group="group" />
   </div>

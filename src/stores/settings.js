@@ -7,7 +7,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 /**
  * @brief Settings store for user preferences and race history.
@@ -92,6 +92,47 @@ export const useSettingsStore = defineStore('settings', () => {
     /** @brief Whether to show the graph help modal on first load */
     const showGraphHelp = ref(true)
 
+    // ============================================
+    // Appearance (light / dark / system)
+    // ============================================
+
+    /**
+     * @brief User-selected appearance mode.
+     * @description `system` follows OS `prefers-color-scheme` via
+     *              {@link syncSystemPrefersDark} and {@link systemPrefersDark}.
+     * @type {Ref<'light'|'dark'|'system'>}
+     */
+    const themeMode = ref('system')
+
+    /**
+     * @brief Cached OS dark preference (updated by theme composable).
+     * @description Only affects resolved theme when themeMode is `system`.
+     * @type {Ref<boolean>}
+     */
+    const systemPrefersDark = ref(
+        typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : false
+    )
+
+    /**
+     * @brief Effective theme for UI and charts (`light` or `dark`).
+     * @type {ComputedRef<'light'|'dark'>}
+     */
+    const resolvedTheme = computed(() => {
+        if (themeMode.value === 'dark') return 'dark'
+        if (themeMode.value === 'light') return 'light'
+        return systemPrefersDark.value ? 'dark' : 'light'
+    })
+
+    /**
+     * @brief Update cached OS dark-mode preference (from matchMedia).
+     * @param {boolean} isDark - Whether prefers-color-scheme is dark
+     */
+    function syncSystemPrefersDark(isDark) {
+        systemPrefersDark.value = !!isDark
+    }
+
     /**
      * @brief Transient state for shortcuts modal visibility.
      * @description Not persisted - resets to false on page load.
@@ -143,13 +184,25 @@ export const useSettingsStore = defineStore('settings', () => {
             'hideHistoryClearConfirmation',
             'showGraphHelp',
             'dataCardOrder',
-            'races'
+            'races',
+            'themeMode'
         ])
         Object.keys(newData).forEach((key) => {
             if (!allowedRootKeys.has(key)) {
                 errors.push(`Unknown setting key rejected: ${key}`)
             }
         })
+
+        if (newData.themeMode !== undefined) {
+            const allowedThemeModes = new Set(['light', 'dark', 'system'])
+            if (typeof newData.themeMode === 'string' && allowedThemeModes.has(newData.themeMode)) {
+                themeMode.value = newData.themeMode
+            } else {
+                /** Invalid imports fall back to system (safe default). */
+                themeMode.value = 'system'
+                errors.push('themeMode invalid; reset to system.')
+            }
+        }
 
         if (newData.maxHistoryPoints !== undefined) {
             if (Number.isFinite(newData.maxHistoryPoints)) {
@@ -295,6 +348,12 @@ export const useSettingsStore = defineStore('settings', () => {
 
         // Graph
         graphSettings,
+
+        // Appearance
+        themeMode,
+        systemPrefersDark,
+        resolvedTheme,
+        syncSystemPrefersDark,
 
         // Dashboard
         activeTabId,

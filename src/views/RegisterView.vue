@@ -86,7 +86,7 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-neutral-900" :style="{
+  <div class="flex flex-col min-h-screen bg-zinc-100 dark:bg-neutral-900" :style="{
     backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url(${bgImage})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
@@ -94,46 +94,46 @@ const handleRegister = async () => {
   }">
     <PublicHeader />
     <div class="flex-1 flex items-center justify-center pt-16">
-      <div class="w-full max-w-md p-8 bg-neutral-800 rounded-xl shadow-2xl border border-neutral-700">
+      <div class="w-full max-w-md p-8 bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-neutral-700">
         <h2 class="text-3xl font-bold mb-6 text-center text-primary">Register Car</h2>
 
-        <div v-if="error" class="mb-4 p-3 bg-red-900/50 border border-red-500 text-red-200 rounded text-sm text-center">
+        <div v-if="error" class="mb-4 p-3 bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-500 text-red-800 dark:text-red-200 rounded text-sm text-center">
           {{ error }}
         </div>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
           <div>
-            <label class="block mb-1 text-sm font-medium text-gray-400">Car Name </label>
+            <label class="block mb-1 text-sm font-medium text-zinc-600 dark:text-gray-400">Car Name </label>
             <input v-model="formData.car" type="text" required
-              class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
-            <p class="text-xs text-gray-500">Only letters, numbers, spaces, underscores, and hyphens are allowed.
+              class="w-full bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-600 rounded-lg p-3 text-zinc-900 dark:text-white focus:border-primary outline-none transition">
+            <p class="text-xs text-zinc-500 dark:text-gray-500">Only letters, numbers, spaces, underscores, and hyphens are allowed.
             </p>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-medium text-gray-400">Email</label>
+            <label class="block mb-1 text-sm font-medium text-zinc-600 dark:text-gray-400">Email</label>
             <input v-model="formData.email" type="email" required
-              class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
+              class="w-full bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-600 rounded-lg p-3 text-zinc-900 dark:text-white focus:border-primary outline-none transition">
           </div>
           <div>
-            <label class="block mb-1 text-sm font-medium text-gray-400">Team Name</label>
+            <label class="block mb-1 text-sm font-medium text-zinc-600 dark:text-gray-400">Team Name</label>
             <input v-model="formData.team" type="text" required
-              class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
-            <p class="text-xs text-gray-500">Only letters, numbers, spaces, underscores, and hyphens are allowed.
+              class="w-full bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-600 rounded-lg p-3 text-zinc-900 dark:text-white focus:border-primary outline-none transition">
+            <p class="text-xs text-zinc-500 dark:text-gray-500">Only letters, numbers, spaces, underscores, and hyphens are allowed.
             </p>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-medium text-gray-400">Password</label>
+            <label class="block mb-1 text-sm font-medium text-zinc-600 dark:text-gray-400">Password</label>
             <input v-model="formData.password" type="password" required
-              class="w-full bg-neutral-900 border border-neutral-600 rounded-lg p-3 text-white focus:border-primary outline-none transition">
-            <p class="text-xs text-gray-500">Tip: Make this something you can share with your team</p>
+              class="w-full bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-600 rounded-lg p-3 text-zinc-900 dark:text-white focus:border-primary outline-none transition">
+            <p class="text-xs text-zinc-500 dark:text-gray-500">Tip: Make this something you can share with your team</p>
           </div>
           <div>
-            <label class="block mb-1 text-sm font-medium text-gray-400">Confirm Password</label>
+            <label class="block mb-1 text-sm font-medium text-zinc-600 dark:text-gray-400">Confirm Password</label>
             <input v-model="formData.confirmPassword" type="password" required
-              class="w-full bg-neutral-900 border rounded-lg p-3 text-white outline-none transition" :class="{
+              class="w-full bg-white dark:bg-neutral-900 border rounded-lg p-3 text-zinc-900 dark:text-white outline-none transition" :class="{
                 'border-green-500 focus:border-green-500': passwordsMatch,
                 'border-red-500 focus:border-red-500': passwordMismatch,
-                'border-neutral-600 focus:border-primary': !formData.confirmPassword
+                'border-zinc-300 dark:border-neutral-600 focus:border-primary': !formData.confirmPassword
               }">
             <p v-if="passwordMismatch" class="text-red-500 text-xs mt-1">Passwords do not match</p>
           </div>
@@ -143,7 +143,7 @@ const handleRegister = async () => {
             {{ isLoading ? 'Registering...' : 'Create Account' }}
           </button>
 
-          <div class="text-center text-sm text-gray-500 mt-4">
+          <div class="text-center text-sm text-zinc-500 dark:text-gray-500 mt-4">
             Already have an account? <router-link to="/login" class="text-primary hover:underline">Login</router-link>
           </div>
         </form>

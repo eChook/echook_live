@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * @brief Global semantic colors for light (default) and dark (`.dark` on html).
+ * @description Pairs with Tailwind `dark:` utilities; variables are available
+ *              for custom CSS or future components.
+ */
+@layer base {
+    :root {
+        color-scheme: light;
+        --app-bg: #fafafa;
+        --app-surface: #ffffff;
+        --app-text: #18181b;
+        --app-muted: #71717a;
+        --app-border: #e4e4e7;
+        --app-primary: #cb1557;
+    }
+
+    .dark {
+        color-scheme: dark;
+        --app-bg: #171717;
+        --app-surface: #262626;
+        --app-text: #fafafa;
+        --app-muted: #a3a3a3;
+        --app-border: #404040;
+        --app-primary: #cb1557;
+    }
+}
+
 /* Custom Glassmorphism Utilities if needed, though Tailwind supports backdrop-blur */
 
 /* Autofill Override */

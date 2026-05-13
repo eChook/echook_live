@@ -100,14 +100,14 @@ function confirm() {
                         leave-from="opacity-100 translate-y-0 sm:scale-100"
                         leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
                         <DialogPanel
-                            class="relative transform overflow-hidden rounded-lg bg-neutral-900 border border-neutral-700 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm">
+                            class="relative transform overflow-hidden rounded-lg bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm">
                             <div class="px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                 <div class="sm:flex sm:items-start">
                                     <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                        <DialogTitle as="h3" class="text-lg font-bold text-white">{{ title }}
+                                        <DialogTitle as="h3" class="text-lg font-bold text-zinc-900 dark:text-white">{{ title }}
                                         </DialogTitle>
                                         <div class="mt-2">
-                                            <p class="text-sm text-gray-400">
+                                            <p class="text-sm text-zinc-600 dark:text-gray-400">
                                                 {{ message }}
                                             </p>
                                         </div>
@@ -125,7 +125,7 @@ function confirm() {
                                     class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition"
                                     :class="confirmButtonClass" @click="confirm">{{ confirmText }}</button>
                                 <button type="button"
-                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-neutral-800 px-3 py-2 text-sm font-semibold text-gray-300 shadow-sm ring-1 ring-inset ring-neutral-700 hover:bg-neutral-700 sm:mt-0 sm:w-auto transition"
+                                    class="mt-3 inline-flex w-full justify-center rounded-md bg-zinc-200 dark:bg-neutral-800 px-3 py-2 text-sm font-semibold text-zinc-800 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-700 sm:mt-0 sm:w-auto transition"
                                     @click="close">{{ cancelText }}</button>
                             </div>
                         </DialogPanel>

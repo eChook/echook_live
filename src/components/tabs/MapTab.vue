@@ -157,10 +157,10 @@ const trailRange = computed(() => {
         <div class="flex flex-col items-end space-y-2">
           <!-- Toggle Button -->
           <button @click="isSettingsExpanded = !isSettingsExpanded"
-            class="bg-neutral-900 border border-neutral-700 p-2 rounded-lg shadow-xl text-white hover:bg-neutral-800 transition-colors flex items-center space-x-2 z-[1000]">
+            class="bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 p-2 rounded-lg shadow-xl text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-neutral-800 transition-colors flex items-center space-x-2 z-[1000]">
             <AdjustmentsHorizontalIcon class="w-5 h-5 text-primary" />
             <span class="text-xs font-bold uppercase tracking-wider hidden md:inline">Map Settings</span>
-            <ChevronDownIcon class="w-4 h-4 transition-transform duration-300"
+            <ChevronDownIcon class="w-4 h-4 text-zinc-600 dark:text-inherit transition-transform duration-300"
               :class="{ 'rotate-180': isSettingsExpanded }" />
           </button>
 
@@ -170,17 +170,17 @@ const trailRange = computed(() => {
             leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 scale-100 translate-y-0"
             leave-to-class="opacity-0 scale-95 -translate-y-2">
             <div v-if="isSettingsExpanded"
-              class="bg-neutral-900/90 backdrop-blur-md border border-neutral-700 p-4 rounded-xl shadow-2xl text-white w-64 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              class="bg-white/95 dark:bg-neutral-900/90 backdrop-blur-md border border-zinc-200 dark:border-neutral-700 p-4 rounded-xl shadow-2xl text-zinc-900 dark:text-white w-64 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <h3
-                class="font-bold text-xs uppercase tracking-widest text-gray-500 mb-4 pb-2 border-b border-neutral-800">
+                class="font-bold text-xs uppercase tracking-widest text-zinc-500 dark:text-gray-500 mb-4 pb-2 border-b border-zinc-200 dark:border-neutral-800">
                 Configuration</h3>
 
               <!-- Auto Fit Toggle -->
               <div class="mb-6 flex items-center justify-between">
-                <label class="text-xs font-bold text-gray-300 uppercase">Auto-Fit Map</label>
+                <label class="text-xs font-bold text-zinc-700 dark:text-gray-300 uppercase">Auto-Fit Map</label>
                 <div @click="isAutoFitEnabled = !isAutoFitEnabled"
                   class="w-10 h-5 rounded-full relative cursor-pointer transition-colors duration-300"
-                  :class="isAutoFitEnabled ? 'bg-primary' : 'bg-neutral-700'">
+                  :class="isAutoFitEnabled ? 'bg-primary' : 'bg-zinc-300 dark:bg-neutral-700'">
                   <div class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-300"
                     :style="{ transform: isAutoFitEnabled ? 'translateX(20px)' : 'translateX(0)' }"></div>
                 </div>
@@ -189,21 +189,21 @@ const trailRange = computed(() => {
               <!-- Trail Length Slider -->
               <div class="mb-6">
                 <div class="flex justify-between items-center mb-2">
-                  <label class="text-xs font-bold text-gray-300 uppercase">Trail History</label>
+                  <label class="text-xs font-bold text-zinc-700 dark:text-gray-300 uppercase">Trail History</label>
                   <span class="text-[10px] font-mono text-primary">{{ trailTimeSeconds >= 60 ?
                     Math.floor(trailTimeSeconds / 60) + 'm' : trailTimeSeconds + 's' }}</span>
                 </div>
                 <input type="range" min="10" max="600" step="10" v-model.number="trailTimeSeconds"
-                  class="w-full accent-primary h-1.5 bg-neutral-700 rounded-lg appearance-none cursor-pointer">
+                  class="w-full accent-primary h-1.5 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer">
               </div>
 
               <!-- Metric Selection -->
               <div>
-                <label class="block text-xs font-bold text-gray-300 uppercase mb-3">Color Trail By</label>
+                <label class="block text-xs font-bold text-zinc-700 dark:text-gray-300 uppercase mb-3">Color Trail By</label>
                 <div class="grid grid-cols-1 gap-1">
                   <button v-for="key in telemetry.availableKeys" :key="key" @click="selectedMetric = key"
                     class="flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all text-xs font-medium"
-                    :class="selectedMetric === key ? 'bg-primary/20 text-primary border border-primary/30' : 'text-gray-400 hover:bg-neutral-800 hover:text-white border border-transparent'">
+                    :class="selectedMetric === key ? 'bg-primary/20 text-primary border border-primary/30' : 'text-zinc-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800 hover:text-zinc-900 dark:hover:text-white border border-transparent'">
                     <span>{{ key }}</span>
                     <div v-if="selectedMetric === key"
                       class="w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(203,21,87,0.8)]"></div>

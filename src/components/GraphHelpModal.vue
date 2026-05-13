@@ -3,7 +3,7 @@
   @brief Keyboard shortcuts and controls help modal.
   @description Displays a modal dialog with documentation for all keyboard
                shortcuts and graph controls. Can be dismissed permanently
-               via settings.
+               via settings. Supports light and dark app themes.
 -->
 <script setup>
 /**
@@ -21,7 +21,6 @@
  * Emits:
  * - close: When modal should be closed
  */
-import { computed } from 'vue'
 import { useSettingsStore } from '../stores/settings'
 
 const props = defineProps({
@@ -56,104 +55,104 @@ const doNotShowAgain = () => {
 
         <!-- Modal Content -->
         <div
-            class="bg-neutral-900 border border-neutral-700 rounded-xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col items-center text-center p-6 space-y-6">
+            class="bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 rounded-xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col items-center text-center p-6 space-y-6">
 
-            <h2 class="text-xl font-bold text-white uppercase tracking-wide">Controls & Shortcuts</h2>
+            <h2 class="text-xl font-bold text-zinc-900 dark:text-white uppercase tracking-wide">Controls & Shortcuts</h2>
 
-            <div class="space-y-4 w-full text-sm text-gray-300 overflow-y-auto max-h-[60vh] pr-2">
+            <div class="space-y-4 w-full text-sm text-zinc-700 dark:text-gray-300 overflow-y-auto max-h-[60vh] pr-2">
                 <!-- Graph Controls Section -->
-                <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Graph Navigation</div>
+                <div class="text-xs font-bold text-zinc-500 dark:text-gray-500 uppercase tracking-wider mb-2">Graph Navigation</div>
 
                 <!-- Pan -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Pan</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Pan</span>
                     <div class="flex items-center space-x-1">
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">Shift</kbd>
-                        <span class="text-gray-500">+</span>
-                        <span class="text-gray-400">Scroll</span>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">Shift</kbd>
+                        <span class="text-zinc-500 dark:text-gray-500">+</span>
+                        <span class="text-zinc-600 dark:text-gray-400">Scroll</span>
                     </div>
                 </div>
 
                 <!-- Zoom -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Zoom</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Zoom</span>
                     <div class="flex items-center space-x-1">
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">Ctrl</kbd>
-                        <span class="text-gray-500">+</span>
-                        <span class="text-gray-400">Scroll</span>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">Ctrl</kbd>
+                        <span class="text-zinc-500 dark:text-gray-500">+</span>
+                        <span class="text-zinc-600 dark:text-gray-400">Scroll</span>
                     </div>
                 </div>
 
                 <!-- Page Scroll -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Page Scroll</span>
-                    <span class="text-gray-400">Scroll</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Page Scroll</span>
+                    <span class="text-zinc-600 dark:text-gray-400">Scroll</span>
                 </div>
 
                 <!-- Arrow Keys -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Pan / Zoom</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Pan / Zoom</span>
                     <div class="flex items-center space-x-1">
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">↑↓</kbd>
-                        <span class="text-gray-500">/</span>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">↑↓</kbd>
+                        <span class="text-zinc-500 dark:text-gray-500">/</span>
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">←→</kbd>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">←→</kbd>
                     </div>
                 </div>
 
                 <!-- Keyboard Shortcuts Section -->
-                <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-4 mb-2">Keyboard Shortcuts</div>
+                <div class="text-xs font-bold text-zinc-500 dark:text-gray-500 uppercase tracking-wider mt-4 mb-2">Keyboard Shortcuts</div>
 
                 <!-- Tab Cycle -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Cycle Tabs</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Cycle Tabs</span>
                     <kbd
-                        class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">Tab</kbd>
+                        class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">Tab</kbd>
                 </div>
 
                 <!-- Pause/Resume -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Pause / Resume</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Pause / Resume</span>
                     <kbd
-                        class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">Space</kbd>
+                        class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">Space</kbd>
                 </div>
 
                 <!-- Zoom to Race -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Zoom to Race</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Zoom to Race</span>
                     <kbd
-                        class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">R</kbd>
+                        class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">R</kbd>
                 </div>
 
                 <!-- Zoom to Laps -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Zoom Last N Laps</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Zoom Last N Laps</span>
                     <div class="flex items-center space-x-1">
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">1</kbd>
-                        <span class="text-gray-500">-</span>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">1</kbd>
+                        <span class="text-zinc-500 dark:text-gray-500">-</span>
                         <kbd
-                            class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">9</kbd>
+                            class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">9</kbd>
                     </div>
                 </div>
 
                 <!-- Unlock Zoom -->
                 <div
-                    class="flex items-center justify-between bg-neutral-800/50 p-2 rounded-lg border border-neutral-700/50">
-                    <span class="font-bold text-gray-200">Unlock / Resume Scroll</span>
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Unlock / Resume Scroll</span>
                     <kbd
-                        class="px-2 py-0.5 rounded bg-neutral-700 border border-neutral-600 font-mono text-xs text-gray-300">L</kbd>
+                        class="px-2 py-0.5 rounded bg-zinc-200 dark:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 font-mono text-xs text-zinc-800 dark:text-gray-300">L</kbd>
                 </div>
 
             </div>
@@ -161,7 +160,7 @@ const doNotShowAgain = () => {
             <!-- Action Buttons -->
             <div class="flex items-center space-x-3 w-full pt-2">
                 <button @click="doNotShowAgain"
-                    class="flex-1 px-4 py-2 rounded-lg border border-neutral-600 text-gray-400 hover:text-white hover:border-gray-400 hover:bg-neutral-800 transition text-sm font-medium">
+                    class="flex-1 px-4 py-2 rounded-lg border border-zinc-300 dark:border-neutral-600 text-zinc-600 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800 transition text-sm font-medium">
                     Don't Show Again
                 </button>
                 <button @click="close"

@@ -216,20 +216,20 @@ const handleKeydown = (e) => {
 </script>
 
 <template>
-  <div class="h-screen overflow-hidden bg-neutral-900 flex flex-col">
+  <div class="h-screen overflow-hidden bg-zinc-100 dark:bg-neutral-900 flex flex-col">
     <DashboardHeader />
     <GraphHelpModal :isOpen="settings.showShortcutsModal" @close="settings.showShortcutsModal = false" />
 
     <!-- Data Ribbon - horizontal scroll on mobile -->
     <div
-      class="h-20 md:h-28 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
+      class="h-20 md:h-28 border-b border-zinc-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/50 backdrop-blur flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
       <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
         <template #item="{ element: key }">
           <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
             :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" :tooltip="telemetry.getDescription(key)" />
         </template>
       </draggable>
-      <div v-if="orderedKeys.length === 0" class="text-gray-500 text-sm italic">
+      <div v-if="orderedKeys.length === 0" class="text-zinc-500 dark:text-gray-500 text-sm italic">
         Waiting for telemetry data... (You can load historic data from the "Loaded Data" box)
       </div>
     </div>
@@ -238,10 +238,10 @@ const handleKeydown = (e) => {
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <!-- Desktop: Vertical Tab Sidebar (hidden on mobile) -->
       <aside
-        class="hidden md:flex w-16 bg-neutral-900 border-r border-neutral-800 flex-col items-center py-4 space-y-4 z-40">
+        class="hidden md:flex w-16 bg-zinc-100 dark:bg-neutral-900 border-r border-zinc-200 dark:border-neutral-800 flex-col items-center py-4 space-y-4 z-40">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTabId = tab.id"
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group relative"
-          :class="activeTabId === tab.id ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
+          :class="activeTabId === tab.id ? 'bg-primary/10 text-primary' : 'text-zinc-500 dark:text-gray-500 hover:bg-zinc-200 dark:hover:bg-neutral-800 hover:text-zinc-800 dark:hover:text-gray-300'"
           :title="tab.label">
           <component :is="tab.icon" class="w-6 h-6" />
           <div v-if="activeTabId === tab.id" class="absolute left-0 w-1 h-6 bg-primary rounded-r-full"></div>
@@ -251,7 +251,7 @@ const handleKeydown = (e) => {
 
         <button @click="activeTabId = 'settings'"
           class="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 group"
-          :class="activeTabId === 'settings' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-neutral-800 hover:text-gray-300'"
+          :class="activeTabId === 'settings' ? 'bg-primary/10 text-primary' : 'text-zinc-500 dark:text-gray-500 hover:bg-zinc-200 dark:hover:bg-neutral-800 hover:text-zinc-800 dark:hover:text-gray-300'"
           title="Settings">
           <CogIcon class="w-6 h-6" />
         </button>
@@ -281,15 +281,15 @@ const handleKeydown = (e) => {
       </main>
 
       <!-- Mobile: Bottom Tab Bar (hidden on desktop) -->
-      <nav class="md:hidden h-14 bg-neutral-900 border-t border-neutral-800 flex items-center justify-around px-2 z-50">
+      <nav class="md:hidden h-14 bg-zinc-100 dark:bg-neutral-900 border-t border-zinc-200 dark:border-neutral-800 flex items-center justify-around px-2 z-50">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTabId = tab.id"
           class="flex-1 h-full flex items-center justify-center relative"
-          :class="activeTabId === tab.id ? 'text-primary' : 'text-gray-500'">
+          :class="activeTabId === tab.id ? 'text-primary' : 'text-zinc-500 dark:text-gray-500'">
           <component :is="tab.icon" class="w-6 h-6" />
           <div v-if="activeTabId === tab.id" class="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full"></div>
         </button>
         <button @click="activeTabId = 'settings'" class="flex-1 h-full flex items-center justify-center relative"
-          :class="activeTabId === 'settings' ? 'text-primary' : 'text-gray-500'">
+          :class="activeTabId === 'settings' ? 'text-primary' : 'text-zinc-500 dark:text-gray-500'">
           <CogIcon class="w-6 h-6" />
           <div v-if="activeTabId === 'settings'" class="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full"></div>
         </button>
