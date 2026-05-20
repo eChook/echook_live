@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { insertGapBreaks, MAX_LINE_GAP_MS } from '../chartData'
+import { insertGapBreaks, toLineSeriesData, timestampToMs, MAX_LINE_GAP_MS } from '../chartData'
 
 describe('insertGapBreaks', () => {
     it('returns empty array for empty or non-array input', () => {
@@ -25,7 +25,8 @@ describe('insertGapBreaks', () => {
         const result = insertGapBreaks(points, 'speed')
         expect(result).toHaveLength(3)
         expect(result[0]).toEqual({ timestamp: 1000, speed: 10 })
-        expect(result[1]).toEqual({ timestamp: 37000, speed: null })
+        expect(result[1].timestamp).toBe(37000)
+        expect(Number.isNaN(result[1].speed)).toBe(true)
         expect(result[2]).toEqual({ timestamp: 37000, speed: 20 })
     })
 
@@ -37,7 +38,8 @@ describe('insertGapBreaks', () => {
         ]
         const result = insertGapBreaks(points, 'speed')
         expect(result).toHaveLength(4)
-        expect(result[2]).toEqual({ timestamp: 60000, speed: null })
+        expect(result[2].timestamp).toBe(60000)
+        expect(Number.isNaN(result[2].speed)).toBe(true)
         expect(result[3]).toEqual({ timestamp: 60000, speed: 3 })
     })
 
@@ -72,5 +74,40 @@ describe('insertGapBreaks', () => {
             { timestamp: 30001, speed: 2 }
         ]
         expect(insertGapBreaks(overThreshold, 'speed')).toHaveLength(3)
+    })
+
+    it('breaks gaps when historic timestamps are Unix seconds', () => {
+        const points = [
+            { timestamp: 1700000000, speed: 10 },
+            { timestamp: 1700000045, speed: 20 }
+        ]
+        expect(insertGapBreaks(points, 'speed')).toHaveLength(3)
+    })
+
+    it('maps line series tuples with NaN at gap breaks', () => {
+        const points = [
+            { timestamp: 1000, speed: 10 },
+            { timestamp: 37000, speed: 20 }
+        ]
+        const tuples = toLineSeriesData(points, 'speed')
+        expect(tuples).toEqual([
+            [1000, 10],
+            [37000, NaN],
+            [37000, 20]
+        ])
+    })
+})
+
+describe('timestampToMs', () => {
+    it('treats Unix seconds in [1e9, 1e12) as seconds', () => {
+        expect(timestampToMs(1700000000)).toBe(1700000000000)
+    })
+
+    it('does not scale small relative millisecond offsets', () => {
+        expect(timestampToMs(11000)).toBe(11000)
+    })
+
+    it('leaves millisecond timestamps unchanged', () => {
+        expect(timestampToMs(1700000000000)).toBe(1700000000000)
     })
 })

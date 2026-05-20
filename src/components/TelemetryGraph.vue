@@ -39,7 +39,6 @@ import {
   DataZoomComponent,
   LegendComponent,
   TitleComponent,
-  DatasetComponent,
   MarkAreaComponent
 } from "echarts/components";
 import VChart from "vue-echarts";
@@ -53,12 +52,11 @@ use([
   DataZoomComponent,
   LegendComponent,
   TitleComponent,
-  DatasetComponent,
   MarkAreaComponent
 ]);
 
 import { formatValue, getUnit } from '../utils/formatting'
-import { insertGapBreaks } from '../utils/chartData'
+import { toLineSeriesData } from '../utils/chartData'
 
 /**
  * @brief Component props definition.
@@ -262,10 +260,12 @@ const getDisplayUnit = (key) => {
 }
 
 /**
- * @brief Dataset source with null breaks inserted across long time gaps.
- * @type {ComputedRef<Array<Object>>}
+ * @brief Line series tuples with NaN breaks inserted across long time gaps.
+ * @description Uses explicit [timestamp, value] data (not dataset) so ECharts honours
+ *              breaks; sampling is disabled because it reconnects across nulls.
+ * @type {ComputedRef<Array<[number, number]>>}
  */
-const chartSource = computed(() => insertGapBreaks(props.data, props.dataKey))
+const lineSeriesData = computed(() => toLineSeriesData(props.data, props.dataKey))
 
 /**
  * @brief ECharts option configuration.
@@ -292,7 +292,7 @@ const option = computed(() => {
         let result = `<div class="font-bold mb-1">${timeStr}</div>`
 
         params.forEach(item => {
-          const val = item.data[props.dataKey]
+          const val = Array.isArray(item.data) ? item.data[1] : item.data[props.dataKey]
           const formatted = formatValue(props.dataKey, val)
           const unit = getDisplayUnit(props.dataKey)
 
@@ -338,20 +338,13 @@ const option = computed(() => {
         moveOnMouseWheel: 'shift'
       }
     ],
-    dataset: {
-      source: chartSource.value
-    },
     series: [
       {
         name: props.dataKey,
         type: 'line',
         showSymbol: false,
         connectNulls: false,
-        sampling: 'average',
-        encode: {
-          x: 'timestamp',
-          y: props.dataKey
-        },
+        data: lineSeriesData.value,
         lineStyle: { width: 2 },
         markArea: {
           silent: true,

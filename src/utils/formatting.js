@@ -39,7 +39,7 @@ export const getUnit = (key) => {
  * @returns {string} Formatted string representation of the value
  */
 export const formatValue = (key, value) => {
-    if (value === null || value === undefined) return '-'
+    if (value === null || value === undefined || Number.isNaN(value)) return '-'
     if (typeof value !== 'number') return value
 
     const k = key.toLowerCase()
