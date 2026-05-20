@@ -27,6 +27,7 @@ import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import { useAuthStore } from '../../stores/auth'
 import { ChartBarIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
+import { computeStartMetrics, computeThrottleBrakeOverlap } from '../../utils/analyticsMetrics'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
@@ -61,7 +62,14 @@ const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I',
 const sortedRaces = computed(() => {
   const raceList = Object.values(telemetry.races).sort((a, b) => b.startTimeMs - a.startTimeMs)
 
-  return raceList.map(race => {
+  return raceList.map((race, raceIndex) => {
+    const nextOlderRace = raceList[raceIndex + 1]
+    const raceStart = race.startTimeMs
+    const raceEnd = nextOlderRace
+      ? nextOlderRace.startTimeMs
+      : (telemetry.history[telemetry.history.length - 1]?.timestamp || Date.now())
+    const raceSamples = telemetry.history.filter((sample) => sample.timestamp >= raceStart && sample.timestamp <= raceEnd)
+
     const lapList = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
 
     // Convert units (e.g., speed)
@@ -97,7 +105,18 @@ const sortedRaces = computed(() => {
       ...race,
       startTime: race.startTimeMs,
       sortedLaps,
-      stats
+      stats,
+      startSummary: computeStartMetrics(raceSamples, {
+        speedUnit: telemetry.unitSettings.speedUnit,
+        startCurrentThreshold: Number.isFinite(settings.analyticsSettings?.startCurrentThresholdA)
+          ? settings.analyticsSettings.startCurrentThresholdA
+          : 10
+      }),
+      overlapSummary: computeThrottleBrakeOverlap(raceSamples, {
+        throttleThresholdPct: Number.isFinite(settings.analyticsSettings?.throttleOverlapThresholdPct)
+          ? settings.analyticsSettings.throttleOverlapThresholdPct
+          : 5
+      })
     }
   })
 })
@@ -156,6 +175,25 @@ const formatValue = (val) => {
     return val.toFixed(2)
   }
   return val
+}
+
+/**
+ * @brief Severity label for throttle+brake overlap duration.
+ */
+const getOverlapSeverity = (overlapSummary) => {
+  const total = overlapSummary?.totalDurationSec || 0
+  if (total >= 3) return 'Critical'
+  if (total >= 1) return 'Warning'
+  return 'OK'
+}
+
+/**
+ * @brief Color class for overlap severity badge.
+ */
+const getOverlapSeverityClass = (severity) => {
+  if (severity === 'Critical') return 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/20'
+  if (severity === 'Warning') return 'text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/20'
+  return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20'
 }
 
 /**
@@ -298,6 +336,48 @@ const handleDisclaimerConfirm = (doNotShow) => {
           </div>
           <div class="text-xs md:text-sm text-zinc-600 dark:text-gray-400 mt-1 md:mt-0">
             Laps: <span class="text-zinc-900 dark:text-white font-mono font-bold">{{ race.sortedLaps.length }}</span>
+          </div>
+        </div>
+
+        <!-- Start Summary Strip -->
+        <div
+          class="grid grid-cols-1 md:grid-cols-5 gap-2 bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-2 md:p-3 text-xs">
+          <div class="text-zinc-600 dark:text-gray-400">
+            Peak Start Current
+            <div class="font-mono text-zinc-900 dark:text-white font-semibold">
+              {{ race.startSummary.detected ? formatValue(race.startSummary.peakCurrentFirst30sA) : '-' }} A
+            </div>
+          </div>
+          <div class="text-zinc-600 dark:text-gray-400">
+            Wh First 30s
+            <div class="font-mono text-zinc-900 dark:text-white font-semibold">
+              {{ race.startSummary.detected ? formatValue(race.startSummary.whFirst30s) : '-' }} Wh
+            </div>
+          </div>
+          <div class="text-zinc-600 dark:text-gray-400">
+            0-10 mph
+            <div class="font-mono text-zinc-900 dark:text-white font-semibold">
+              {{ race.startSummary.detected ? formatValue(race.startSummary.time0to10mphSec) : '-' }} s
+            </div>
+          </div>
+          <div class="text-zinc-600 dark:text-gray-400">
+            0-20 mph
+            <div class="font-mono text-zinc-900 dark:text-white font-semibold">
+              {{ race.startSummary.detected ? formatValue(race.startSummary.time0to20mphSec) : '-' }} s
+            </div>
+          </div>
+          <div class="text-zinc-600 dark:text-gray-400">
+            Overlap (Throttle+Brake)
+            <div class="flex items-center gap-2 mt-1">
+              <span
+                class="px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]"
+                :class="getOverlapSeverityClass(getOverlapSeverity(race.overlapSummary))">
+                {{ getOverlapSeverity(race.overlapSummary) }}
+              </span>
+              <span class="font-mono text-zinc-900 dark:text-white font-semibold">
+                {{ formatValue(race.overlapSummary.totalDurationSec) }}s
+              </span>
+            </div>
           </div>
         </div>
 

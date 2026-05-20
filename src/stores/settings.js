@@ -23,6 +23,10 @@ export const useSettingsStore = defineStore('settings', () => {
     const MIN_GRAPH_HEIGHT = 200
     /** @brief Maximum graph height in pixels. */
     const MAX_GRAPH_HEIGHT = 800
+    /** @brief Minimum live analytics window in minutes. */
+    const MIN_ANALYTICS_LIVE_WINDOW_MINUTES = 1
+    /** @brief Maximum live analytics window in minutes. */
+    const MAX_ANALYTICS_LIVE_WINDOW_MINUTES = 120
 
     // ============================================
     // Performance & Retention Settings
@@ -143,6 +147,24 @@ export const useSettingsStore = defineStore('settings', () => {
     const dataCardOrder = ref([])
 
     // ============================================
+    // Analytics Settings
+    // ============================================
+
+    /**
+     * @brief Configurable analytics thresholds and windows.
+     * @description Used by analytics and laps derived metrics.
+     * @property {number} liveWindowMinutes - Rolling live analysis window duration
+     * @property {number} throttleOverlapThresholdPct - Min throttle percent for overlap detection
+     * @property {number} startCurrentThresholdA - Min current used by race start detector
+     * @type {Ref<Object>}
+     */
+    const analyticsSettings = ref({
+        liveWindowMinutes: 10,
+        throttleOverlapThresholdPct: 5,
+        startCurrentThresholdA: 10
+    })
+
+    // ============================================
     // Race Records (Historical Lap Data)
     // ============================================
 
@@ -185,7 +207,8 @@ export const useSettingsStore = defineStore('settings', () => {
             'showGraphHelp',
             'dataCardOrder',
             'races',
-            'themeMode'
+            'themeMode',
+            'analyticsSettings'
         ])
         Object.keys(newData).forEach((key) => {
             if (!allowedRootKeys.has(key)) {
@@ -335,6 +358,47 @@ export const useSettingsStore = defineStore('settings', () => {
                 errors.push('races must be an object map.')
             }
         }
+        if (newData.analyticsSettings !== undefined) {
+            if (isObjectRecord(newData.analyticsSettings)) {
+                const nextAnalyticsSettings = { ...analyticsSettings.value }
+                if (newData.analyticsSettings.liveWindowMinutes !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.liveWindowMinutes)) {
+                        nextAnalyticsSettings.liveWindowMinutes = clampNumber(
+                            Math.round(newData.analyticsSettings.liveWindowMinutes),
+                            MIN_ANALYTICS_LIVE_WINDOW_MINUTES,
+                            MAX_ANALYTICS_LIVE_WINDOW_MINUTES
+                        )
+                    } else {
+                        errors.push('analyticsSettings.liveWindowMinutes must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.throttleOverlapThresholdPct !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.throttleOverlapThresholdPct)) {
+                        nextAnalyticsSettings.throttleOverlapThresholdPct = clampNumber(
+                            Number(newData.analyticsSettings.throttleOverlapThresholdPct),
+                            0,
+                            100
+                        )
+                    } else {
+                        errors.push('analyticsSettings.throttleOverlapThresholdPct must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.startCurrentThresholdA !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.startCurrentThresholdA)) {
+                        nextAnalyticsSettings.startCurrentThresholdA = clampNumber(
+                            Number(newData.analyticsSettings.startCurrentThresholdA),
+                            0,
+                            1000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.startCurrentThresholdA must be a valid number.')
+                    }
+                }
+                analyticsSettings.value = nextAnalyticsSettings
+            } else {
+                errors.push('analyticsSettings must be an object.')
+            }
+        }
 
         return { success: errors.length === 0, errors }
     }
@@ -364,6 +428,7 @@ export const useSettingsStore = defineStore('settings', () => {
         showGraphHelp,
         showShortcutsModal,
         dataCardOrder,
+        analyticsSettings,
 
         // Race Data
         races,

@@ -30,11 +30,12 @@ import draggable from 'vuedraggable'
 const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.vue'))
 const MapTab = defineAsyncComponent(() => import('../components/tabs/MapTab.vue'))
 const LapsTab = defineAsyncComponent(() => import('../components/tabs/LapsTab.vue'))
+const AnalyticsTab = defineAsyncComponent(() => import('../components/tabs/AnalyticsTab.vue'))
 const SettingsTab = defineAsyncComponent(() => import('../components/tabs/SettingsTab.vue'))
 const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.vue'))
 
 // Heroicons for tab navigation
-import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
@@ -92,6 +93,7 @@ const tabs = computed(() => {
   ]
 
   if (auth.isAdmin) {
+    baseTabs.push({ id: 'analytics', label: 'Analytics', icon: PresentationChartLineIcon, component: AnalyticsTab })
     baseTabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheckIcon, component: AdminTab })
   }
 

@@ -18,6 +18,9 @@ describe('settings store', () => {
         expect(settings.activeTabId).toBe('graph')
         expect(settings.themeMode).toBe('system')
         expect(settings.resolvedTheme).toBe('light')
+        expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)
+        expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(5)
+        expect(settings.analyticsSettings.startCurrentThresholdA).toBe(10)
     })
 
     it('allows updating unit settings', () => {
@@ -118,6 +121,22 @@ describe('settings store', () => {
             })
 
             expect(settings.dataCardOrder).toEqual(['current', 'voltage', 'speed'])
+        })
+
+        it('imports analyticsSettings with clamping', () => {
+            const settings = useSettingsStore()
+
+            settings.importSettings({
+                analyticsSettings: {
+                    liveWindowMinutes: 999,
+                    throttleOverlapThresholdPct: -5,
+                    startCurrentThresholdA: 20
+                }
+            })
+
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(120)
+            expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(0)
+            expect(settings.analyticsSettings.startCurrentThresholdA).toBe(20)
         })
     })
 
