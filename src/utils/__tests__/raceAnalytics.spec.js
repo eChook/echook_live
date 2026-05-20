@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { updateRaceSessions } from '../raceAnalytics'
+import { rebuildRaceSessionsFromSamples, updateRaceSessions } from '../raceAnalytics'
 
 describe('updateRaceSessions', () => {
     const createPacket = (overrides = {}) => ({
@@ -152,5 +152,65 @@ describe('updateRaceSessions', () => {
 
         expect(lapAfterZeroPacket.LL_Time).toBe(firstLapData.LL_Time)
         expect(lapAfterZeroPacket.LL_V).toBe(firstLapData.LL_V)
+    })
+})
+
+describe('rebuildRaceSessionsFromSamples', () => {
+    it('rebuilds sessions from currLap-only history when LL_* is missing', () => {
+        const start = 1700000000000
+        const samples = [
+            { timestamp: start, currLap: 1, voltage: 24.1, current: 10, rpm: 2000, speed: 8, ampH: 0.1, track: 'Test Track' },
+            { timestamp: start + 10000, currLap: 1, voltage: 24.0, current: 11, rpm: 2100, speed: 9, ampH: 0.12 },
+            { timestamp: start + 65000, currLap: 2, voltage: 23.9, current: 12, rpm: 2200, speed: 10, ampH: 0.2 },
+            { timestamp: start + 73000, currLap: 2, voltage: 23.8, current: 10, rpm: 2100, speed: 9.5, ampH: 0.24 },
+            { timestamp: start + 134000, currLap: 3, voltage: 23.7, current: 11, rpm: 2150, speed: 10.2, ampH: 0.31 }
+        ]
+
+        const sessions = rebuildRaceSessionsFromSamples(samples)
+        const race = Object.values(sessions)[0]
+        const laps = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
+
+        expect(Object.keys(sessions)).toHaveLength(1)
+        expect(laps).toHaveLength(2)
+        expect(laps[0].lapNumber).toBe(1)
+        expect(laps[0].lapSummarySource).toBe('derived')
+        expect(laps[0].LL_Time).toBeCloseTo(65, 5)
+        expect(laps[1].lapNumber).toBe(2)
+        expect(laps[1].lapSummarySource).toBe('derived')
+    })
+
+    it('keeps authoritative LL_* device summary over derived summary', () => {
+        const start = 1700000000000
+        const samples = [
+            { timestamp: start, currLap: 1, voltage: 24.1, current: 10, rpm: 2000, speed: 8, ampH: 0.1, track: 'Track A' },
+            { timestamp: start + 50000, currLap: 2, voltage: 24.0, current: 11, rpm: 2100, speed: 9, ampH: 0.16 },
+            { timestamp: start + 120000, currLap: 2, LL_Time: 70, LL_V: 24.8, LL_I: 15.1, LL_RPM: 3200, LL_Spd: 13.2, LL_Ah: 0.48 },
+            { timestamp: start + 121000, currLap: 3, voltage: 23.8, current: 12, rpm: 2200, speed: 10, ampH: 0.26 }
+        ]
+
+        const sessions = rebuildRaceSessionsFromSamples(samples)
+        const race = Object.values(sessions)[0]
+
+        expect(race.laps[2]).toBeDefined()
+        expect(race.laps[2].lapSummarySource).toBe('device')
+        expect(race.laps[2].LL_Time).toBe(70)
+        expect(race.laps[2].LL_V).toBe(24.8)
+    })
+
+    it('allows derived fill when LL_* packet is zero placeholder', () => {
+        const start = 1700000000000
+        const samples = [
+            { timestamp: start, currLap: 1, voltage: 24.1, current: 10, rpm: 2000, speed: 8, ampH: 0.1 },
+            { timestamp: start + 60000, currLap: 1, LL_Time: 0, LL_V: 0, LL_I: 0, LL_RPM: 0, LL_Spd: 0, LL_Ah: 0, LL_Eff: 0 },
+            { timestamp: start + 62000, currLap: 2, voltage: 23.9, current: 11, rpm: 2100, speed: 9, ampH: 0.2 }
+        ]
+
+        const sessions = rebuildRaceSessionsFromSamples(samples)
+        const race = Object.values(sessions)[0]
+        const lapOne = race.laps[1]
+
+        expect(lapOne).toBeDefined()
+        expect(lapOne.lapSummarySource).toBe('derived')
+        expect(lapOne.LL_Time).toBeCloseTo(62, 5)
     })
 })

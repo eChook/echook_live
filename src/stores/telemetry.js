@@ -11,7 +11,12 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch, shallowRef, triggerRef } from 'vue'
 import { useAuthStore } from './auth'
 import { useSettingsStore } from './settings'
-import { updateRaceSessions } from '../utils/raceAnalytics'
+import {
+    updateRaceSessions,
+    rebuildRaceSessionsFromSamples,
+    extractLapSummary,
+    hasMeaningfulLapSummary
+} from '../utils/raceAnalytics'
 import { decodeMsgpack } from '../utils/msgpack'
 import { scalePacket } from '../utils/unitConversions'
 import { extractRegularTelemetryPacket, normalizeTelemetryPacket } from '../utils/telemetryPacket'
@@ -22,7 +27,6 @@ import { useHistory } from '../composables/useHistory'
 import { useChartZoom } from '../composables/useChartZoom'
 import {
     REGULAR_KEYS,
-    LAP_KEYS,
     KEY_ORDER,
     getDisplayName,
     getDescription
@@ -268,13 +272,36 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 ? races.value
                 : {}
             races.value = updateRaceSessions({ ...currentRaces }, packet, currentLapIndex.value)
-
-            // Update lapHistory array for legacy consumers
-            const latestRace = Object.values(races.value).sort((a, b) => b.startTimeMs - a.startTimeMs)[0]
-            if (latestRace) {
-                lapHistory.value = Object.values(latestRace.laps).sort((a, b) => a.lapNumber - b.lapNumber)
-            }
+            syncLapHistoryFromRaces(races.value)
         }
+    }
+
+    /**
+     * @brief Sync legacy lapHistory array from latest race session.
+     * @param {Object} sessions - Race sessions map
+     */
+    function syncLapHistoryFromRaces(sessions) {
+        const latestRace = Object.values(sessions || {}).sort((a, b) => (b?.startTimeMs || 0) - (a?.startTimeMs || 0))[0]
+        if (!latestRace) {
+            lapHistory.value = []
+            return
+        }
+        lapHistory.value = Object.values(latestRace.laps || {}).sort((a, b) => (a?.lapNumber || 0) - (b?.lapNumber || 0))
+    }
+
+    /**
+     * @brief Rebuild race sessions from historical samples.
+     * @description Preserves existing sessions by default so live device LL_* laps
+     *              are not lost when deriving from history that may lack LL_* values.
+     * @param {Array<Object>} [samples=history.value] - Telemetry samples to rebuild from
+     * @param {Object} [options] - Rebuild options
+     * @param {boolean} [options.preserveExisting=false] - Seed from current races
+     */
+    function rebuildRacesFromHistory(samples = history.value, options = {}) {
+        const preserveExisting = options.preserveExisting === true
+        const seedSessions = preserveExisting ? races.value : {}
+        races.value = rebuildRaceSessionsFromSamples(samples, { seedSessions })
+        syncLapHistoryFromRaces(races.value)
     }
 
     /**
@@ -308,6 +335,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const hasRegularData = Object.keys(regularPacket).length > 1
 
         if (hasRegularData) {
+            const previousPoint = history.value.length > 0 ? history.value[history.value.length - 1] : null
+
             // Scale on ingestion for performance
             const processed = scalePacketWithUnits(regularPacket)
 
@@ -324,6 +353,17 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
             // Trigger reactivity without cloning the full history array.
             triggerRef(history)
+
+            const previousLap = Number(previousPoint?.currLap)
+            const currentLap = Number(processed?.currLap)
+            const lapChanged = Number.isFinite(previousLap) && Number.isFinite(currentLap) && previousLap !== currentLap
+            const incomingLapSummary = extractLapSummary(packet).lapData
+            const hasAuthoritativeLapSummary = hasMeaningfulLapSummary(incomingLapSummary)
+
+            // Derive laps from currLap transitions only when server summary is missing.
+            if (lapChanged && !hasAuthoritativeLapSummary) {
+                rebuildRacesFromHistory(history.value, { preserveExisting: true })
+            }
         }
     }
 
@@ -380,7 +420,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         maxPointsRef: maxHistoryPoints,
         processPacket: scalePacketWithUnits,
         processLapData,
-        clearRaces
+        clearRaces,
+        rebuildRacesFromHistory
     })
 
     // Chart zoom composable

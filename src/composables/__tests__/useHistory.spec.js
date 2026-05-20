@@ -27,13 +27,15 @@ describe('useHistory', () => {
         const processPacket = vi.fn((packet) => packet)
         const processLapData = vi.fn()
         const clearRaces = vi.fn()
+        const rebuildRacesFromHistory = vi.fn()
 
         const history = useHistory({
             historyRef,
             maxPointsRef,
             processPacket,
             processLapData,
-            clearRaces
+            clearRaces,
+            rebuildRacesFromHistory
         })
 
         let resolveFirstRequest
@@ -58,5 +60,36 @@ describe('useHistory', () => {
         expect(staleCount).toBe(0)
         expect(historyRef.value.map((p) => p.timestamp)).toEqual([2000])
         expect(historyRef.value[0].speed).toBe(15)
+        expect(rebuildRacesFromHistory).toHaveBeenCalledTimes(1)
+    })
+
+    it('prefers LL-rich existing packet when prepending history with duplicate timestamp', async () => {
+        const historyRef = ref([
+            { timestamp: 1000, currLap: 1, LL_Time: 61.2, LL_V: 24.7, speed: 10 }
+        ])
+        const maxPointsRef = ref(1000)
+        const processPacket = vi.fn((packet) => packet)
+        const processLapData = vi.fn()
+        const clearRaces = vi.fn()
+        const rebuildRacesFromHistory = vi.fn()
+
+        const history = useHistory({
+            historyRef,
+            maxPointsRef,
+            processPacket,
+            processLapData,
+            clearRaces,
+            rebuildRacesFromHistory
+        })
+
+        api.get.mockResolvedValueOnce({
+            data: [{ timestamp: 1000, currLap: 1, speed: '8' }]
+        })
+
+        await history.fetchHistory('car-1', 500, 1500, true)
+
+        expect(historyRef.value).toHaveLength(1)
+        expect(historyRef.value[0].LL_Time).toBe(61.2)
+        expect(historyRef.value[0].LL_V).toBe(24.7)
     })
 })

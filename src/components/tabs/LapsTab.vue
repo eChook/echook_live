@@ -622,6 +622,12 @@ const handleDisclaimerConfirm = (doNotShow) => {
                     >
                       {{ lap.confidenceLabel || 'good' }}
                     </span>
+                    <span
+                      v-if="lap.lapSummarySource === 'derived'"
+                      class="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] uppercase tracking-wider text-zinc-700 dark:text-gray-300 bg-zinc-200 dark:bg-neutral-700"
+                    >
+                      derived
+                    </span>
                     <button @click="viewLapOnGraph(lap)"
                       class="text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
                       title="View Lap on Graph">

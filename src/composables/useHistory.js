@@ -8,6 +8,7 @@
 import { ref, computed } from 'vue'
 import { api } from '../utils/msgpack'
 import { normalizeTelemetryPacket } from '../utils/telemetryPacket'
+import { extractLapSummary, hasMeaningfulLapSummary } from '../utils/raceAnalytics'
 import { useToast } from './useToast'
 
 /**
@@ -21,9 +22,17 @@ import { useToast } from './useToast'
  * @param {Function} options.processPacket - Function to process/scale incoming packets
  * @param {Function} options.processLapData - Function to process lap data from packets
  * @param {Function} options.clearRaces - Function to clear race data
+ * @param {Function} [options.rebuildRacesFromHistory] - Optional full race rebuild callback
  * @returns {Object} History state and control methods
  */
-export function useHistory({ historyRef, maxPointsRef, processPacket, processLapData, clearRaces }) {
+export function useHistory({
+    historyRef,
+    maxPointsRef,
+    processPacket,
+    processLapData,
+    clearRaces,
+    rebuildRacesFromHistory
+}) {
     /** @brief Set of available history days (YYYY-MM-DD format) */
     const availableDays = ref(new Set())
 
@@ -131,8 +140,24 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
                 // Merge strategy
                 if (prepend) {
-                    incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
-                    historyRef.value.forEach(pt => dataMap.set(pt.timestamp, pt))
+                    incoming.forEach((point) => dataMap.set(point.timestamp, point))
+                    historyRef.value.forEach((existingPoint) => {
+                        const incomingPoint = dataMap.get(existingPoint.timestamp)
+                        if (!incomingPoint) {
+                            dataMap.set(existingPoint.timestamp, existingPoint)
+                            return
+                        }
+
+                        // Prefer the point with meaningful LL_* summary when timestamps collide.
+                        const incomingSummary = extractLapSummary(incomingPoint).lapData
+                        const existingSummary = extractLapSummary(existingPoint).lapData
+                        const incomingHasSummary = hasMeaningfulLapSummary(incomingSummary)
+                        const existingHasSummary = hasMeaningfulLapSummary(existingSummary)
+
+                        if (!incomingHasSummary && existingHasSummary) {
+                            dataMap.set(existingPoint.timestamp, existingPoint)
+                        }
+                    })
                 } else {
                     incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
                 }
@@ -144,10 +169,13 @@ export function useHistory({ historyRef, maxPointsRef, processPacket, processLap
 
                 // Rebuild race data from history
                 clearRaces()
-
-                historyRef.value.forEach(pt => {
-                    processLapData(pt)
-                })
+                if (typeof rebuildRacesFromHistory === 'function') {
+                    rebuildRacesFromHistory(historyRef.value)
+                } else {
+                    historyRef.value.forEach(pt => {
+                        processLapData(pt)
+                    })
+                }
             }
             return fullHistory.length
         } catch (error) {
