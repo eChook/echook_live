@@ -22,16 +22,34 @@
  * - Lap number, start/finish time, lap duration
  * - Voltage, current, RPM, speed, Ah, efficiency
  */
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import { useAuthStore } from '../../stores/auth'
 import { ChartBarIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
-import { computeStartMetrics, computeThrottleBrakeOverlap } from '../../utils/analyticsMetrics'
+import {
+  computeStartMetrics,
+  computeThrottleBrakeOverlap,
+  computeSessionStintKpis,
+  filterLapSummaries,
+  computeBaselineComparison
+} from '../../utils/analyticsMetrics'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
 const auth = useAuthStore()
+
+/** @brief Resolve race sample window from race list index. */
+function getRaceSamplesByIndex(raceList, raceIndex) {
+  const race = raceList[raceIndex]
+  if (!race) return []
+  const nextOlderRace = raceList[raceIndex + 1]
+  const raceStart = race.startTimeMs
+  const raceEnd = nextOlderRace
+    ? nextOlderRace.startTimeMs
+    : (telemetry.history[telemetry.history.length - 1]?.timestamp || Date.now())
+  return telemetry.history.filter((sample) => sample.timestamp >= raceStart && sample.timestamp <= raceEnd)
+}
 
 /**
  * @brief Table column headers.
@@ -63,12 +81,7 @@ const sortedRaces = computed(() => {
   const raceList = Object.values(telemetry.races).sort((a, b) => b.startTimeMs - a.startTimeMs)
 
   return raceList.map((race, raceIndex) => {
-    const nextOlderRace = raceList[raceIndex + 1]
-    const raceStart = race.startTimeMs
-    const raceEnd = nextOlderRace
-      ? nextOlderRace.startTimeMs
-      : (telemetry.history[telemetry.history.length - 1]?.timestamp || Date.now())
-    const raceSamples = telemetry.history.filter((sample) => sample.timestamp >= raceStart && sample.timestamp <= raceEnd)
+    const raceSamples = getRaceSamplesByIndex(raceList, raceIndex)
 
     const lapList = Object.values(race.laps).sort((a, b) => a.lapNumber - b.lapNumber)
 
@@ -98,14 +111,58 @@ const sortedRaces = computed(() => {
       stats[key] = { min, max }
     })
 
+    const confidenceOptions = {
+      minLapTimeSec: Number.isFinite(settings.analyticsSettings?.lapConfidenceMinTimeSec)
+        ? settings.analyticsSettings.lapConfidenceMinTimeSec
+        : 15,
+      maxLapTimeSec: Number.isFinite(settings.analyticsSettings?.lapConfidenceMaxTimeSec)
+        ? settings.analyticsSettings.lapConfidenceMaxTimeSec
+        : 600
+    }
+    const filteredLapResult = filterLapSummaries(convertedLaps, {
+      hideSuspect: settings.analyticsSettings?.hideSuspectLaps === true,
+      hideInvalid: settings.analyticsSettings?.hideInvalidLaps === true,
+      excludeFirstLap: settings.analyticsSettings?.excludeFirstLap === true,
+      minimumLapTimeSec: Number.isFinite(settings.analyticsSettings?.minimumLapTimeSec)
+        ? settings.analyticsSettings.minimumLapTimeSec
+        : 0,
+      confidenceOptions
+    })
+
     // Sort laps newest first for display
-    const sortedLaps = [...convertedLaps].reverse()
+    const sortedLaps = [...filteredLapResult.laps].reverse()
+    const stintKpis = computeSessionStintKpis(filteredLapResult.laps, raceSamples, { lastNLaps: 5 })
+    const lapDeltaLookup = stintKpis.lapTimesWithDelta.reduce((lookup, lapSummary) => {
+      lookup[lapSummary.lapNumber] = lapSummary
+      return lookup
+    }, {})
+
+    let baselineComparison = null
+    const baselineRace = raceList.slice(raceIndex + 1).find((candidate) => {
+      if (settings.analyticsSettings?.baselineRequireTrackMatch !== false) {
+        return (candidate.trackName || '').trim() === (race.trackName || '').trim()
+      }
+      return true
+    })
+    if (baselineRace) {
+      const baselineIndex = raceList.findIndex((entry) => entry.startTimeMs === baselineRace.startTimeMs)
+      const baselineSamples = getRaceSamplesByIndex(raceList, baselineIndex)
+      baselineComparison = computeBaselineComparison(filteredLapResult.laps, Object.values(baselineRace.laps || {}), raceSamples, baselineSamples)
+      baselineComparison.baselineRaceName = baselineRace.trackName || 'Unknown Track'
+      baselineComparison.baselineRaceStart = baselineRace.startTimeMs
+    }
 
     return {
       ...race,
       startTime: race.startTimeMs,
       sortedLaps,
       stats,
+      excludedLaps: filteredLapResult.excluded,
+      stintKpis,
+      filteredLapCount: filteredLapResult.laps.length,
+      sourceLapCount: convertedLaps.length,
+      lapDeltaLookup,
+      baselineComparison,
       startSummary: computeStartMetrics(raceSamples, {
         speedUnit: telemetry.unitSettings.speedUnit,
         startCurrentThreshold: Number.isFinite(settings.analyticsSettings?.startCurrentThresholdA)
@@ -171,10 +228,19 @@ const downloadRaceCsv = (race) => {
  * @brief Format numeric value for display.
  */
 const formatValue = (val) => {
-  if (typeof val === 'number') {
+  if (typeof val === 'number' && Number.isFinite(val)) {
     return val.toFixed(2)
   }
+  if (val === null || val === undefined || val === '') return '-'
   return val
+}
+
+/**
+ * @brief Format signed metric values for trend and delta labels.
+ */
+const formatSigned = (value, digits = 2) => {
+  if (!Number.isFinite(value)) return '-'
+  return `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
 }
 
 /**
@@ -194,6 +260,15 @@ const getOverlapSeverityClass = (severity) => {
   if (severity === 'Critical') return 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/20'
   if (severity === 'Warning') return 'text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/20'
   return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20'
+}
+
+/**
+ * @brief Badge classes for lap confidence labels.
+ */
+const getConfidenceClass = (label) => {
+  if (label === 'invalid') return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/20'
+  if (label === 'suspect') return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/20'
+  return 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/20'
 }
 
 /**
@@ -284,9 +359,26 @@ const getBarPercent = (val, min, max) => {
   return Math.min(100, Math.max(0, ((cleanVal - min) / range) * 100))
 }
 
-// Disclaimer Modal
+/**
+ * @brief Create an SVG path string for compact sparkline rendering.
+ */
+const buildSparklinePath = (values, width = 128, height = 40) => {
+  if (!Array.isArray(values) || values.length === 0) return ''
+  const finite = values.filter((value) => Number.isFinite(value))
+  if (finite.length === 0) return ''
+  const minValue = Math.min(...finite)
+  const maxValue = Math.max(...finite)
+  const range = maxValue - minValue || 1
+  return values
+    .map((value, index) => {
+      const x = values.length > 1 ? (index / (values.length - 1)) * width : width / 2
+      const y = height - (((value - minValue) / range) * height)
+      return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
+    })
+    .join(' ')
+}
+
 import DisclaimerModal from '../ui/DisclaimerModal.vue'
-import { onMounted } from 'vue'
 
 const showDisclaimer = ref(false)
 
@@ -310,6 +402,57 @@ const handleDisclaimerConfirm = (doNotShow) => {
     <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-zinc-500 dark:text-gray-500 italic text-sm">
       No lap data recorded yet.
     </div>
+
+    <!-- Lap Confidence + Filters -->
+    <section class="bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-3 md:p-4">
+      <h3 class="text-xs md:text-sm font-semibold text-zinc-800 dark:text-gray-200 uppercase tracking-wider">Lap Confidence Filters</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-xs">
+        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
+          <input v-model="settings.analyticsSettings.hideSuspectLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
+          Hide suspect laps
+        </label>
+        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
+          <input v-model="settings.analyticsSettings.hideInvalidLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
+          Hide invalid laps
+        </label>
+        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
+          <input v-model="settings.analyticsSettings.excludeFirstLap" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
+          Exclude first lap (out-lap)
+        </label>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-xs">
+        <label class="block text-zinc-600 dark:text-gray-400">
+          Min Lap Time (s)
+          <input
+            v-model.number="settings.analyticsSettings.minimumLapTimeSec"
+            type="number"
+            min="0"
+            step="0.1"
+            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
+          >
+        </label>
+        <label class="block text-zinc-600 dark:text-gray-400">
+          Confidence Min Time (s)
+          <input
+            v-model.number="settings.analyticsSettings.lapConfidenceMinTimeSec"
+            type="number"
+            min="1"
+            step="0.5"
+            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
+          >
+        </label>
+        <label class="block text-zinc-600 dark:text-gray-400">
+          Confidence Max Time (s)
+          <input
+            v-model.number="settings.analyticsSettings.lapConfidenceMaxTimeSec"
+            type="number"
+            min="1"
+            step="1"
+            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
+          >
+        </label>
+      </div>
+    </section>
 
     <!-- Race List -->
     <div class="flex-1 overflow-y-auto space-y-4 md:space-y-8 pr-1 md:pr-2">
@@ -335,9 +478,85 @@ const handleDisclaimerConfirm = (doNotShow) => {
             </button>
           </div>
           <div class="text-xs md:text-sm text-zinc-600 dark:text-gray-400 mt-1 md:mt-0">
-            Laps: <span class="text-zinc-900 dark:text-white font-mono font-bold">{{ race.sortedLaps.length }}</span>
+            Laps: <span class="text-zinc-900 dark:text-white font-mono font-bold">{{ race.filteredLapCount }}</span>
+            <span class="mx-1">/</span>
+            <span class="font-mono">{{ race.sourceLapCount }}</span>
+            <span v-if="race.excludedLaps.length > 0" class="ml-1 text-amber-600 dark:text-amber-400">
+              ({{ race.excludedLaps.length }} filtered)
+            </span>
           </div>
         </div>
+
+        <!-- Session KPI Summary -->
+        <details class="bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-3" open>
+          <summary class="cursor-pointer text-xs md:text-sm font-semibold text-zinc-800 dark:text-gray-200">
+            Session KPI and Stint Summary
+          </summary>
+          <div class="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <div class="text-zinc-600 dark:text-gray-400">Best Lap<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.bestLapTimeSec) }} s</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Median Lap<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.medianLapTimeSec) }} s</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Consistency (Std Dev)<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.lapConsistencyStdDevSec) }} s</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Total Ah<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.totalAh) }} Ah</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Avg Efficiency<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.averageEfficiency) }}</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Laps<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ race.stintKpis.totalLaps }}</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Max Temp<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.maxTemp) }} °</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Max Imbalance<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatValue(race.stintKpis.maxImbalance) }} V</div></div>
+            <div class="text-zinc-600 dark:text-gray-400 col-span-2">
+              Last 5 Lap Trend
+              <div class="font-mono text-zinc-900 dark:text-white font-semibold">
+                {{ race.stintKpis.lastNLaps.length > 0 ? race.stintKpis.lastNLaps.map((value) => value.toFixed(2)).join(' / ') : '-' }}
+              </div>
+              <div class="text-[10px] text-zinc-500 dark:text-gray-500">
+                slope {{ formatSigned(race.stintKpis.lastNTrendSlopeSecPerLap, 3) }} s/lap
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details
+          v-if="race.baselineComparison"
+          class="bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-3"
+        >
+          <summary class="cursor-pointer text-xs md:text-sm font-semibold text-zinc-800 dark:text-gray-200">
+            Baseline Comparison vs {{ race.baselineComparison.baselineRaceName }} ({{ formatDate(race.baselineComparison.baselineRaceStart) }})
+          </summary>
+          <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div class="text-zinc-600 dark:text-gray-400">Δ Best Lap<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatSigned(race.baselineComparison.deltas.bestLapTimeSec, 2) }} s</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Δ Median Lap<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatSigned(race.baselineComparison.deltas.medianLapTimeSec, 2) }} s</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Δ Total Ah<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatSigned(race.baselineComparison.deltas.totalAh, 3) }} Ah</div></div>
+            <div class="text-zinc-600 dark:text-gray-400">Δ Avg Eff<div class="font-mono text-zinc-900 dark:text-white font-semibold">{{ formatSigned(race.baselineComparison.deltas.averageEfficiency, 3) }}</div></div>
+          </div>
+        </details>
+
+        <!-- Lap Degradation -->
+        <details class="bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-3">
+          <summary class="cursor-pointer text-xs md:text-sm font-semibold text-zinc-800 dark:text-gray-200">
+            Lap Degradation (Time / Ah / Efficiency)
+          </summary>
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="rounded-md border border-zinc-200 dark:border-neutral-700 p-3 bg-white dark:bg-neutral-800/60">
+              <div class="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-gray-400 font-bold">Lap Time (LL_Time)</div>
+              <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
+                <path :d="buildSparklinePath(race.stintKpis.degradation.lapTime.sparkline)" fill="none" stroke="currentColor" class="text-primary" stroke-width="2" />
+              </svg>
+              <div class="text-[11px] text-zinc-600 dark:text-gray-400 mt-1">Trend: <span class="font-mono text-zinc-900 dark:text-white">{{ formatSigned(race.stintKpis.degradation.lapTime.trendSlopePerLap, 3) }}</span> s/lap</div>
+            </div>
+            <div class="rounded-md border border-zinc-200 dark:border-neutral-700 p-3 bg-white dark:bg-neutral-800/60">
+              <div class="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-gray-400 font-bold">Energy Per Lap (LL_Ah)</div>
+              <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
+                <path :d="buildSparklinePath(race.stintKpis.degradation.lapAh.sparkline)" fill="none" stroke="currentColor" class="text-amber-500" stroke-width="2" />
+              </svg>
+              <div class="text-[11px] text-zinc-600 dark:text-gray-400 mt-1">Trend: <span class="font-mono text-zinc-900 dark:text-white">{{ formatSigned(race.stintKpis.degradation.lapAh.trendSlopePerLap, 4) }}</span> Ah/lap</div>
+            </div>
+            <div class="rounded-md border border-zinc-200 dark:border-neutral-700 p-3 bg-white dark:bg-neutral-800/60">
+              <div class="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-gray-400 font-bold">Efficiency (LL_Eff)</div>
+              <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
+                <path :d="buildSparklinePath(race.stintKpis.degradation.lapEfficiency.sparkline)" fill="none" stroke="currentColor" class="text-emerald-500" stroke-width="2" />
+              </svg>
+              <div class="text-[11px] text-zinc-600 dark:text-gray-400 mt-1">Trend: <span class="font-mono text-zinc-900 dark:text-white">{{ formatSigned(race.stintKpis.degradation.lapEfficiency.trendSlopePerLap, 3) }}</span> /lap</div>
+            </div>
+          </div>
+        </details>
 
         <!-- Start Summary Strip -->
         <div
@@ -397,6 +616,12 @@ const handleDisclaimerConfirm = (doNotShow) => {
                 <td class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-xs md:text-base text-primary font-bold">
                   <div class="flex items-center space-x-2">
                     <span>{{ lap.lapNumber ?? '-' }}</span>
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] uppercase tracking-wider"
+                      :class="getConfidenceClass(lap.confidenceLabel)"
+                    >
+                      {{ lap.confidenceLabel || 'good' }}
+                    </span>
                     <button @click="viewLapOnGraph(lap)"
                       class="text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
                       title="View Lap on Graph">
@@ -426,6 +651,18 @@ const handleDisclaimerConfirm = (doNotShow) => {
                       :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
                       {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatValue(getDiff(lap,
                         race.sortedLaps, key, idx)) }}
+                    </span>
+                  </div>
+                  <div
+                    v-if="key === 'LL_Time' && race.lapDeltaLookup?.[lap.lapNumber]"
+                    class="relative z-10 mt-1 flex flex-wrap gap-2 text-[9px] md:text-[10px] text-zinc-500 dark:text-gray-500"
+                  >
+                    <span>Δ best: <span class="font-mono">{{ formatSigned(race.lapDeltaLookup[lap.lapNumber].deltaToBestSec, 2) }}</span>s</span>
+                    <span>
+                      Δ roll:
+                      <span class="font-mono">
+                        {{ formatSigned(race.lapDeltaLookup[lap.lapNumber].deltaToRollingAverageSec, 2) }}
+                      </span>s
                     </span>
                   </div>
                 </td>

@@ -8,6 +8,24 @@
 import { useTelemetryStore } from '../stores/telemetry'
 
 /**
+ * @brief Download plain text content as a local file.
+ * @param {string} textContent - Text payload to save
+ * @param {string} filename - Output filename
+ */
+export function downloadTextFile(textContent, filename) {
+    const blob = new Blob([String(textContent ?? '')], { type: 'text/plain;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
+/**
  * @brief Export a range of telemetry history to a CSV file.
  * @description Filters telemetry data by timestamp range, generates a CSV with
  *              appropriate headers and units, and triggers a browser download.
@@ -156,5 +174,60 @@ export function exportHistoryAsCsv(startTime, endTime, filenamePrefix = 'eChook'
         URL.revokeObjectURL(url)
     }
 
+    return true
+}
+
+/**
+ * @brief Export reliability events to CSV.
+ * @param {Array<Object>} events - Event list
+ * @param {Object} [options] - Export options
+ * @param {string} [options.filenamePrefix='eChook-events'] - Filename prefix
+ * @returns {boolean} True when export succeeds
+ */
+export function exportEventsAsCsv(events, options = {}) {
+    const rows = Array.isArray(events) ? events : []
+    if (rows.length === 0) return false
+
+    const headers = ['Timestamp (ms)', 'ISO Time', 'Type', 'Severity', 'Title', 'Message', 'Value', 'Threshold', 'Duration (s)', 'End Timestamp (ms)']
+    const csvRows = rows.map((event) => {
+        const timestamp = Number.isFinite(event?.timestamp) ? event.timestamp : ''
+        const endTimestamp = Number.isFinite(event?.endTimestamp) ? event.endTimestamp : ''
+        const duration = Number.isFinite(event?.durationSec) ? event.durationSec : ''
+        const value = Number.isFinite(event?.value) ? event.value : ''
+        const threshold = Number.isFinite(event?.threshold) ? event.threshold : ''
+        const cells = [
+            timestamp,
+            Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : '',
+            event?.type || '',
+            event?.severity || '',
+            event?.title || '',
+            event?.message || '',
+            value,
+            threshold,
+            duration,
+            endTimestamp
+        ]
+        return cells.map((cell) => {
+            const text = String(cell)
+            if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                return `"${text.replaceAll('"', '""')}"`
+            }
+            return text
+        }).join(',')
+    })
+
+    const csvContent = [headers.join(','), ...csvRows].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const filenamePrefix = options.filenamePrefix || 'eChook-events'
+    const filename = `${filenamePrefix}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.csv`
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
     return true
 }

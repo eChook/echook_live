@@ -21,6 +21,9 @@ describe('settings store', () => {
         expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)
         expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(5)
         expect(settings.analyticsSettings.startCurrentThresholdA).toBe(10)
+        expect(settings.analyticsSettings.hideSuspectLaps).toBe(false)
+        expect(settings.analyticsSettings.eventUndervoltageWarningV).toBe(20)
+        expect(settings.analyticsSettings.eventOverTempCriticalC).toBe(65)
     })
 
     it('allows updating unit settings', () => {
@@ -130,13 +133,17 @@ describe('settings store', () => {
                 analyticsSettings: {
                     liveWindowMinutes: 999,
                     throttleOverlapThresholdPct: -5,
-                    startCurrentThresholdA: 20
+                    startCurrentThresholdA: 20,
+                    eventDropoutWarningSec: -100,
+                    eventDropoutCriticalSec: 99999
                 }
             })
 
             expect(settings.analyticsSettings.liveWindowMinutes).toBe(120)
             expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(0)
             expect(settings.analyticsSettings.startCurrentThresholdA).toBe(20)
+            expect(settings.analyticsSettings.eventDropoutWarningSec).toBe(0)
+            expect(settings.analyticsSettings.eventDropoutCriticalSec).toBe(3600)
         })
     })
 

@@ -161,7 +161,29 @@ export const useSettingsStore = defineStore('settings', () => {
     const analyticsSettings = ref({
         liveWindowMinutes: 10,
         throttleOverlapThresholdPct: 5,
-        startCurrentThresholdA: 10
+        startCurrentThresholdA: 10,
+        lapConfidenceMinTimeSec: 15,
+        lapConfidenceMaxTimeSec: 600,
+        hideSuspectLaps: false,
+        hideInvalidLaps: false,
+        excludeFirstLap: false,
+        minimumLapTimeSec: 0,
+        baselineRequireTrackMatch: true,
+        manualStartOffsetSec: null,
+        autoCollapseStartCardSec: 60,
+        enableSideBySideHistoryCompare: false,
+        eventUndervoltageWarningV: 20,
+        eventUndervoltageCriticalV: 18,
+        eventOverTempWarningC: 55,
+        eventOverTempCriticalC: 65,
+        eventCurrentSpikeWarningA: 20,
+        eventCurrentSpikeCriticalA: 35,
+        eventDropoutWarningSec: 10,
+        eventDropoutCriticalSec: 30,
+        eventStaleWarningSec: 5,
+        eventStaleCriticalSec: 15,
+        eventOverlapWarningSec: 1,
+        eventOverlapCriticalSec: 3
     })
 
     // ============================================
@@ -392,6 +414,226 @@ export const useSettingsStore = defineStore('settings', () => {
                         )
                     } else {
                         errors.push('analyticsSettings.startCurrentThresholdA must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.lapConfidenceMinTimeSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.lapConfidenceMinTimeSec)) {
+                        nextAnalyticsSettings.lapConfidenceMinTimeSec = clampNumber(
+                            Number(newData.analyticsSettings.lapConfidenceMinTimeSec),
+                            1,
+                            600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.lapConfidenceMinTimeSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.lapConfidenceMaxTimeSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.lapConfidenceMaxTimeSec)) {
+                        nextAnalyticsSettings.lapConfidenceMaxTimeSec = clampNumber(
+                            Number(newData.analyticsSettings.lapConfidenceMaxTimeSec),
+                            1,
+                            7200
+                        )
+                    } else {
+                        errors.push('analyticsSettings.lapConfidenceMaxTimeSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.hideSuspectLaps !== undefined) {
+                    if (typeof newData.analyticsSettings.hideSuspectLaps === 'boolean') {
+                        nextAnalyticsSettings.hideSuspectLaps = newData.analyticsSettings.hideSuspectLaps
+                    } else {
+                        errors.push('analyticsSettings.hideSuspectLaps must be boolean.')
+                    }
+                }
+                if (newData.analyticsSettings.hideInvalidLaps !== undefined) {
+                    if (typeof newData.analyticsSettings.hideInvalidLaps === 'boolean') {
+                        nextAnalyticsSettings.hideInvalidLaps = newData.analyticsSettings.hideInvalidLaps
+                    } else {
+                        errors.push('analyticsSettings.hideInvalidLaps must be boolean.')
+                    }
+                }
+                if (newData.analyticsSettings.excludeFirstLap !== undefined) {
+                    if (typeof newData.analyticsSettings.excludeFirstLap === 'boolean') {
+                        nextAnalyticsSettings.excludeFirstLap = newData.analyticsSettings.excludeFirstLap
+                    } else {
+                        errors.push('analyticsSettings.excludeFirstLap must be boolean.')
+                    }
+                }
+                if (newData.analyticsSettings.minimumLapTimeSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.minimumLapTimeSec)) {
+                        nextAnalyticsSettings.minimumLapTimeSec = clampNumber(
+                            Number(newData.analyticsSettings.minimumLapTimeSec),
+                            0,
+                            3600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.minimumLapTimeSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.baselineRequireTrackMatch !== undefined) {
+                    if (typeof newData.analyticsSettings.baselineRequireTrackMatch === 'boolean') {
+                        nextAnalyticsSettings.baselineRequireTrackMatch = newData.analyticsSettings.baselineRequireTrackMatch
+                    } else {
+                        errors.push('analyticsSettings.baselineRequireTrackMatch must be boolean.')
+                    }
+                }
+                if (newData.analyticsSettings.manualStartOffsetSec !== undefined) {
+                    if (newData.analyticsSettings.manualStartOffsetSec === null || Number.isFinite(newData.analyticsSettings.manualStartOffsetSec)) {
+                        nextAnalyticsSettings.manualStartOffsetSec = newData.analyticsSettings.manualStartOffsetSec === null
+                            ? null
+                            : clampNumber(Number(newData.analyticsSettings.manualStartOffsetSec), 0, 1200)
+                    } else {
+                        errors.push('analyticsSettings.manualStartOffsetSec must be a valid number or null.')
+                    }
+                }
+                if (newData.analyticsSettings.autoCollapseStartCardSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.autoCollapseStartCardSec)) {
+                        nextAnalyticsSettings.autoCollapseStartCardSec = clampNumber(
+                            Number(newData.analyticsSettings.autoCollapseStartCardSec),
+                            0,
+                            1800
+                        )
+                    } else {
+                        errors.push('analyticsSettings.autoCollapseStartCardSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.enableSideBySideHistoryCompare !== undefined) {
+                    if (typeof newData.analyticsSettings.enableSideBySideHistoryCompare === 'boolean') {
+                        nextAnalyticsSettings.enableSideBySideHistoryCompare = newData.analyticsSettings.enableSideBySideHistoryCompare
+                    } else {
+                        errors.push('analyticsSettings.enableSideBySideHistoryCompare must be boolean.')
+                    }
+                }
+                if (newData.analyticsSettings.eventUndervoltageWarningV !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventUndervoltageWarningV)) {
+                        nextAnalyticsSettings.eventUndervoltageWarningV = clampNumber(
+                            Number(newData.analyticsSettings.eventUndervoltageWarningV),
+                            0,
+                            1000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventUndervoltageWarningV must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventUndervoltageCriticalV !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventUndervoltageCriticalV)) {
+                        nextAnalyticsSettings.eventUndervoltageCriticalV = clampNumber(
+                            Number(newData.analyticsSettings.eventUndervoltageCriticalV),
+                            0,
+                            1000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventUndervoltageCriticalV must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventOverTempWarningC !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventOverTempWarningC)) {
+                        nextAnalyticsSettings.eventOverTempWarningC = clampNumber(
+                            Number(newData.analyticsSettings.eventOverTempWarningC),
+                            -100,
+                            300
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventOverTempWarningC must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventOverTempCriticalC !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventOverTempCriticalC)) {
+                        nextAnalyticsSettings.eventOverTempCriticalC = clampNumber(
+                            Number(newData.analyticsSettings.eventOverTempCriticalC),
+                            -100,
+                            300
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventOverTempCriticalC must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventCurrentSpikeWarningA !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventCurrentSpikeWarningA)) {
+                        nextAnalyticsSettings.eventCurrentSpikeWarningA = clampNumber(
+                            Number(newData.analyticsSettings.eventCurrentSpikeWarningA),
+                            0,
+                            1000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventCurrentSpikeWarningA must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventCurrentSpikeCriticalA !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventCurrentSpikeCriticalA)) {
+                        nextAnalyticsSettings.eventCurrentSpikeCriticalA = clampNumber(
+                            Number(newData.analyticsSettings.eventCurrentSpikeCriticalA),
+                            0,
+                            1000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventCurrentSpikeCriticalA must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventDropoutWarningSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventDropoutWarningSec)) {
+                        nextAnalyticsSettings.eventDropoutWarningSec = clampNumber(
+                            Number(newData.analyticsSettings.eventDropoutWarningSec),
+                            0,
+                            3600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventDropoutWarningSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventDropoutCriticalSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventDropoutCriticalSec)) {
+                        nextAnalyticsSettings.eventDropoutCriticalSec = clampNumber(
+                            Number(newData.analyticsSettings.eventDropoutCriticalSec),
+                            0,
+                            3600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventDropoutCriticalSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventStaleWarningSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventStaleWarningSec)) {
+                        nextAnalyticsSettings.eventStaleWarningSec = clampNumber(
+                            Number(newData.analyticsSettings.eventStaleWarningSec),
+                            0,
+                            3600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventStaleWarningSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventStaleCriticalSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventStaleCriticalSec)) {
+                        nextAnalyticsSettings.eventStaleCriticalSec = clampNumber(
+                            Number(newData.analyticsSettings.eventStaleCriticalSec),
+                            0,
+                            3600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventStaleCriticalSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventOverlapWarningSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventOverlapWarningSec)) {
+                        nextAnalyticsSettings.eventOverlapWarningSec = clampNumber(
+                            Number(newData.analyticsSettings.eventOverlapWarningSec),
+                            0,
+                            300
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventOverlapWarningSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventOverlapCriticalSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventOverlapCriticalSec)) {
+                        nextAnalyticsSettings.eventOverlapCriticalSec = clampNumber(
+                            Number(newData.analyticsSettings.eventOverlapCriticalSec),
+                            0,
+                            300
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventOverlapCriticalSec must be a valid number.')
                     }
                 }
                 analyticsSettings.value = nextAnalyticsSettings

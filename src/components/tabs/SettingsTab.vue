@@ -348,9 +348,10 @@ const themeOptions = [
         <InformationCircleIcon class="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div class="text-xs text-zinc-600 dark:text-gray-400 leading-relaxed">
           <p class="font-bold text-zinc-800 dark:text-gray-300 mb-1 uppercase tracking-wider">Browser Storage</p>
-          Unit, visual, and performance settings are saved automatically to your browser's local storage for this
-          device.
-          Use the menu at the top to download a backup file or load settings on a different machine.
+          Unit, visual, performance, and analytics thresholds are saved automatically to your browser's local storage
+          for this device.
+          Use the menu at the top to download a backup file or load settings on a different machine. Export/import
+          includes analytics window, overlap threshold, and race-start current threshold values.
         </div>
       </div>
 
@@ -377,6 +378,179 @@ const themeOptions = [
               <option value="c">Celsius (°C)</option>
               <option value="f">Fahrenheit (°F)</option>
             </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics Controls -->
+      <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">Analytics Controls</h3>
+        <div class="space-y-6">
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-sm font-medium text-zinc-700 dark:text-gray-300">Live Window</label>
+              <span class="text-sm font-mono text-primary">{{ settings.analyticsSettings.liveWindowMinutes }} min</span>
+            </div>
+            <input
+              type="range"
+              v-model.number="settings.analyticsSettings.liveWindowMinutes"
+              min="1"
+              max="120"
+              step="1"
+              class="w-full h-2 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <p class="text-xs text-zinc-500 dark:text-gray-500 mt-1">
+              Rolling window used by Live Analytics mode for KPI and health summaries.
+            </p>
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-sm font-medium text-zinc-700 dark:text-gray-300">Throttle Overlap Threshold</label>
+              <span class="text-sm font-mono text-primary">{{ settings.analyticsSettings.throttleOverlapThresholdPct.toFixed(1) }}%</span>
+            </div>
+            <input
+              type="range"
+              v-model.number="settings.analyticsSettings.throttleOverlapThresholdPct"
+              min="0"
+              max="100"
+              step="0.5"
+              class="w-full h-2 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <p class="text-xs text-zinc-500 dark:text-gray-500 mt-1">
+              Minimum throttle level used when detecting throttle + brake overlap events.
+            </p>
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-sm font-medium text-zinc-700 dark:text-gray-300">Race Start Current Threshold</label>
+              <span class="text-sm font-mono text-primary">{{ settings.analyticsSettings.startCurrentThresholdA.toFixed(1) }} A</span>
+            </div>
+            <input
+              type="range"
+              v-model.number="settings.analyticsSettings.startCurrentThresholdA"
+              min="0"
+              max="200"
+              step="1"
+              class="w-full h-2 bg-zinc-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <p class="text-xs text-zinc-500 dark:text-gray-500 mt-1">
+              Current level that can trigger race-start detection when speed packets are sparse.
+            </p>
+          </div>
+
+          <div class="border-t border-zinc-200 dark:border-neutral-700 pt-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Lap Confidence and Filtering</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="text-xs text-zinc-600 dark:text-gray-400">
+                Confidence Min Lap Time (s)
+                <input v-model.number="settings.analyticsSettings.lapConfidenceMinTimeSec" type="number" min="1" step="0.5"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">
+                Confidence Max Lap Time (s)
+                <input v-model.number="settings.analyticsSettings.lapConfidenceMaxTimeSec" type="number" min="1" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">
+                Minimum Included Lap Time (s)
+                <input v-model.number="settings.analyticsSettings.minimumLapTimeSec" type="number" min="0" step="0.1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <div class="text-xs text-zinc-600 dark:text-gray-400 space-y-2">
+                <label class="flex items-center gap-2">
+                  <input v-model="settings.analyticsSettings.hideSuspectLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700" />
+                  Hide suspect laps
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="settings.analyticsSettings.hideInvalidLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700" />
+                  Hide invalid laps
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="settings.analyticsSettings.excludeFirstLap" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700" />
+                  Exclude first lap
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-zinc-200 dark:border-neutral-700 pt-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Event Thresholds and Severity</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Undervoltage Warn (V)
+                <input v-model.number="settings.analyticsSettings.eventUndervoltageWarningV" type="number" step="0.1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Undervoltage Critical (V)
+                <input v-model.number="settings.analyticsSettings.eventUndervoltageCriticalV" type="number" step="0.1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Over-temp Warn (C)
+                <input v-model.number="settings.analyticsSettings.eventOverTempWarningC" type="number" step="0.5"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Over-temp Critical (C)
+                <input v-model.number="settings.analyticsSettings.eventOverTempCriticalC" type="number" step="0.5"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Current Spike Warn (A)
+                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeWarningA" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Current Spike Critical (A)
+                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeCriticalA" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Dropout Warn (s)
+                <input v-model.number="settings.analyticsSettings.eventDropoutWarningSec" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Dropout Critical (s)
+                <input v-model.number="settings.analyticsSettings.eventDropoutCriticalSec" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Stale Warn (s)
+                <input v-model.number="settings.analyticsSettings.eventStaleWarningSec" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Stale Critical (s)
+                <input v-model.number="settings.analyticsSettings.eventStaleCriticalSec" type="number" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Overlap Warn (s)
+                <input v-model.number="settings.analyticsSettings.eventOverlapWarningSec" type="number" step="0.1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Overlap Critical (s)
+                <input v-model.number="settings.analyticsSettings.eventOverlapCriticalSec" type="number" step="0.1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+            </div>
+          </div>
+
+          <div class="border-t border-zinc-200 dark:border-neutral-700 pt-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Analytics UX</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Manual Start Offset (s)
+                <input v-model.number="settings.analyticsSettings.manualStartOffsetSec" type="number" min="0" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <label class="text-xs text-zinc-600 dark:text-gray-400">Auto-collapse Start Card (s)
+                <input v-model.number="settings.analyticsSettings.autoCollapseStartCardSec" type="number" min="0" step="1"
+                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </label>
+              <div class="text-xs text-zinc-600 dark:text-gray-400 space-y-2 mt-1">
+                <label class="flex items-center gap-2">
+                  <input v-model="settings.analyticsSettings.enableSideBySideHistoryCompare" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700" />
+                  Enable side-by-side history compare
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="settings.analyticsSettings.baselineRequireTrackMatch" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700" />
+                  Prefer same-track baseline
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </section>

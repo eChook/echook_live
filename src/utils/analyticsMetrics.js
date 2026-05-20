@@ -386,7 +386,14 @@ export function computeStartMetrics(samples, options = {}) {
     const startWindowMs = Number.isFinite(options.startWindowMs) ? options.startWindowMs : 30000
     const includeNegativePower = options.includeNegativePower === true
 
-    const start = detectRaceStart(samples, options)
+    const manualStartTimestamp = toFiniteNumber(options.manualStartTimestamp)
+    const start = manualStartTimestamp !== null
+        ? {
+            detected: true,
+            startIndex: Math.max(0, samples.findIndex((sample) => toFiniteNumber(sample?.timestamp) >= manualStartTimestamp)),
+            startTimestamp: manualStartTimestamp
+        }
+        : detectRaceStart(samples, options)
     if (!start.detected || start.startIndex < 0 || start.startTimestamp === null) {
         return {
             detected: false,
@@ -603,6 +610,753 @@ export function computeSupplyResistance(samples, options = {}) {
             deltaRMilliOhm
         },
         rolling
+    }
+}
+
+/**
+ * @brief Compute median value from a numeric array.
+ * @param {number[]} values - Numeric values
+ * @returns {number|null} Median value or null
+ */
+function median(values) {
+    if (!Array.isArray(values) || values.length === 0) return null
+    const sorted = [...values].sort((a, b) => a - b)
+    const middle = Math.floor(sorted.length / 2)
+    if (sorted.length % 2 === 0) {
+        return (sorted[middle - 1] + sorted[middle]) / 2
+    }
+    return sorted[middle]
+}
+
+/**
+ * @brief Compute population standard deviation for numeric array.
+ * @param {number[]} values - Numeric values
+ * @returns {number|null} Population standard deviation or null
+ */
+function standardDeviation(values) {
+    if (!Array.isArray(values) || values.length === 0) return null
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length
+    return Math.sqrt(variance)
+}
+
+/**
+ * @brief Convert sample speed into miles-per-hour.
+ * @param {number} speed - Speed value in selected unit
+ * @param {'mph'|'kph'|'ms'} speedUnit - Input speed unit
+ * @returns {number} Speed in mph
+ */
+function speedToMph(speed, speedUnit) {
+    if (!Number.isFinite(speed)) return 0
+    if (speedUnit === 'kph') return speed / 1.609344
+    if (speedUnit === 'ms') return speed / 0.44704
+    return speed
+}
+
+/**
+ * @brief Compute average value from finite numbers.
+ * @param {number[]} values - Candidate numeric values
+ * @returns {number|null} Average value or null
+ */
+function average(values) {
+    if (!Array.isArray(values) || values.length === 0) return null
+    const finite = values.filter((value) => Number.isFinite(value))
+    if (finite.length === 0) return null
+    return finite.reduce((sum, value) => sum + value, 0) / finite.length
+}
+
+/**
+ * @brief Build sorted lap summary array from race/lap maps.
+ * @param {Array<Object>|Object|null|undefined} lapsSource - Lap array or race.laps map
+ * @returns {Array<Object>} Sorted lap summaries
+ */
+function normalizeLaps(lapsSource) {
+    if (Array.isArray(lapsSource)) {
+        return [...lapsSource].sort((a, b) => (a?.lapNumber || 0) - (b?.lapNumber || 0))
+    }
+    if (lapsSource && typeof lapsSource === 'object') {
+        return Object.values(lapsSource).sort((a, b) => (a?.lapNumber || 0) - (b?.lapNumber || 0))
+    }
+    return []
+}
+
+/**
+ * @brief Evaluate lap confidence label and reasons from lap summary heuristics.
+ * @param {Object} lap - Current lap summary
+ * @param {Object|null} previousLap - Previous lap summary
+ * @param {Object} [options] - Confidence options
+ * @param {number} [options.minLapTimeSec=15] - Minimum plausible lap time
+ * @param {number} [options.maxLapTimeSec=600] - Maximum plausible lap time
+ * @param {number} [options.maxMissingMetrics=2] - Max missing LL_* metrics before suspect
+ * @param {number} [options.maxLapJump=1] - Max allowed lap number jump
+ * @returns {{label: 'good'|'suspect'|'invalid', score: number, reasons: string[]}} Confidence output
+ */
+export function scoreLapConfidence(lap, previousLap = null, options = {}) {
+    const minLapTimeSec = Number.isFinite(options.minLapTimeSec) ? options.minLapTimeSec : 15
+    const maxLapTimeSec = Number.isFinite(options.maxLapTimeSec) ? options.maxLapTimeSec : 600
+    const maxMissingMetrics = Number.isFinite(options.maxMissingMetrics) ? Math.max(0, Math.round(options.maxMissingMetrics)) : 2
+    const maxLapJump = Number.isFinite(options.maxLapJump) ? Math.max(1, Math.round(options.maxLapJump)) : 1
+
+    const reasons = []
+    let score = 100
+    const lapNumber = toFiniteNumber(lap?.lapNumber)
+    const lapTime = toFiniteNumber(lap?.LL_Time)
+
+    if (lapTime === null || lapTime <= 0) {
+        return {
+            label: 'invalid',
+            score: 0,
+            reasons: ['missing_or_nonpositive_lap_time']
+        }
+    }
+
+    if (lapTime < minLapTimeSec) {
+        score -= 60
+        reasons.push('lap_time_below_minimum_bound')
+    }
+    if (lapTime > maxLapTimeSec) {
+        score -= 60
+        reasons.push('lap_time_above_maximum_bound')
+    }
+
+    const placeholderMetricKeys = ['LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Eff']
+    const missingMetricCount = placeholderMetricKeys.reduce((count, key) => {
+        return toFiniteNumber(lap?.[key]) === null ? count + 1 : count
+    }, 0)
+    if (missingMetricCount > maxMissingMetrics) {
+        score -= 30
+        reasons.push('missing_ll_placeholder_metrics')
+    }
+
+    const previousLapNumber = toFiniteNumber(previousLap?.lapNumber)
+    if (lapNumber !== null && previousLapNumber !== null) {
+        const lapJump = Math.abs(lapNumber - previousLapNumber)
+        if (lapJump > maxLapJump) {
+            score -= 30
+            reasons.push('lap_sequence_jump_detected')
+        }
+    }
+
+    if (score <= 20) {
+        return { label: 'invalid', score: Math.max(0, score), reasons }
+    }
+    if (score < 80 || reasons.length > 0) {
+        return { label: 'suspect', score: Math.max(0, score), reasons }
+    }
+    return { label: 'good', score, reasons }
+}
+
+/**
+ * @brief Annotate laps with confidence labels and scores.
+ * @param {Array<Object>|Object} lapsSource - Lap array or race.laps map
+ * @param {Object} [options] - Confidence options forwarded to {@link scoreLapConfidence}
+ * @returns {Array<Object>} Laps with confidence metadata
+ */
+export function annotateLapConfidence(lapsSource, options = {}) {
+    const laps = normalizeLaps(lapsSource)
+    return laps.map((lap, index) => {
+        const confidence = scoreLapConfidence(lap, index > 0 ? laps[index - 1] : null, options)
+        return {
+            ...lap,
+            confidenceLabel: confidence.label,
+            confidenceScore: confidence.score,
+            confidenceReasons: confidence.reasons
+        }
+    })
+}
+
+/**
+ * @brief Filter lap list using confidence and minimum-lap constraints.
+ * @param {Array<Object>|Object} lapsSource - Lap array or race.laps map
+ * @param {Object} [filters] - Lap filters
+ * @param {boolean} [filters.hideSuspect=false] - Hide suspect laps
+ * @param {boolean} [filters.hideInvalid=false] - Hide invalid laps
+ * @param {boolean} [filters.excludeFirstLap=false] - Exclude first lap
+ * @param {number} [filters.minimumLapTimeSec=0] - Minimum lap time threshold
+ * @returns {{laps: Array<Object>, excluded: Array<Object>}} Included and excluded laps
+ */
+export function filterLapSummaries(lapsSource, filters = {}) {
+    const hideSuspect = filters.hideSuspect === true
+    const hideInvalid = filters.hideInvalid === true
+    const excludeFirstLap = filters.excludeFirstLap === true
+    const minimumLapTimeSec = Number.isFinite(filters.minimumLapTimeSec) ? filters.minimumLapTimeSec : 0
+    const confidenceOptions = filters.confidenceOptions || {}
+
+    const laps = annotateLapConfidence(lapsSource, confidenceOptions)
+    const included = []
+    const excluded = []
+
+    laps.forEach((lap, index) => {
+        const lapTime = toFiniteNumber(lap?.LL_Time)
+        const isFirstLap = index === 0 || lap?.lapNumber === 1
+        const excludedReasons = []
+
+        if (excludeFirstLap && isFirstLap) excludedReasons.push('excluded_first_lap')
+        if (lapTime !== null && minimumLapTimeSec > 0 && lapTime < minimumLapTimeSec) excludedReasons.push('below_minimum_lap_time')
+        if (hideSuspect && lap.confidenceLabel === 'suspect') excludedReasons.push('suspect_lap_hidden')
+        if (hideInvalid && lap.confidenceLabel === 'invalid') excludedReasons.push('invalid_lap_hidden')
+
+        if (excludedReasons.length > 0) {
+            excluded.push({ ...lap, excludedReasons })
+        } else {
+            included.push(lap)
+        }
+    })
+
+    return {
+        laps: included,
+        excluded
+    }
+}
+
+/**
+ * @brief Compute per-lap degradation values for a given metric.
+ * @param {Array<Object>|Object} lapsSource - Lap array or race.laps map
+ * @param {string} metricKey - Metric key (e.g. LL_Time, LL_Ah, LL_Eff)
+ * @param {Object} [options] - Degradation options
+ * @param {number} [options.rollingWindow=3] - Rolling average window size
+ * @returns {Object} Degradation summary and points
+ */
+export function computeLapDegradation(lapsSource, metricKey, options = {}) {
+    const rollingWindow = Number.isFinite(options.rollingWindow)
+        ? Math.max(2, Math.round(options.rollingWindow))
+        : 3
+    const laps = normalizeLaps(lapsSource)
+    const points = laps
+        .map((lap) => ({
+            lapNumber: lap?.lapNumber,
+            value: toFiniteNumber(lap?.[metricKey])
+        }))
+        .filter((point) => Number.isFinite(point.lapNumber) && point.value !== null)
+
+    if (points.length === 0) {
+        return {
+            metricKey,
+            bestValue: null,
+            trendSlopePerLap: null,
+            points: [],
+            sparkline: []
+        }
+    }
+
+    const values = points.map((point) => point.value)
+    const bestValue = Math.min(...values)
+    const sparkline = [...values]
+    const augmentedPoints = points.map((point, index) => {
+        const start = Math.max(0, index - rollingWindow)
+        const historyValues = values.slice(start, index)
+        const rollingAverage = historyValues.length > 0
+            ? historyValues.reduce((sum, value) => sum + value, 0) / historyValues.length
+            : null
+        return {
+            ...point,
+            deltaToBest: point.value - bestValue,
+            rollingAverage,
+            deltaToRollingAverage: rollingAverage === null ? null : point.value - rollingAverage
+        }
+    })
+
+    const xs = values.map((_, index) => index + 1)
+    const trend = linearRegression(xs, values)
+
+    return {
+        metricKey,
+        bestValue,
+        trendSlopePerLap: trend ? trend.slope : null,
+        points: augmentedPoints,
+        sparkline
+    }
+}
+
+/**
+ * @brief Compute session/stint KPI summary from lap summaries and telemetry samples.
+ * @param {Array<Object>|Object} lapsSource - Lap array or race.laps map
+ * @param {Array<Object>} [samples=[]] - Optional telemetry samples from same session
+ * @param {Object} [options] - KPI options
+ * @param {number} [options.lastNLaps=5] - Number of laps to include in recent trend
+ * @returns {Object} Session KPI summary
+ */
+export function computeSessionStintKpis(lapsSource, samples = [], options = {}) {
+    const lastNLaps = Number.isFinite(options.lastNLaps) ? Math.max(2, Math.round(options.lastNLaps)) : 5
+    const baseLaps = normalizeLaps(lapsSource)
+    const laps = typeof options.lapFilter === 'function' ? baseLaps.filter((lap) => options.lapFilter(lap) === true) : baseLaps
+
+    const lapTimePoints = laps
+        .map((lap) => ({
+            lapNumber: lap?.lapNumber,
+            value: toFiniteNumber(lap?.LL_Time)
+        }))
+        .filter((point) => Number.isFinite(point.lapNumber) && point.value !== null && point.value > 0)
+
+    const lapTimes = lapTimePoints.map((point) => point.value)
+    const bestLapTimeSec = lapTimes.length > 0 ? Math.min(...lapTimes) : null
+    const medianLapTimeSec = median(lapTimes)
+    const lapConsistencyStdDevSec = standardDeviation(lapTimes)
+    const totalLaps = laps.length
+
+    const recentLapTrend = lapTimePoints.slice(-lastNLaps)
+    const recentXs = recentLapTrend.map((_, index) => index + 1)
+    const recentYs = recentLapTrend.map((point) => point.value)
+    const recentTrendRegression = linearRegression(recentXs, recentYs)
+
+    const lapTimesWithDelta = lapTimePoints.map((point, index) => {
+        const rollingWindowValues = lapTimePoints
+            .slice(Math.max(0, index - 3), index)
+            .map((entry) => entry.value)
+        const rollingAverageSec = rollingWindowValues.length > 0
+            ? rollingWindowValues.reduce((sum, value) => sum + value, 0) / rollingWindowValues.length
+            : null
+        return {
+            lapNumber: point.lapNumber,
+            lapTimeSec: point.value,
+            deltaToBestSec: bestLapTimeSec === null ? null : point.value - bestLapTimeSec,
+            rollingAverageSec,
+            deltaToRollingAverageSec: rollingAverageSec === null ? null : point.value - rollingAverageSec
+        }
+    })
+
+    const lapAhValues = laps.map((lap) => toFiniteNumber(lap?.LL_Ah)).filter((value) => value !== null)
+    const lapEfficiencyValues = laps.map((lap) => toFiniteNumber(lap?.LL_Eff)).filter((value) => value !== null)
+
+    const maxTemp = (Array.isArray(samples) ? samples : []).reduce((acc, sample) => {
+        const t1 = toFiniteNumber(sample?.temp1)
+        const t2 = toFiniteNumber(sample?.temp2)
+        const localMax = Math.max(
+            t1 === null ? -Infinity : t1,
+            t2 === null ? -Infinity : t2
+        )
+        if (!Number.isFinite(localMax)) return acc
+        return acc === null ? localMax : Math.max(acc, localMax)
+    }, null)
+
+    const maxImbalance = (Array.isArray(samples) ? samples : []).reduce((acc, sample) => {
+        const imbalance = toFiniteNumber(sample?.voltageDiff)
+        if (imbalance === null) return acc
+        return acc === null ? imbalance : Math.max(acc, imbalance)
+    }, null)
+
+    return {
+        sourceLapCount: baseLaps.length,
+        totalLaps,
+        bestLapTimeSec,
+        medianLapTimeSec,
+        lapConsistencyStdDevSec,
+        lastNLaps: recentLapTrend.map((lap) => lap.value),
+        lastNTrendSlopeSecPerLap: recentTrendRegression ? recentTrendRegression.slope : null,
+        totalAh: lapAhValues.reduce((sum, value) => sum + value, 0),
+        averageEfficiency: average(lapEfficiencyValues),
+        maxTemp,
+        maxImbalance,
+        lapTimesWithDelta,
+        degradation: {
+            lapTime: computeLapDegradation(laps, 'LL_Time'),
+            lapAh: computeLapDegradation(laps, 'LL_Ah'),
+            lapEfficiency: computeLapDegradation(laps, 'LL_Eff')
+        }
+    }
+}
+
+/**
+ * @brief Compute deltas between a current race and baseline race.
+ * @param {Array<Object>|Object} currentLapsSource - Current race laps
+ * @param {Array<Object>|Object} baselineLapsSource - Baseline race laps
+ * @param {Array<Object>} [currentSamples=[]] - Current telemetry samples
+ * @param {Array<Object>} [baselineSamples=[]] - Baseline telemetry samples
+ * @returns {Object} Baseline comparison summary and deltas
+ */
+export function computeBaselineComparison(currentLapsSource, baselineLapsSource, currentSamples = [], baselineSamples = []) {
+    const current = computeSessionStintKpis(currentLapsSource, currentSamples, { lastNLaps: 5 })
+    const baseline = computeSessionStintKpis(baselineLapsSource, baselineSamples, { lastNLaps: 5 })
+    return {
+        current,
+        baseline,
+        deltas: {
+            bestLapTimeSec: Number.isFinite(current.bestLapTimeSec) && Number.isFinite(baseline.bestLapTimeSec)
+                ? current.bestLapTimeSec - baseline.bestLapTimeSec
+                : null,
+            medianLapTimeSec: Number.isFinite(current.medianLapTimeSec) && Number.isFinite(baseline.medianLapTimeSec)
+                ? current.medianLapTimeSec - baseline.medianLapTimeSec
+                : null,
+            totalAh: Number.isFinite(current.totalAh) && Number.isFinite(baseline.totalAh)
+                ? current.totalAh - baseline.totalAh
+                : null,
+            averageEfficiency: Number.isFinite(current.averageEfficiency) && Number.isFinite(baseline.averageEfficiency)
+                ? current.averageEfficiency - baseline.averageEfficiency
+                : null
+        }
+    }
+}
+
+/**
+ * @brief Resolve event severity from value against warning/critical bounds.
+ * @param {number} value - Measured value
+ * @param {number} warningThreshold - Warning threshold
+ * @param {number} criticalThreshold - Critical threshold
+ * @param {boolean} [higherIsWorse=true] - Threshold direction
+ * @returns {'info'|'warning'|'critical'} Severity label
+ */
+function resolveSeverity(value, warningThreshold, criticalThreshold, higherIsWorse = true) {
+    if (!Number.isFinite(value)) return 'info'
+    if (higherIsWorse) {
+        if (Number.isFinite(criticalThreshold) && value >= criticalThreshold) return 'critical'
+        if (Number.isFinite(warningThreshold) && value >= warningThreshold) return 'warning'
+        return 'info'
+    }
+    if (Number.isFinite(criticalThreshold) && value <= criticalThreshold) return 'critical'
+    if (Number.isFinite(warningThreshold) && value <= warningThreshold) return 'warning'
+    return 'info'
+}
+
+/**
+ * @brief Detect reliability events from telemetry stream.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Detection thresholds and runtime options
+ * @param {number} [options.nowTimestamp=Date.now()] - Current timestamp for stale detection
+ * @param {number} [options.undervoltageWarningV=20] - Undervoltage warning threshold
+ * @param {number} [options.undervoltageCriticalV=18] - Undervoltage critical threshold
+ * @param {number} [options.overTempWarningC=55] - Over-temp warning threshold
+ * @param {number} [options.overTempCriticalC=65] - Over-temp critical threshold
+ * @param {number} [options.currentSpikeWarningA=20] - Current spike warning delta
+ * @param {number} [options.currentSpikeCriticalA=35] - Current spike critical delta
+ * @param {number} [options.dropoutWarningSec=10] - Dropout warning duration
+ * @param {number} [options.dropoutCriticalSec=30] - Dropout critical duration
+ * @param {number} [options.staleLiveWarningSec=5] - Stale-live warning duration
+ * @param {number} [options.staleLiveCriticalSec=15] - Stale-live critical duration
+ * @param {number} [options.overlapWarningSec=1] - Overlap warning threshold
+ * @param {number} [options.overlapCriticalSec=3] - Overlap critical threshold
+ * @param {number} [options.throttleOverlapThresholdPct=5] - Overlap throttle threshold
+ * @param {number} [options.brakeThreshold=0.5] - Overlap brake threshold
+ * @returns {Array<Object>} Sorted reliability events
+ */
+export function detectReliabilityEvents(samples, options = {}) {
+    const data = Array.isArray(samples) ? samples : []
+    const events = []
+    if (data.length === 0) return events
+
+    const undervoltageWarningV = Number.isFinite(options.undervoltageWarningV) ? options.undervoltageWarningV : 20
+    const undervoltageCriticalV = Number.isFinite(options.undervoltageCriticalV) ? options.undervoltageCriticalV : 18
+    const overTempWarningC = Number.isFinite(options.overTempWarningC) ? options.overTempWarningC : 55
+    const overTempCriticalC = Number.isFinite(options.overTempCriticalC) ? options.overTempCriticalC : 65
+    const currentSpikeWarningA = Number.isFinite(options.currentSpikeWarningA) ? options.currentSpikeWarningA : 20
+    const currentSpikeCriticalA = Number.isFinite(options.currentSpikeCriticalA) ? options.currentSpikeCriticalA : 35
+    const dropoutWarningSec = Number.isFinite(options.dropoutWarningSec) ? options.dropoutWarningSec : 10
+    const dropoutCriticalSec = Number.isFinite(options.dropoutCriticalSec) ? options.dropoutCriticalSec : 30
+    const staleLiveWarningSec = Number.isFinite(options.staleLiveWarningSec) ? options.staleLiveWarningSec : 5
+    const staleLiveCriticalSec = Number.isFinite(options.staleLiveCriticalSec) ? options.staleLiveCriticalSec : 15
+    const overlapWarningSec = Number.isFinite(options.overlapWarningSec) ? options.overlapWarningSec : 1
+    const overlapCriticalSec = Number.isFinite(options.overlapCriticalSec) ? options.overlapCriticalSec : 3
+    const throttleOverlapThresholdPct = Number.isFinite(options.throttleOverlapThresholdPct) ? options.throttleOverlapThresholdPct : 5
+    const brakeThreshold = Number.isFinite(options.brakeThreshold) ? options.brakeThreshold : 0.5
+    const nowTimestamp = Number.isFinite(options.nowTimestamp) ? options.nowTimestamp : Date.now()
+
+    for (let i = 0; i < data.length; i += 1) {
+        const sample = data[i] || {}
+        const timestamp = toFiniteNumber(sample.timestamp)
+        if (timestamp === null) continue
+
+        const voltage = toFiniteNumber(sample.voltage)
+        if (voltage !== null) {
+            const severity = resolveSeverity(voltage, undervoltageWarningV, undervoltageCriticalV, false)
+            if (severity !== 'info') {
+                events.push({
+                    id: `uv_${timestamp}_${i}`,
+                    type: 'undervoltage',
+                    severity,
+                    timestamp,
+                    title: 'Undervoltage',
+                    message: `Voltage dropped to ${voltage.toFixed(2)} V`,
+                    value: voltage,
+                    threshold: severity === 'critical' ? undervoltageCriticalV : undervoltageWarningV
+                })
+            }
+        }
+
+        const temp1 = toFiniteNumber(sample.temp1)
+        const temp2 = toFiniteNumber(sample.temp2)
+        const maxTemp = Math.max(temp1 === null ? -Infinity : temp1, temp2 === null ? -Infinity : temp2)
+        if (Number.isFinite(maxTemp)) {
+            const severity = resolveSeverity(maxTemp, overTempWarningC, overTempCriticalC, true)
+            if (severity !== 'info') {
+                events.push({
+                    id: `temp_${timestamp}_${i}`,
+                    type: 'over_temp',
+                    severity,
+                    timestamp,
+                    title: 'Over Temperature',
+                    message: `Temperature reached ${maxTemp.toFixed(1)} C`,
+                    value: maxTemp,
+                    threshold: severity === 'critical' ? overTempCriticalC : overTempWarningC
+                })
+            }
+        }
+
+        if (i > 0) {
+            const previous = data[i - 1] || {}
+            const prevCurrent = toFiniteNumber(previous.current)
+            const current = toFiniteNumber(sample.current)
+            if (prevCurrent !== null && current !== null) {
+                const deltaCurrent = Math.abs(current - prevCurrent)
+                const severity = resolveSeverity(deltaCurrent, currentSpikeWarningA, currentSpikeCriticalA, true)
+                if (severity !== 'info') {
+                    events.push({
+                        id: `spike_${timestamp}_${i}`,
+                        type: 'current_spike',
+                        severity,
+                        timestamp,
+                        title: 'Current Spike',
+                        message: `Current changed by ${deltaCurrent.toFixed(1)} A`,
+                        value: deltaCurrent,
+                        threshold: severity === 'critical' ? currentSpikeCriticalA : currentSpikeWarningA
+                    })
+                }
+            }
+
+            const prevTs = toFiniteNumber(previous.timestamp)
+            if (prevTs !== null) {
+                const gapSec = (timestamp - prevTs) / 1000
+                const severity = resolveSeverity(gapSec, dropoutWarningSec, dropoutCriticalSec, true)
+                if (severity !== 'info') {
+                    events.push({
+                        id: `dropout_${timestamp}_${i}`,
+                        type: 'dropout',
+                        severity,
+                        timestamp: prevTs,
+                        endTimestamp: timestamp,
+                        durationSec: gapSec,
+                        title: 'Telemetry Dropout',
+                        message: `No packets for ${gapSec.toFixed(1)} s`,
+                        value: gapSec,
+                        threshold: severity === 'critical' ? dropoutCriticalSec : dropoutWarningSec
+                    })
+                }
+            }
+        }
+    }
+
+    let overlapStart = null
+    for (let i = 0; i < data.length; i += 1) {
+        const sample = data[i] || {}
+        const ts = toFiniteNumber(sample.timestamp)
+        if (ts === null) continue
+        const throttle = toFiniteNumber(sample.throttle)
+        const brake = toFiniteNumber(sample.brake)
+        const isOverlap = throttle !== null && throttle >= throttleOverlapThresholdPct && brake !== null && brake > brakeThreshold
+        if (isOverlap && overlapStart === null) overlapStart = ts
+        if (!isOverlap && overlapStart !== null) {
+            const durationSec = (ts - overlapStart) / 1000
+            const severity = resolveSeverity(durationSec, overlapWarningSec, overlapCriticalSec, true)
+            if (severity !== 'info') {
+                events.push({
+                    id: `overlap_${overlapStart}_${i}`,
+                    type: 'throttle_brake_overlap',
+                    severity,
+                    timestamp: overlapStart,
+                    endTimestamp: ts,
+                    durationSec,
+                    title: 'Throttle + Brake Overlap',
+                    message: `Overlap persisted for ${durationSec.toFixed(2)} s`,
+                    value: durationSec,
+                    threshold: severity === 'critical' ? overlapCriticalSec : overlapWarningSec
+                })
+            }
+            overlapStart = null
+        }
+    }
+
+    if (overlapStart !== null) {
+        const lastTs = toFiniteNumber(data[data.length - 1]?.timestamp)
+        if (lastTs !== null && lastTs > overlapStart) {
+            const durationSec = (lastTs - overlapStart) / 1000
+            const severity = resolveSeverity(durationSec, overlapWarningSec, overlapCriticalSec, true)
+            if (severity !== 'info') {
+                events.push({
+                    id: `overlap_${overlapStart}_end`,
+                    type: 'throttle_brake_overlap',
+                    severity,
+                    timestamp: overlapStart,
+                    endTimestamp: lastTs,
+                    durationSec,
+                    title: 'Throttle + Brake Overlap',
+                    message: `Overlap persisted for ${durationSec.toFixed(2)} s`,
+                    value: durationSec,
+                    threshold: severity === 'critical' ? overlapCriticalSec : overlapWarningSec
+                })
+            }
+        }
+    }
+
+    const lastTimestamp = toFiniteNumber(data[data.length - 1]?.timestamp)
+    if (lastTimestamp !== null) {
+        const staleSec = Math.max(0, (nowTimestamp - lastTimestamp) / 1000)
+        const severity = resolveSeverity(staleSec, staleLiveWarningSec, staleLiveCriticalSec, true)
+        if (severity !== 'info') {
+            events.push({
+                id: `stale_${lastTimestamp}`,
+                type: 'stale_live',
+                severity,
+                timestamp: lastTimestamp,
+                durationSec: staleSec,
+                title: 'Stale Live Data',
+                message: `Latest packet is ${staleSec.toFixed(1)} s old`,
+                value: staleSec,
+                threshold: severity === 'critical' ? staleLiveCriticalSec : staleLiveWarningSec
+            })
+        }
+    }
+
+    return events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+}
+
+/**
+ * @brief Build chart jump window for event navigation.
+ * @param {Object} event - Reliability event entry
+ * @param {Object} [options] - Jump window options
+ * @param {number} [options.paddingBeforeMs=15000] - Window padding before event
+ * @param {number} [options.paddingAfterMs=15000] - Window padding after event
+ * @returns {{start: number, end: number}|null} Zoom window in ms
+ */
+export function buildEventJumpWindow(event, options = {}) {
+    const timestamp = toFiniteNumber(event?.timestamp)
+    if (timestamp === null) return null
+    const paddingBeforeMs = Number.isFinite(options.paddingBeforeMs) ? options.paddingBeforeMs : 15000
+    const paddingAfterMs = Number.isFinite(options.paddingAfterMs) ? options.paddingAfterMs : 15000
+    const eventEnd = toFiniteNumber(event?.endTimestamp)
+    return {
+        start: Math.max(0, timestamp - paddingBeforeMs),
+        end: (eventEnd === null ? timestamp : eventEnd) + paddingAfterMs
+    }
+}
+
+/**
+ * @brief Generate compact text summary for analytics reporting.
+ * @param {Object} payload - Report inputs
+ * @param {Object} payload.sessionKpis - Session KPI summary
+ * @param {Object} payload.energyThermal - Energy/thermal summary
+ * @param {Object} payload.overlapMetrics - Overlap summary
+ * @param {Array<Object>} payload.events - Reliability events
+ * @returns {string} Plain-text report
+ */
+export function buildAnalyticsSummaryReport(payload = {}) {
+    const sessionKpis = payload.sessionKpis || {}
+    const energyThermal = payload.energyThermal || {}
+    const overlapMetrics = payload.overlapMetrics || {}
+    const events = Array.isArray(payload.events) ? payload.events : []
+
+    return [
+        'eChook Analytics Summary',
+        `Best lap: ${Number.isFinite(sessionKpis.bestLapTimeSec) ? sessionKpis.bestLapTimeSec.toFixed(2) : '-'} s`,
+        `Median lap: ${Number.isFinite(sessionKpis.medianLapTimeSec) ? sessionKpis.medianLapTimeSec.toFixed(2) : '-'} s`,
+        `Consistency (std dev): ${Number.isFinite(sessionKpis.lapConsistencyStdDevSec) ? sessionKpis.lapConsistencyStdDevSec.toFixed(3) : '-'}`,
+        `Total laps: ${Number.isFinite(sessionKpis.totalLaps) ? sessionKpis.totalLaps : 0}`,
+        `Total Ah: ${Number.isFinite(sessionKpis.totalAh) ? sessionKpis.totalAh.toFixed(3) : '-'}`,
+        `Average efficiency: ${Number.isFinite(sessionKpis.averageEfficiency) ? sessionKpis.averageEfficiency.toFixed(3) : '-'}`,
+        `Total energy: ${Number.isFinite(energyThermal.totalWh) ? energyThermal.totalWh.toFixed(2) : '-'} Wh`,
+        `Wh per mile: ${Number.isFinite(energyThermal.whPerMile) ? energyThermal.whPerMile.toFixed(2) : '-'}`,
+        `Overlap events: ${Number.isFinite(overlapMetrics.eventCount) ? overlapMetrics.eventCount : 0}`,
+        `Reliability events: ${events.length}`
+    ].join('\n')
+}
+
+/**
+ * @brief Compute energy and thermal summary cards from telemetry samples.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Summary options
+ * @param {'mph'|'kph'|'ms'} [options.speedUnit='mph'] - Speed unit used by samples
+ * @param {number} [options.maxDtMs=10000] - Max interval duration for integration
+ * @returns {Object} Energy and thermal summary values
+ */
+export function computeEnergyThermalSummary(samples, options = {}) {
+    const speedUnit = options.speedUnit || 'mph'
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const data = Array.isArray(samples) ? samples : []
+
+    if (data.length < 2) {
+        return {
+            totalWh: 0,
+            avgPowerW: null,
+            peakPowerW: null,
+            distanceMiles: 0,
+            whPerMile: null,
+            avgVoltage: null,
+            avgCurrent: null,
+            maxVoltageDiff: null,
+            avgVoltageDiff: null,
+            maxTemp: null,
+            tempRisePerMin: null
+        }
+    }
+
+    let totalMs = 0
+    let totalWh = 0
+    let distanceMiles = 0
+    let peakPowerW = null
+    const voltageValues = []
+    const currentValues = []
+    const imbalanceValues = []
+    const tempSeries = []
+
+    for (let i = 0; i < data.length - 1; i += 1) {
+        const sample = data[i] || {}
+        const nextSample = data[i + 1] || {}
+        const ts = toFiniteNumber(sample.timestamp)
+        const nextTs = toFiniteNumber(nextSample.timestamp)
+        if (ts === null || nextTs === null) continue
+        const dtMs = nextTs - ts
+        if (!isValidDuration(dtMs, maxDtMs)) continue
+
+        const voltage = toFiniteNumber(sample.voltage)
+        const current = toFiniteNumber(sample.current)
+        const powerW = voltage === null || current === null ? null : voltage * current
+        if (powerW !== null) {
+            peakPowerW = peakPowerW === null ? powerW : Math.max(peakPowerW, powerW)
+        }
+
+        totalWh += intervalWh(voltage, current, dtMs, false)
+        totalMs += dtMs
+
+        const speed = toFiniteNumber(sample.speed)
+        if (speed !== null) {
+            const speedMph = speedToMph(speed, speedUnit)
+            distanceMiles += speedMph * (dtMs / 3600000)
+        }
+
+        if (voltage !== null) voltageValues.push(voltage)
+        if (current !== null) currentValues.push(current)
+        const imbalance = toFiniteNumber(sample.voltageDiff)
+        if (imbalance !== null) imbalanceValues.push(imbalance)
+
+        const t1 = toFiniteNumber(sample.temp1)
+        const t2 = toFiniteNumber(sample.temp2)
+        const tempValue = average([t1, t2])
+        if (tempValue !== null) {
+            tempSeries.push({ timestamp: ts, temp: tempValue })
+        }
+    }
+
+    let tempRisePerMin = null
+    if (tempSeries.length >= 2) {
+        const start = tempSeries[0]
+        const end = tempSeries[tempSeries.length - 1]
+        const dtMinutes = (end.timestamp - start.timestamp) / 60000
+        if (dtMinutes > 0) {
+            tempRisePerMin = (end.temp - start.temp) / dtMinutes
+        }
+    }
+
+    const avgPowerW = totalMs > 0 ? (totalWh * 3600000) / totalMs : null
+
+    return {
+        totalWh,
+        avgPowerW,
+        peakPowerW,
+        distanceMiles,
+        whPerMile: distanceMiles > 0 ? totalWh / distanceMiles : null,
+        avgVoltage: average(voltageValues),
+        avgCurrent: average(currentValues),
+        maxVoltageDiff: imbalanceValues.length > 0 ? Math.max(...imbalanceValues) : null,
+        avgVoltageDiff: average(imbalanceValues),
+        maxTemp: tempSeries.length > 0 ? Math.max(...tempSeries.map((entry) => entry.temp)) : null,
+        tempRisePerMin
     }
 }
 
