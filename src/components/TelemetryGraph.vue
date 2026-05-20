@@ -58,6 +58,7 @@ use([
 ]);
 
 import { formatValue, getUnit } from '../utils/formatting'
+import { insertGapBreaks } from '../utils/chartData'
 
 /**
  * @brief Component props definition.
@@ -261,6 +262,12 @@ const getDisplayUnit = (key) => {
 }
 
 /**
+ * @brief Dataset source with null breaks inserted across long time gaps.
+ * @type {ComputedRef<Array<Object>>}
+ */
+const chartSource = computed(() => insertGapBreaks(props.data, props.dataKey))
+
+/**
  * @brief ECharts option configuration.
  * @type {ComputedRef<Object>}
  */
@@ -332,13 +339,14 @@ const option = computed(() => {
       }
     ],
     dataset: {
-      source: props.data
+      source: chartSource.value
     },
     series: [
       {
         name: props.dataKey,
         type: 'line',
         showSymbol: false,
+        connectNulls: false,
         sampling: 'average',
         encode: {
           x: 'timestamp',
