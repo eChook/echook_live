@@ -4,6 +4,23 @@
  */
 
 /**
+ * @brief Normalize a telemetry timestamp to Unix milliseconds.
+ * @description History payloads may use seconds (~1e9) while live sockets use ms (~1e12).
+ * @param {number} timestamp - Raw timestamp from a packet
+ * @returns {number} Timestamp in milliseconds, or NaN when invalid
+ */
+export function normalizeTimestampToMs(timestamp) {
+    const value = Number(timestamp)
+    if (!Number.isFinite(value)) {
+        return NaN
+    }
+    if (value >= 1e9 && value < 1e12) {
+        return value * 1000
+    }
+    return value
+}
+
+/**
  * @brief Normalize telemetry packet fields into a stable shape.
  * @description Applies key aliases, numeric-string coercion, and timestamp fallback.
  * @param {Object} rawPacket - Raw telemetry packet from socket or history API
@@ -29,7 +46,7 @@ export function normalizeTelemetryPacket(rawPacket) {
 
     const timestamp = packet.timestamp || packet.updated
     if (timestamp !== undefined) {
-        packet.timestamp = Number(timestamp)
+        packet.timestamp = normalizeTimestampToMs(timestamp)
     }
 
     return packet

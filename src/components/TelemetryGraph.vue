@@ -56,7 +56,7 @@ use([
 ]);
 
 import { formatValue, getUnit } from '../utils/formatting'
-import { toLineSeriesData } from '../utils/chartData'
+import { splitLineSeriesAtGaps } from '../utils/chartData'
 
 /**
  * @brief Component props definition.
@@ -260,12 +260,11 @@ const getDisplayUnit = (key) => {
 }
 
 /**
- * @brief Line series tuples with NaN breaks inserted across long time gaps.
- * @description Uses explicit [timestamp, value] data (not dataset) so ECharts honours
- *              breaks; sampling is disabled because it reconnects across nulls.
- * @type {ComputedRef<Array<[number, number]>>}
+ * @brief Line segments split at timestamp gaps (>30s); one ECharts series per segment.
+ * @description Separate series prevent large-mode / progressive renderers from bridging gaps.
+ * @type {ComputedRef<Array<Array<[number, number]>>>}
  */
-const lineSeriesData = computed(() => toLineSeriesData(props.data, props.dataKey))
+const lineSeriesSegments = computed(() => splitLineSeriesAtGaps(props.data, props.dataKey))
 
 /**
  * @brief ECharts option configuration.
@@ -287,23 +286,20 @@ const option = computed(() => {
       textStyle: { color: t.tooltipText },
       formatter: (params) => {
         if (!params.length) return ''
-        const date = new Date(params[0].axisValue)
+        const item = params.find((p) => Array.isArray(p.data) && Number.isFinite(p.data[1])) ?? params[0]
+        const date = new Date(item.axisValue)
         const timeStr = date.toLocaleTimeString()
-        let result = `<div class="font-bold mb-1">${timeStr}</div>`
+        const val = Array.isArray(item.data) ? item.data[1] : item.data[props.dataKey]
+        const formatted = formatValue(props.dataKey, val)
+        const unit = getDisplayUnit(props.dataKey)
 
-        params.forEach(item => {
-          const val = Array.isArray(item.data) ? item.data[1] : item.data[props.dataKey]
-          const formatted = formatValue(props.dataKey, val)
-          const unit = getDisplayUnit(props.dataKey)
-
-          result += `
-            <div class="flex items-center justify-between space-x-4">
-              <span style="color: ${item.color}">● ${item.seriesName}</span>
-              <span class="font-mono font-bold">${formatted} <span class="text-xs" style="color:${t.tooltipUnit}">${unit}</span></span>
-            </div>
-           `
-        })
-        return result
+        return `
+          <div class="font-bold mb-1">${timeStr}</div>
+          <div class="flex items-center justify-between space-x-4">
+            <span style="color: ${item.color}">● ${item.seriesName}</span>
+            <span class="font-mono font-bold">${formatted} <span class="text-xs" style="color:${t.tooltipUnit}">${unit}</span></span>
+          </div>
+        `
       }
     },
     grid: {
@@ -326,10 +322,6 @@ const option = computed(() => {
       axisLabel: { color: t.axisLabel },
       splitLine: { show: showGrid, lineStyle: { color: t.grid } }
     },
-    large: true,
-    largeThreshold: 10000,
-    progressive: 500,
-    progressiveThreshold: 1000,
     dataZoom: [
       {
         type: 'inside',
@@ -338,33 +330,32 @@ const option = computed(() => {
         moveOnMouseWheel: 'shift'
       }
     ],
-    series: [
-      {
-        name: props.dataKey,
-        type: 'line',
-        showSymbol: false,
-        connectNulls: false,
-        data: lineSeriesData.value,
-        lineStyle: { width: 2 },
-        markArea: {
-          silent: true,
-          itemStyle: {
-            opacity: 0.1
-          },
-          label: {
-            show: true,
-            position: 'insideTop',
-            align: 'center',
-            verticalAlign: 'top',
-            distance: 0,
-            color: t.markAreaLabel,
-            fontFamily: 'monospace',
-            fontSize: 10
-          },
-          data: showHighlights ? telemetry.lapMarkAreas : []
-        }
-      }
-    ]
+    series: (lineSeriesSegments.value.length > 0 ? lineSeriesSegments.value : [[]]).map((segmentData, index) => ({
+      name: props.dataKey,
+      type: 'line',
+      showSymbol: false,
+      connectNulls: false,
+      large: false,
+      data: segmentData,
+      lineStyle: { width: 2 },
+      markArea: index === 0 ? {
+        silent: true,
+        itemStyle: {
+          opacity: 0.1
+        },
+        label: {
+          show: true,
+          position: 'insideTop',
+          align: 'center',
+          verticalAlign: 'top',
+          distance: 0,
+          color: t.markAreaLabel,
+          fontFamily: 'monospace',
+          fontSize: 10
+        },
+        data: showHighlights ? telemetry.lapMarkAreas : []
+      } : undefined
+    }))
   }
 })
 

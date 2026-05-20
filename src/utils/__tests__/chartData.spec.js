@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { insertGapBreaks, toLineSeriesData, timestampToMs, MAX_LINE_GAP_MS } from '../chartData'
+import { insertGapBreaks, toLineSeriesData, splitLineSeriesAtGaps, timestampToMs, MAX_LINE_GAP_MS } from '../chartData'
 
 describe('insertGapBreaks', () => {
     it('returns empty array for empty or non-array input', () => {
@@ -53,12 +53,13 @@ describe('insertGapBreaks', () => {
         expect(b.speed).toBe(6)
     })
 
-    it('does not break when next metric value is not finite', () => {
+    it('breaks on time gap even when next metric value is missing', () => {
         const points = [
             { timestamp: 0, speed: 10 },
-            { timestamp: 50000, speed: null }
+            { timestamp: 50000 }
         ]
-        expect(insertGapBreaks(points, 'speed')).toEqual(points)
+        expect(insertGapBreaks(points, 'speed')).toHaveLength(3)
+        expect(Number.isNaN(insertGapBreaks(points, 'speed')[1].speed)).toBe(true)
     })
 
     it('uses MAX_LINE_GAP_MS as default threshold', () => {
@@ -94,6 +95,53 @@ describe('insertGapBreaks', () => {
             [1000, 10],
             [37000, NaN],
             [37000, 20]
+        ])
+    })
+})
+
+describe('splitLineSeriesAtGaps', () => {
+    it('returns one segment when all gaps are within threshold', () => {
+        const points = [
+            { timestamp: 1000, speed: 10 },
+            { timestamp: 11000, speed: 20 }
+        ]
+        expect(splitLineSeriesAtGaps(points, 'speed')).toEqual([
+            [[1000, 10], [11000, 20]]
+        ])
+    })
+
+    it('returns separate segments at each timestamp gap', () => {
+        const points = [
+            { timestamp: 0, speed: 1 },
+            { timestamp: 10000, speed: 2 },
+            { timestamp: 60000, speed: 3 }
+        ]
+        expect(splitLineSeriesAtGaps(points, 'speed')).toEqual([
+            [[0, 1], [10000, 2]],
+            [[60000, 3]]
+        ])
+    })
+
+    it('splits Unix-second timestamps and uses ms on the x axis', () => {
+        const points = [
+            { timestamp: 1700000000, speed: 10 },
+            { timestamp: 1700000045, speed: 20 }
+        ]
+        expect(splitLineSeriesAtGaps(points, 'speed')).toEqual([
+            [[1700000000000, 10]],
+            [[1700000045000, 20]]
+        ])
+    })
+
+    it('skips points without a finite metric but still breaks on time gaps', () => {
+        const points = [
+            { timestamp: 0, speed: 1 },
+            { timestamp: 50000, voltage: 99 },
+            { timestamp: 100000, speed: 2 }
+        ]
+        expect(splitLineSeriesAtGaps(points, 'speed')).toEqual([
+            [[0, 1]],
+            [[100000, 2]]
         ])
     })
 })
