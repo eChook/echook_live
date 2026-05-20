@@ -17,6 +17,7 @@
  * 
  * Props:
  * - data: Array of telemetry data points (for time range)
+ * - dataRevision: Monotonic revision used to invalidate computed data on in-place pushes
  * - group: ECharts group name for synchronization
  */
 import { computed, ref, watch, onMounted } from 'vue'
@@ -51,6 +52,11 @@ const props = defineProps({
     type: Array,
     required: true
   },
+  /** @brief Monotonic data revision (e.g., history length) */
+  dataRevision: {
+    type: Number,
+    default: 0
+  },
   /** @brief ECharts group name for synchronization */
   group: {
     type: String,
@@ -68,6 +74,7 @@ const MAX_ZOOM_POINTS = 500
  * @description Keeps zoom slider responsive by decimating large history arrays.
  */
 const zoomSeriesData = computed(() => {
+  void props.dataRevision
   const points = props.data
   if (!Array.isArray(points) || points.length === 0) return []
   if (points.length <= MAX_ZOOM_POINTS) {

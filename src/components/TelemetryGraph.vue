@@ -20,6 +20,7 @@
  * 
  * Props:
  * - data: Array of telemetry data points with timestamp
+ * - dataRevision: Monotonic revision used to invalidate computed data on in-place pushes
  * - dataKey: Which data key to display (e.g., 'speed', 'voltage')
  * - color: Line color (defaults to primary theme color)
  * - group: ECharts group name for synchronized charts
@@ -75,6 +76,11 @@ const props = defineProps({
   data: {
     type: Array,
     required: true
+  },
+  /** @brief Monotonic data revision (e.g., history length) */
+  dataRevision: {
+    type: Number,
+    default: 0
   },
   /** @brief Custom chart height (px or CSS string) */
   height: {
@@ -269,11 +275,13 @@ const getDisplayUnit = (key) => {
 }
 
 /**
- * @brief Line segments split at timestamp gaps (>30s); one ECharts series per segment.
- * @description Separate series prevent large-mode / progressive renderers from bridging gaps.
- * @type {ComputedRef<Array<Array<[number, number]>>>}
+ * @brief Reactive line segments keyed by both data reference and revision.
+ * @description `history` is a shallowRef mutated in place, so `dataRevision` forces recompute.
  */
-const lineSeriesSegments = computed(() => splitLineSeriesAtGaps(props.data, props.dataKey))
+const lineSeriesSegments = computed(() => {
+  void props.dataRevision
+  return splitLineSeriesAtGaps(props.data, props.dataKey)
+})
 
 /**
  * @brief ECharts option configuration.

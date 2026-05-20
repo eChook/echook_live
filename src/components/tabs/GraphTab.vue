@@ -33,6 +33,8 @@ import { getMetricColorMap, getFallbackMetricColors } from '../../constants/char
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
+/** @brief Monotonic revision for live history growth (forces chart child updates). */
+const historyRevision = computed(() => telemetry.history.length)
 
 /** @brief ECharts group name for synchronized charts */
 const CHART_GROUP = 'telemetry_sync_group'
@@ -180,13 +182,17 @@ onActivated(() => {
     <main class="flex-1 flex flex-col overflow-hidden bg-zinc-100 dark:bg-neutral-900">
       <!-- Master Zoom Timeline -->
       <div class="flex-shrink-0 z-10 bg-zinc-100 dark:bg-neutral-900">
-        <MasterZoom v-if="telemetry.history.length > 0" :data="telemetry.displayHistory" :group="CHART_GROUP" />
+        <MasterZoom
+          v-if="telemetry.history.length > 0"
+          :data="telemetry.displayHistory"
+          :data-revision="historyRevision"
+          :group="CHART_GROUP" />
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-2 px-2 py-2">
         <div v-if="selectedKeys.size > 0">
           <div v-for="key in Array.from(selectedKeys)" :key="key" class="w-full">
-            <TelemetryGraph :data="telemetry.displayHistory" :data-key="key" :group="CHART_GROUP"
+            <TelemetryGraph :data="telemetry.displayHistory" :data-revision="historyRevision" :data-key="key" :group="CHART_GROUP"
               :color="getColor(key)" />
           </div>
         </div>
