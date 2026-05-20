@@ -462,6 +462,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     function clearHistory() {
         history.value = []
         clearRaces()
+        chartZoomComposable.clearCurrentZoomWindow()
     }
 
     /**
@@ -530,6 +531,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         activeRoomId.value = null
         historyComposable.availableDays.value = new Set()
         isPaused.value = false
+        chartZoomComposable.clearCurrentZoomWindow()
     }
 
     // ============================================
@@ -595,9 +597,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         // Chart Control
         chartZoomRequest: chartZoomComposable.chartZoomRequest,
+        currentZoomWindowMs: chartZoomComposable.currentZoomWindowMs,
         requestChartZoom: chartZoomComposable.requestChartZoom,
         requestChartUnlock: chartZoomComposable.requestChartUnlock,
         requestChartPan: chartZoomComposable.requestChartPan,
-        requestChartScale: chartZoomComposable.requestChartScale
+        requestChartScale: chartZoomComposable.requestChartScale,
+        setCurrentZoomWindow: chartZoomComposable.setCurrentZoomWindow,
+        clearCurrentZoomWindow: chartZoomComposable.clearCurrentZoomWindow
     }
 })

@@ -25,6 +25,14 @@ export function useChartZoom() {
      * @type {Ref<Object|null>}
      */
     const chartZoomRequest = ref(null)
+    /**
+     * @brief Last resolved absolute zoom window applied to charts.
+     * @description Stored in milliseconds so newly mounted charts can inherit
+     *              the currently visible time span without waiting for a new
+     *              user zoom gesture.
+     * @type {Ref<{start: number, end: number} | null>}
+     */
+    const currentZoomWindowMs = ref(null)
 
     /**
      * @brief Request absolute chart zoom to specific time range.
@@ -58,11 +66,34 @@ export function useChartZoom() {
         chartZoomRequest.value = { type: 'scale', factor }
     }
 
+    /**
+     * @brief Persist the current absolute chart zoom window.
+     * @param {number} start - Window start timestamp in milliseconds
+     * @param {number} end - Window end timestamp in milliseconds
+     */
+    function setCurrentZoomWindow(start, end) {
+        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+            currentZoomWindowMs.value = { start, end }
+            return
+        }
+        currentZoomWindowMs.value = null
+    }
+
+    /**
+     * @brief Clear persisted absolute zoom window.
+     */
+    function clearCurrentZoomWindow() {
+        currentZoomWindowMs.value = null
+    }
+
     return {
         chartZoomRequest,
+        currentZoomWindowMs,
         requestChartZoom,
         requestChartUnlock,
         requestChartPan,
-        requestChartScale
+        requestChartScale,
+        setCurrentZoomWindow,
+        clearCurrentZoomWindow
     }
 }

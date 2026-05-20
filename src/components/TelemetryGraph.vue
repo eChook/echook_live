@@ -121,123 +121,167 @@ const chart = ref(null)
 const containerRef = ref(null)
 
 /**
- * @brief Process zoom requests from the telemetry store.
- * @description Handles: 'reset' (unlock to live), 'absolute' (specific range),
- *              'pan' (offset by time), 'scale' (zoom in/out).
+ * @brief Resolve shared telemetry time bounds used by all charts.
+ * @returns {{start: number, end: number} | null} Shared bounds in ms
+ */
+const getSharedTimeBounds = () => {
+  const earliest = Number(telemetry.earliestTime)
+  const latest = Number(telemetry.latestTime || Date.now())
+  if (Number.isFinite(earliest) && Number.isFinite(latest) && latest > earliest) {
+    return { start: earliest, end: latest }
+  }
+
+  if (Array.isArray(props.data) && props.data.length > 1) {
+    const start = Number(props.data[0]?.timestamp)
+    const end = Number(props.data[props.data.length - 1]?.timestamp)
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+      return { start, end }
+    }
+  }
+
+  return null
+}
+
+/**
+ * @brief Clamp a candidate absolute window to shared telemetry bounds.
+ * @param {number} start - Candidate window start in ms
+ * @param {number} end - Candidate window end in ms
+ * @param {{start: number, end: number} | null} bounds - Shared time bounds
+ * @returns {{start: number, end: number} | null} Clamped window
+ */
+const clampAbsoluteWindow = (start, end, bounds) => {
+  if (!bounds) return null
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
+  const total = bounds.end - bounds.start
+  if (!(total > 0)) return null
+
+  let clampedStart = start
+  let clampedEnd = end
+
+  // Clamp using shift-first behavior to preserve the requested duration when possible.
+  if (clampedStart < bounds.start) {
+    const delta = bounds.start - clampedStart
+    clampedStart = bounds.start
+    clampedEnd += delta
+  }
+  if (clampedEnd > bounds.end) {
+    const delta = clampedEnd - bounds.end
+    clampedEnd = bounds.end
+    clampedStart -= delta
+  }
+
+  clampedStart = Math.max(bounds.start, clampedStart)
+  clampedEnd = Math.min(bounds.end, clampedEnd)
+
+  const minSpan = Math.min(total, 1)
+  if ((clampedEnd - clampedStart) < minSpan) {
+    clampedEnd = Math.min(bounds.end, clampedStart + minSpan)
+    clampedStart = Math.max(bounds.start, clampedEnd - minSpan)
+  }
+  return clampedEnd > clampedStart ? { start: clampedStart, end: clampedEnd } : null
+}
+
+/**
+ * @brief Convert chart dataZoom state into absolute timestamp window.
+ * @param {Object|null|undefined} axis - dataZoom[0] option payload
+ * @param {{start: number, end: number} | null} bounds - Shared telemetry bounds
+ * @returns {{start: number, end: number} | null} Absolute window in ms
+ */
+const resolveAxisAbsoluteWindow = (axis, bounds) => {
+  if (!axis || !bounds) return null
+  if (Number.isFinite(axis.startValue) && Number.isFinite(axis.endValue)) {
+    return clampAbsoluteWindow(axis.startValue, axis.endValue, bounds)
+  }
+
+  if (Number.isFinite(axis.start) && Number.isFinite(axis.end)) {
+    const total = bounds.end - bounds.start
+    if (total <= 0) return null
+    const start = bounds.start + ((axis.start / 100) * total)
+    const end = bounds.start + ((axis.end / 100) * total)
+    return clampAbsoluteWindow(start, end, bounds)
+  }
+
+  return null
+}
+
+/**
+ * @brief Apply an absolute window to this chart and persist it globally.
+ * @param {{start: number, end: number} | null} window - Absolute window in ms
+ * @returns {boolean} True when a zoom dispatch was emitted
+ */
+const applyAbsoluteWindow = (window) => {
+  if (!chart.value || !window) return false
+  chart.value.dispatchAction({
+    type: 'dataZoom',
+    startValue: window.start,
+    endValue: window.end
+  })
+  telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  return true
+}
+
+/**
+ * @brief Persist the current chart dataZoom as the shared window.
+ */
+const syncWindowFromChart = () => {
+  if (!chart.value) return
+  const bounds = getSharedTimeBounds()
+  if (!bounds) return
+  const axis = chart.value.getOption()?.dataZoom?.[0]
+  const window = resolveAxisAbsoluteWindow(axis, bounds)
+  if (window) {
+    telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  }
+}
+
+/**
+ * @brief Process zoom requests from the telemetry store using absolute windows only.
  * @param {Object|null} payload - Zoom request or null to use store value
  */
 const processZoom = (payload) => {
   const req = payload || telemetry.chartZoomRequest
-  if (req && chart.value) {
-    if (req.type === 'reset') {
-      // Unlock: Show latest data but maintain current window size
-      try {
-        const currentOption = chart.value.getOption()
-        const axis = currentOption.dataZoom && currentOption.dataZoom[0]
+  if (!req || !chart.value) return
 
-        let sizePercent = 10 // Default fallback
-
-        if (axis) {
-          const startVal = axis.startValue
-          const endVal = axis.endValue
-
-          if (startVal !== undefined && endVal !== undefined && typeof startVal === 'number' && typeof endVal === 'number') {
-            const duration = endVal - startVal
-            const totalDuration = (telemetry.latestTime || Date.now()) - (telemetry.earliestTime || 0)
-            if (totalDuration > 0) {
-              sizePercent = (duration / totalDuration) * 100
-            }
-          } else if (axis.start !== undefined && axis.end !== undefined) {
-            sizePercent = axis.end - axis.start
-          }
-        }
-
-        // Clamp
-        if (isNaN(sizePercent) || sizePercent <= 0) sizePercent = 10
-        if (sizePercent > 100) sizePercent = 100
-        if (sizePercent < 0.1) sizePercent = 0.1
-
-        chart.value.dispatchAction({
-          type: 'dataZoom',
-          start: 100 - sizePercent,
-          end: 100
-        })
-
-      } catch (e) {
-        console.error('Zoom calc failed, using fallback', e)
-        chart.value.dispatchAction({
-          type: 'dataZoom',
-          start: 90,
-          end: 100
-        })
-      }
-    } else if (req.type === 'absolute') {
-      chart.value.dispatchAction({
-        type: 'dataZoom',
-        startValue: req.start,
-        endValue: req.end
-      })
-    } else if (req.type === 'pan') {
-      dispatchChartPan(chart.value, req.offsetMs, {
-        earliestTime: telemetry.earliestTime,
-        latestTime: telemetry.latestTime || Date.now()
-      })
-      telemetry.chartZoomRequest = null
-    } else if (req.type === 'scale') {
-      try {
-        const currentOption = chart.value.getOption()
-        const axis = currentOption.dataZoom && currentOption.dataZoom[0]
-
-        if (axis && axis.startValue !== undefined && axis.endValue !== undefined) {
-          const duration = axis.endValue - axis.startValue
-          const center = axis.startValue + (duration / 2)
-          const newDuration = duration * req.factor
-          const start = center - (newDuration / 2)
-          const end = center + (newDuration / 2)
-
-          chart.value.dispatchAction({
-            type: 'dataZoom',
-            startValue: start,
-            endValue: end
-          })
-        } else {
-          const totalDuration = (telemetry.latestTime || Date.now()) - (telemetry.earliestTime || 0)
-
-          if (totalDuration > 0 && axis) {
-            let startP = axis.start !== undefined ? axis.start : 0
-            let endP = axis.end !== undefined ? axis.end : 100
-            const durationP = endP - startP
-            const centerP = startP + (durationP / 2)
-            const newDurationP = durationP * req.factor
-
-            startP = centerP - (newDurationP / 2)
-            endP = centerP + (newDurationP / 2)
-
-            if (startP < 0) startP = 0
-            if (endP > 100) endP = 100
-            if (endP - startP < 0.1) {
-              const center = (startP + endP) / 2
-              startP = center - 0.05
-              endP = center + 0.05
-            }
-
-            chart.value.dispatchAction({
-              type: 'dataZoom',
-              start: startP,
-              end: endP
-            })
-          }
-        }
-      } catch (e) {
-        console.error('Scale failed', e)
-      }
-      telemetry.chartZoomRequest = null
-    }
-
-    if (req.type === 'reset') {
-      telemetry.chartZoomRequest = null
-    }
+  const bounds = getSharedTimeBounds()
+  if (!bounds) {
+    telemetry.chartZoomRequest = null
+    return
   }
+
+  const axis = chart.value.getOption()?.dataZoom?.[0]
+  const persistedWindow = telemetry.currentZoomWindowMs
+    ? clampAbsoluteWindow(telemetry.currentZoomWindowMs.start, telemetry.currentZoomWindowMs.end, bounds)
+    : null
+  const currentWindow = resolveAxisAbsoluteWindow(axis, bounds) || persistedWindow || bounds
+  let targetWindow = null
+
+  if (req.type === 'absolute') {
+    targetWindow = clampAbsoluteWindow(req.start, req.end, bounds)
+  } else if (req.type === 'pan') {
+    const offset = Number(req.offsetMs)
+    if (Number.isFinite(offset)) {
+      targetWindow = clampAbsoluteWindow(currentWindow.start + offset, currentWindow.end + offset, bounds)
+    }
+  } else if (req.type === 'scale') {
+    const factor = Number(req.factor)
+    if (Number.isFinite(factor) && factor > 0) {
+      const currentDuration = currentWindow.end - currentWindow.start
+      const center = currentWindow.start + (currentDuration / 2)
+      const nextDuration = currentDuration * factor
+      targetWindow = clampAbsoluteWindow(center - (nextDuration / 2), center + (nextDuration / 2), bounds)
+    }
+  } else if (req.type === 'reset') {
+    const totalDuration = bounds.end - bounds.start
+    const currentDuration = currentWindow.end - currentWindow.start
+    const fallbackDuration = Math.max(totalDuration * 0.1, Math.min(totalDuration, 1000))
+    const duration = Number.isFinite(currentDuration) && currentDuration > 0 ? currentDuration : fallbackDuration
+    targetWindow = clampAbsoluteWindow(bounds.end - duration, bounds.end, bounds)
+  }
+
+  if (targetWindow) {
+    applyAbsoluteWindow(targetWindow)
+  }
+  telemetry.chartZoomRequest = null
 }
 
 // Watch for zoom requests
@@ -248,17 +292,36 @@ watch(() => telemetry.chartZoomRequest, (req) => {
 })
 
 onMounted(() => {
-  if (telemetry.chartZoomRequest) {
-    processZoom()
-  }
   if (containerRef.value) {
     containerRef.value.addEventListener('wheel', handleWheel, { capture: true, passive: false })
   }
+  if (chart.value && typeof chart.value.on === 'function') {
+    chart.value.on('datazoom', syncWindowFromChart)
+  }
+
+  requestAnimationFrame(() => {
+    const bounds = getSharedTimeBounds()
+    const persisted = telemetry.currentZoomWindowMs
+      ? clampAbsoluteWindow(telemetry.currentZoomWindowMs.start, telemetry.currentZoomWindowMs.end, bounds)
+      : null
+    if (persisted) {
+      applyAbsoluteWindow(persisted)
+      return
+    }
+    if (telemetry.chartZoomRequest) {
+      processZoom()
+      return
+    }
+    syncWindowFromChart()
+  })
 })
 
 onUnmounted(() => {
   if (containerRef.value) {
     containerRef.value.removeEventListener('wheel', handleWheel, { capture: true })
+  }
+  if (chart.value && typeof chart.value.off === 'function') {
+    chart.value.off('datazoom', syncWindowFromChart)
   }
   resetWheelPanSchedule()
 })
@@ -292,6 +355,7 @@ const option = computed(() => {
   const showHighlights = props.showLaps && telemetry.graphSettings.showLapHighlights
   /** ECharts chrome colors follow app resolved theme (light/dark). */
   const t = getChartTokens(settings.resolvedTheme)
+  const timeBounds = getSharedTimeBounds()
 
   return {
     animation: telemetry.graphSettings.showAnimations,
@@ -328,6 +392,8 @@ const option = computed(() => {
     xAxis: {
       type: 'time',
       boundaryGap: false,
+      min: timeBounds ? timeBounds.start : undefined,
+      max: timeBounds ? timeBounds.end : undefined,
       axisLine: { lineStyle: { color: t.axisLine } },
       axisLabel: { color: t.axisLabel },
       splitLine: { show: showGrid, lineStyle: { color: t.grid } }

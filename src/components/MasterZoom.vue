@@ -20,7 +20,7 @@
  * - dataRevision: Monotonic revision used to invalidate computed data on in-place pushes
  * - group: ECharts group name for synchronization
  */
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useSettingsStore } from '../stores/settings'
 import { getChartTokens } from '../constants/chartTheme'
@@ -70,6 +70,80 @@ const chartRef = ref(null)
 const MAX_ZOOM_POINTS = 500
 
 /**
+ * @brief Resolve shared telemetry time bounds used by all graphs.
+ * @returns {{start: number, end: number} | null} Shared bounds in ms
+ */
+const getSharedTimeBounds = () => {
+  const earliest = Number(telemetry.earliestTime)
+  const latest = Number(telemetry.latestTime || Date.now())
+  if (Number.isFinite(earliest) && Number.isFinite(latest) && latest > earliest) {
+    return { start: earliest, end: latest }
+  }
+
+  if (zoomSeriesData.value.length > 1) {
+    const first = Number(zoomSeriesData.value[0]?.[0])
+    const last = Number(zoomSeriesData.value[zoomSeriesData.value.length - 1]?.[0])
+    if (Number.isFinite(first) && Number.isFinite(last) && last > first) {
+      return { start: first, end: last }
+    }
+  }
+  return null
+}
+
+/**
+ * @brief Clamp a candidate absolute window to shared telemetry bounds.
+ * @param {number} start - Candidate window start in ms
+ * @param {number} end - Candidate window end in ms
+ * @param {{start: number, end: number} | null} bounds - Shared time bounds
+ * @returns {{start: number, end: number} | null} Clamped window
+ */
+const clampAbsoluteWindow = (start, end, bounds) => {
+  if (!bounds) return null
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
+
+  let clampedStart = Math.max(bounds.start, start)
+  let clampedEnd = Math.min(bounds.end, end)
+  if (clampedEnd <= clampedStart) return null
+  return { start: clampedStart, end: clampedEnd }
+}
+
+/**
+ * @brief Convert chart dataZoom axis state into absolute timestamp window.
+ * @param {Object|null|undefined} axis - dataZoom[0] option payload
+ * @param {{start: number, end: number} | null} bounds - Shared telemetry bounds
+ * @returns {{start: number, end: number} | null} Absolute window in ms
+ */
+const resolveAxisAbsoluteWindow = (axis, bounds) => {
+  if (!axis || !bounds) return null
+  if (Number.isFinite(axis.startValue) && Number.isFinite(axis.endValue)) {
+    return clampAbsoluteWindow(axis.startValue, axis.endValue, bounds)
+  }
+
+  if (Number.isFinite(axis.start) && Number.isFinite(axis.end)) {
+    const total = bounds.end - bounds.start
+    if (total <= 0) return null
+    const start = bounds.start + ((axis.start / 100) * total)
+    const end = bounds.start + ((axis.end / 100) * total)
+    return clampAbsoluteWindow(start, end, bounds)
+  }
+  return null
+}
+
+/**
+ * @brief Persist the current slider window as the shared absolute zoom window.
+ */
+const syncWindowFromChart = () => {
+  if (!chartRef.value) return
+  const bounds = getSharedTimeBounds()
+  if (!bounds) return
+  const axis = chartRef.value.getOption()?.dataZoom?.[0]
+  const window = resolveAxisAbsoluteWindow(axis, bounds)
+  if (window) {
+    telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  }
+}
+
+/**
  * @brief Build a bounded point set for slider rendering.
  * @description Keeps zoom slider responsive by decimating large history arrays.
  */
@@ -100,11 +174,18 @@ const processZoom = () => {
   const req = telemetry.chartZoomRequest
   if (req && chartRef.value) {
     if (req.type === 'absolute') {
+      const bounds = getSharedTimeBounds()
+      const target = clampAbsoluteWindow(req.start, req.end, bounds)
+      if (!target) {
+        telemetry.chartZoomRequest = null
+        return
+      }
       chartRef.value.dispatchAction({
         type: 'dataZoom',
-        startValue: req.start,
-        endValue: req.end
+        startValue: target.start,
+        endValue: target.end
       })
+      telemetry.setCurrentZoomWindow?.(target.start, target.end)
       telemetry.chartZoomRequest = null
     }
   }
@@ -118,9 +199,31 @@ watch(() => telemetry.chartZoomRequest, (req) => {
 })
 
 onMounted(() => {
+  if (chartRef.value && typeof chartRef.value.on === 'function') {
+    chartRef.value.on('datazoom', syncWindowFromChart)
+  }
   requestAnimationFrame(() => {
+    const bounds = getSharedTimeBounds()
+    const persisted = telemetry.currentZoomWindowMs
+      ? clampAbsoluteWindow(telemetry.currentZoomWindowMs.start, telemetry.currentZoomWindowMs.end, bounds)
+      : null
+    if (persisted && chartRef.value) {
+      chartRef.value.dispatchAction({
+        type: 'dataZoom',
+        startValue: persisted.start,
+        endValue: persisted.end
+      })
+      telemetry.setCurrentZoomWindow?.(persisted.start, persisted.end)
+    }
     processZoom()
+    syncWindowFromChart()
   })
+})
+
+onUnmounted(() => {
+  if (chartRef.value && typeof chartRef.value.off === 'function') {
+    chartRef.value.off('datazoom', syncWindowFromChart)
+  }
 })
 
 /**
@@ -129,6 +232,7 @@ onMounted(() => {
  */
 const option = computed(() => {
   const t = getChartTokens(settings.resolvedTheme)
+  const timeBounds = getSharedTimeBounds()
   return {
     animation: false,
     grid: {
@@ -140,6 +244,8 @@ const option = computed(() => {
     xAxis: {
       type: 'time',
       boundaryGap: false,
+      min: timeBounds ? timeBounds.start : undefined,
+      max: timeBounds ? timeBounds.end : undefined,
       axisLabel: {
         show: true,
         formatter: '{HH}:{mm}:{ss}',
