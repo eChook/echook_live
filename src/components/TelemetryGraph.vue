@@ -12,6 +12,7 @@
  * Features:
  * - Time-series line chart with auto-scaling
  * - Zoom controls: Ctrl+Scroll for zoom, Shift+Scroll for pan
+ * - Horizontal trackpad scroll over graph pans time axis (blocks browser back/forward)
  * - Lap highlighting via markArea (alternating colors)
  * - Chart grouping for synchronized zoom across multiple graphs
  * - Programmatic zoom via chartZoomRequest from store
@@ -26,7 +27,7 @@
  * - showTitle: Whether to show the data key title
  * - height: Custom height (number or string)
  */
-import { computed, defineProps, ref, watch, onMounted } from 'vue'
+import { computed, defineProps, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useSettingsStore } from '../stores/settings'
 import { getChartTokens } from '../constants/chartTheme'
@@ -57,6 +58,11 @@ use([
 
 import { formatValue, getUnit } from '../utils/formatting'
 import { splitLineSeriesAtGaps } from '../utils/chartData'
+import {
+  isHorizontalWheel,
+  wheelDeltaXToPanMs,
+  getVisibleDurationMs
+} from '../utils/chartWheel'
 
 /**
  * @brief Component props definition.
@@ -102,6 +108,8 @@ const props = defineProps({
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
 const chart = ref(null)
+/** @brief Chart wrapper for non-passive wheel listener */
+const containerRef = ref(null)
 
 /**
  * @brief Process zoom requests from the telemetry store.
@@ -246,6 +254,15 @@ onMounted(() => {
   if (telemetry.chartZoomRequest) {
     processZoom()
   }
+  if (containerRef.value) {
+    containerRef.value.addEventListener('wheel', handleWheel, { capture: true, passive: false })
+  }
+})
+
+onUnmounted(() => {
+  if (containerRef.value) {
+    containerRef.value.removeEventListener('wheel', handleWheel, { capture: true })
+  }
 })
 
 /**
@@ -360,18 +377,60 @@ const option = computed(() => {
 })
 
 /**
- * @brief Handle wheel events to allow page scroll without modifiers.
+ * @brief Chart plot width in pixels for wheel-to-pan scaling.
+ * @returns {number}
+ */
+const getChartWidthPx = () => {
+  if (chart.value && typeof chart.value.getWidth === 'function') {
+    const w = chart.value.getWidth()
+    if (w > 0) return w
+  }
+  return containerRef.value?.clientWidth ?? 0
+}
+
+/**
+ * @brief Handle wheel: horizontal trackpad pan, vertical page scroll, modifiers to ECharts.
  * @param {WheelEvent} e - Wheel event
  */
 const handleWheel = (e) => {
-  if (!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-    e.stopPropagation()
+  const hasModifier = e.ctrlKey || e.shiftKey || e.altKey || e.metaKey
+  if (hasModifier) {
+    return
   }
+
+  if (isHorizontalWheel(e)) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!chart.value) return
+
+    try {
+      const axis = chart.value.getOption()?.dataZoom?.[0]
+      const visibleDurationMs = getVisibleDurationMs(
+        axis,
+        telemetry.earliestTime,
+        telemetry.latestTime || Date.now()
+      )
+      const chartWidthPx = getChartWidthPx()
+      const offsetMs = wheelDeltaXToPanMs(e.deltaX, visibleDurationMs, chartWidthPx)
+      if (offsetMs !== 0) {
+        telemetry.requestChartPan(offsetMs)
+      }
+    } catch (err) {
+      console.error('Horizontal wheel pan failed', err)
+    }
+    return
+  }
+
+  // Vertical wheel without modifiers: do not let ECharts consume it (page/list scroll)
+  e.stopPropagation()
 }
 </script>
 
 <template>
-  <div class="relative overflow-hidden" @wheel.capture="handleWheel"
+  <div
+    ref="containerRef"
+    class="telemetry-graph-container relative overflow-hidden"
     :style="{ height: height ? (typeof height === 'number' ? height + 'px' : height) : telemetry.graphSettings.graphHeight + 'px' }">
     <h3 v-if="showTitle" class="absolute top-2 left-4 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-gray-400 z-10">{{
       telemetry.getDisplayName(dataKey) }}</h3>
@@ -380,5 +439,7 @@ const handleWheel = (e) => {
 </template>
 
 <style scoped>
-/* Ensure chart takes full space */
+.telemetry-graph-container {
+  overscroll-behavior-x: contain;
+}
 </style>

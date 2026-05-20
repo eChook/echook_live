@@ -75,6 +75,13 @@ const doNotShowAgain = () => {
                     </div>
                 </div>
 
+                <!-- Trackpad horizontal pan -->
+                <div
+                    class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
+                    <span class="font-bold text-zinc-800 dark:text-gray-200">Pan (trackpad)</span>
+                    <span class="text-zinc-600 dark:text-gray-400">Sideways scroll over graph</span>
+                </div>
+
                 <!-- Zoom -->
                 <div
                     class="flex items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-2 rounded-lg border border-zinc-200 dark:border-neutral-700/50">
