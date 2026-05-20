@@ -61,7 +61,10 @@ import { splitLineSeriesAtGaps } from '../utils/chartData'
 import {
   isHorizontalWheel,
   wheelDeltaXToPanMs,
-  getVisibleDurationMs
+  getVisibleDurationMs,
+  dispatchChartPan,
+  scheduleWheelPan,
+  resetWheelPanSchedule
 } from '../utils/chartWheel'
 
 /**
@@ -168,26 +171,23 @@ const processZoom = (payload) => {
         startValue: req.start,
         endValue: req.end
       })
-    } else if (req.type === 'pan' || req.type === 'scale') {
+    } else if (req.type === 'pan') {
+      dispatchChartPan(chart.value, req.offsetMs, {
+        earliestTime: telemetry.earliestTime,
+        latestTime: telemetry.latestTime || Date.now()
+      })
+      telemetry.chartZoomRequest = null
+    } else if (req.type === 'scale') {
       try {
         const currentOption = chart.value.getOption()
         const axis = currentOption.dataZoom && currentOption.dataZoom[0]
 
         if (axis && axis.startValue !== undefined && axis.endValue !== undefined) {
-          let start = axis.startValue
-          let end = axis.endValue
-
-          if (req.type === 'pan') {
-            start += req.offsetMs
-            end += req.offsetMs
-          } else if (req.type === 'scale') {
-            const duration = end - start
-            const center = start + (duration / 2)
-            const newDuration = duration * req.factor
-
-            start = center - (newDuration / 2)
-            end = center + (newDuration / 2)
-          }
+          const duration = axis.endValue - axis.startValue
+          const center = axis.startValue + (duration / 2)
+          const newDuration = duration * req.factor
+          const start = center - (newDuration / 2)
+          const end = center + (newDuration / 2)
 
           chart.value.dispatchAction({
             type: 'dataZoom',
@@ -195,27 +195,18 @@ const processZoom = (payload) => {
             endValue: end
           })
         } else {
-          // Fallback: percentage mode
           const totalDuration = (telemetry.latestTime || Date.now()) - (telemetry.earliestTime || 0)
 
-          if (totalDuration > 0) {
+          if (totalDuration > 0 && axis) {
             let startP = axis.start !== undefined ? axis.start : 0
             let endP = axis.end !== undefined ? axis.end : 100
+            const durationP = endP - startP
+            const centerP = startP + (durationP / 2)
+            const newDurationP = durationP * req.factor
 
-            if (req.type === 'pan') {
-              const offsetP = (req.offsetMs / totalDuration) * 100
-              startP += offsetP
-              endP += offsetP
-            } else if (req.type === 'scale') {
-              const durationP = endP - startP
-              const centerP = startP + (durationP / 2)
-              const newDurationP = durationP * req.factor
+            startP = centerP - (newDurationP / 2)
+            endP = centerP + (newDurationP / 2)
 
-              startP = centerP - (newDurationP / 2)
-              endP = centerP + (newDurationP / 2)
-            }
-
-            // Clamp
             if (startP < 0) startP = 0
             if (endP > 100) endP = 100
             if (endP - startP < 0.1) {
@@ -232,7 +223,7 @@ const processZoom = (payload) => {
           }
         }
       } catch (e) {
-        console.error('Pan/Scale failed', e)
+        console.error('Scale failed', e)
       }
       telemetry.chartZoomRequest = null
     }
@@ -263,6 +254,7 @@ onUnmounted(() => {
   if (containerRef.value) {
     containerRef.value.removeEventListener('wheel', handleWheel, { capture: true })
   }
+  resetWheelPanSchedule()
 })
 
 /**
@@ -389,12 +381,28 @@ const getChartWidthPx = () => {
 }
 
 /**
+ * @brief Apply batched trackpad pan on this chart only (ECharts group syncs the rest).
+ * @param {number} offsetMs - Batched pan offset for the current animation frame
+ */
+const applyBatchedWheelPan = (offsetMs) => {
+  if (!chart.value) return
+  dispatchChartPan(chart.value, offsetMs, {
+    earliestTime: telemetry.earliestTime,
+    latestTime: telemetry.latestTime || Date.now()
+  })
+}
+
+/** @brief Cached visible window (ms) for wheel scaling; refreshed once per wheel burst. */
+let cachedVisibleDurationMs = null
+
+/**
  * @brief Handle wheel: horizontal trackpad pan, vertical page scroll, modifiers to ECharts.
  * @param {WheelEvent} e - Wheel event
  */
 const handleWheel = (e) => {
   const hasModifier = e.ctrlKey || e.shiftKey || e.altKey || e.metaKey
   if (hasModifier) {
+    cachedVisibleDurationMs = null
     return
   }
 
@@ -404,24 +412,27 @@ const handleWheel = (e) => {
 
     if (!chart.value) return
 
-    try {
+    if (cachedVisibleDurationMs == null) {
       const axis = chart.value.getOption()?.dataZoom?.[0]
-      const visibleDurationMs = getVisibleDurationMs(
+      cachedVisibleDurationMs = getVisibleDurationMs(
         axis,
         telemetry.earliestTime,
         telemetry.latestTime || Date.now()
       )
-      const chartWidthPx = getChartWidthPx()
-      const offsetMs = wheelDeltaXToPanMs(e.deltaX, visibleDurationMs, chartWidthPx)
-      if (offsetMs !== 0) {
-        telemetry.requestChartPan(offsetMs)
-      }
-    } catch (err) {
-      console.error('Horizontal wheel pan failed', err)
+    }
+
+    const offsetMs = wheelDeltaXToPanMs(
+      e.deltaX,
+      cachedVisibleDurationMs,
+      getChartWidthPx()
+    )
+    if (offsetMs !== 0) {
+      scheduleWheelPan(offsetMs, applyBatchedWheelPan)
     }
     return
   }
 
+  cachedVisibleDurationMs = null
   // Vertical wheel without modifiers: do not let ECharts consume it (page/list scroll)
   e.stopPropagation()
 }

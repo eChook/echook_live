@@ -62,3 +62,102 @@ export function getVisibleDurationMs(axis, earliestTime, latestTime) {
 
   return (spanP / 100) * totalDuration
 }
+
+/** @brief ECharts dataZoom action with no animation (smooth trackpad pan). */
+const INSTANT_ZOOM_ACTION = {
+  animation: { duration: 0, easing: 'linear' }
+}
+
+/**
+ * @brief Apply a time pan to one ECharts instance (group connect syncs other charts).
+ * @param {Object} chartInstance - ECharts instance (getOption / dispatchAction)
+ * @param {number} offsetMs - Pan offset in ms (positive = later in time)
+ * @param {{ earliestTime: number, latestTime: number }} timeRange - Session time bounds
+ * @returns {boolean} True if a dataZoom action was dispatched
+ */
+export function dispatchChartPan(chartInstance, offsetMs, { earliestTime, latestTime }) {
+  if (!chartInstance || !offsetMs) return false
+
+  try {
+    const axis = chartInstance.getOption()?.dataZoom?.[0]
+    if (!axis) return false
+
+    if (axis.startValue !== undefined && axis.endValue !== undefined) {
+      const start = axis.startValue + offsetMs
+      const end = axis.endValue + offsetMs
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        startValue: start,
+        endValue: end,
+        ...INSTANT_ZOOM_ACTION
+      })
+      return true
+    }
+
+    const totalDuration = (latestTime || 0) - (earliestTime || 0)
+    if (totalDuration <= 0) return false
+
+    let startP = axis.start !== undefined ? axis.start : 0
+    let endP = axis.end !== undefined ? axis.end : 100
+    const offsetP = (offsetMs / totalDuration) * 100
+    startP += offsetP
+    endP += offsetP
+
+    if (startP < 0) startP = 0
+    if (endP > 100) endP = 100
+    if (endP - startP < 0.1) {
+      const center = (startP + endP) / 2
+      startP = center - 0.05
+      endP = center + 0.05
+    }
+
+    chartInstance.dispatchAction({
+      type: 'dataZoom',
+      start: startP,
+      end: endP,
+      ...INSTANT_ZOOM_ACTION
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** @brief Accumulated pan offset (ms) for the current wheel gesture frame batch. */
+let pendingPanMs = 0
+/** @brief rAF id when a wheel pan flush is scheduled. */
+let panRafId = null
+/** @brief Callback that applies batched pan to the hovered chart. */
+let pendingApplyPan = null
+
+/**
+ * @brief Reset wheel pan batch state (for tests and unmount).
+ */
+export function resetWheelPanSchedule() {
+  if (panRafId != null) {
+    cancelAnimationFrame(panRafId)
+    panRafId = null
+  }
+  pendingPanMs = 0
+  pendingApplyPan = null
+}
+
+/**
+ * @brief Batch horizontal wheel pan to one update per animation frame.
+ * @description Avoids N charts × M wheel events all calling getOption/dispatchAction via the store.
+ * @param {number} offsetMs - Pan delta for this wheel event
+ * @param {(offsetMs: number) => void} applyPan - Applies batched offset to the hovered chart
+ */
+export function scheduleWheelPan(offsetMs, applyPan) {
+  if (!offsetMs) return
+  pendingPanMs += offsetMs
+  pendingApplyPan = applyPan
+  if (panRafId != null) return
+
+  panRafId = requestAnimationFrame(() => {
+    const ms = pendingPanMs
+    const apply = pendingApplyPan
+    resetWheelPanSchedule()
+    if (ms !== 0 && apply) apply(ms)
+  })
+}

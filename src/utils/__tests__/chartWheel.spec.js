@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   isHorizontalWheel,
   wheelDeltaXToPanMs,
-  getVisibleDurationMs
+  getVisibleDurationMs,
+  dispatchChartPan,
+  scheduleWheelPan,
+  resetWheelPanSchedule
 } from '../chartWheel'
 
 describe('isHorizontalWheel', () => {
@@ -48,5 +51,44 @@ describe('getVisibleDurationMs', () => {
     expect(getVisibleDurationMs(null, 0, 10000)).toBe(null)
     expect(getVisibleDurationMs({ start: 50, end: 50 }, 0, 10000)).toBe(null)
     expect(getVisibleDurationMs({ start: 0, end: 100 }, 0, 0)).toBe(null)
+  })
+})
+
+describe('dispatchChartPan', () => {
+  it('dispatches startValue/endValue pan with zero animation', () => {
+    const dispatchAction = vi.fn()
+    const chart = {
+      getOption: () => ({ dataZoom: [{ startValue: 1000, endValue: 5000 }] }),
+      dispatchAction
+    }
+    expect(dispatchChartPan(chart, 500, { earliestTime: 0, latestTime: 10000 })).toBe(true)
+    expect(dispatchAction).toHaveBeenCalledWith({
+      type: 'dataZoom',
+      startValue: 1500,
+      endValue: 5500,
+      animation: { duration: 0, easing: 'linear' }
+    })
+  })
+})
+
+describe('scheduleWheelPan', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    resetWheelPanSchedule()
+  })
+
+  afterEach(() => {
+    resetWheelPanSchedule()
+    vi.useRealTimers()
+  })
+
+  it('batches multiple wheel deltas into one apply per frame', () => {
+    const apply = vi.fn()
+    scheduleWheelPan(100, apply)
+    scheduleWheelPan(200, apply)
+    expect(apply).not.toHaveBeenCalled()
+    vi.runAllTimers()
+    expect(apply).toHaveBeenCalledOnce()
+    expect(apply).toHaveBeenCalledWith(300)
   })
 })
