@@ -229,11 +229,11 @@ const getDiff = (currentLap, sortedLaps, key, currentIndex) => {
  * @brief Get color class for diff value.
  */
 const getDiffColor = (key, diff) => {
-  if (Math.abs(diff) < 0.001) return 'text-gray-500'
+  if (Math.abs(diff) < 0.001) return 'text-zinc-500 dark:text-gray-500'
 
   const dir = metricDirection[key] || 1
   const isGood = (diff * dir) > 0
-  return isGood ? 'text-green-500' : 'text-red-500'
+  return isGood ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
 }
 
 /**
@@ -269,7 +269,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
 <template>
   <div class="h-full flex flex-col p-2 md:p-6 overflow-hidden space-y-4 md:space-y-8">
     <!-- Empty State -->
-    <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-gray-500 italic text-sm">
+    <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-zinc-500 dark:text-gray-500 italic text-sm">
       No lap data recorded yet.
     </div>
 
@@ -278,58 +278,58 @@ const handleDisclaimerConfirm = (doNotShow) => {
       <div v-for="race in sortedRaces" :key="race.id" class="flex flex-col space-y-2 md:space-y-4">
         <!-- Race Header -->
         <div
-          class="flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 bg-neutral-900 z-20 py-1 md:py-2 border-b border-neutral-800">
+          class="flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 bg-zinc-100 dark:bg-neutral-900 z-20 py-1 md:py-2 border-b border-zinc-200 dark:border-neutral-800">
           <div class="flex items-center space-x-3">
             <h2
-              class="text-sm md:text-xl font-bold text-white tracking-tight flex items-center flex-wrap gap-2 leading-none">
-              <span v-if="race.trackName" class="text-white">{{ race.trackName }} </span>
+              class="text-sm md:text-xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center flex-wrap gap-2 leading-none">
+              <span v-if="race.trackName" class="text-zinc-900 dark:text-white">{{ race.trackName }} </span>
               <span class="text-primary font-mono text-xs md:text-base pt-0.5">{{ formatDate(race.startTime) }}</span>
             </h2>
             <button @click="downloadRaceCsv(race)"
-              class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
+              class="bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white p-1 rounded transition"
               title="Download Race CSV">
               <ArrowDownTrayIcon class="w-4 h-4 md:w-5 md:h-5" />
             </button>
             <button @click="viewSessionOnGraph(race)"
-              class="bg-neutral-800 hover:bg-neutral-700 text-gray-300 hover:text-white p-1 rounded transition"
+              class="bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white p-1 rounded transition"
               title="View Race on Graph">
               <ChartBarIcon class="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
-          <div class="text-xs md:text-sm text-gray-400 mt-1 md:mt-0">
-            Laps: <span class="text-white font-mono font-bold">{{ race.sortedLaps.length }}</span>
+          <div class="text-xs md:text-sm text-zinc-600 dark:text-gray-400 mt-1 md:mt-0">
+            Laps: <span class="text-zinc-900 dark:text-white font-mono font-bold">{{ race.sortedLaps.length }}</span>
           </div>
         </div>
 
         <!-- Lap Table -->
-        <div class="bg-neutral-800 rounded-lg border border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
+        <div class="bg-white dark:bg-neutral-800 rounded-lg border border-zinc-200 dark:border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
           <table class="w-full min-w-[600px] md:min-w-[1000px] text-left border-collapse">
-            <thead class="bg-neutral-900">
+            <thead class="bg-zinc-50 dark:bg-neutral-900">
               <tr>
                 <th v-for="(header, i) in headers" :key="header"
-                  class="px-2 md:px-8 py-2 md:py-4 text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-neutral-700">
+                  class="px-2 md:px-8 py-2 md:py-4 text-[10px] md:text-xs font-bold text-zinc-500 dark:text-gray-400 uppercase tracking-wider border-b border-zinc-200 dark:border-neutral-700">
                   {{ header }}
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-neutral-700">
-              <tr v-for="(lap, idx) in race.sortedLaps" :key="lap.lapNumber" class="hover:bg-neutral-700/50 transition">
+            <tbody class="divide-y divide-zinc-200 dark:divide-neutral-700">
+              <tr v-for="(lap, idx) in race.sortedLaps" :key="lap.lapNumber" class="hover:bg-zinc-100 dark:hover:bg-neutral-700/50 transition">
                 <td class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-xs md:text-base text-primary font-bold">
                   <div class="flex items-center space-x-2">
                     <span>{{ lap.lapNumber ?? '-' }}</span>
                     <button @click="viewLapOnGraph(lap)"
-                      class="text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
+                      class="text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
                       title="View Lap on Graph">
                       <ChartBarIcon class="w-3 h-3 md:w-4 md:h-4" />
                     </button>
                   </div>
                 </td>
                 <td v-for="key in keys.slice(1)" :key="key"
-                  class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-[11px] md:text-sm text-gray-300 relative">
+                  class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-[11px] md:text-sm text-zinc-700 dark:text-gray-300 relative">
                   <!-- Background Bar -->
                   <div v-if="!['startTime', 'finishTime'].includes(key)"
                     class="absolute inset-y-0.5 left-1 right-1 z-0">
-                    <div class="h-full rounded bg-white/10 transition-all duration-700 ease-out"
+                    <div class="h-full rounded bg-zinc-900/10 dark:bg-white/10 transition-all duration-700 ease-out"
                       :style="{ width: getBarPercent(lap[key], race.stats[key].min, race.stats[key].max) + '%' }">
                     </div>
                   </div>
@@ -357,22 +357,22 @@ const handleDisclaimerConfirm = (doNotShow) => {
 
       <!-- Load More History -->
       <div
-        class="flex flex-col md:flex-row items-center justify-between bg-neutral-800/50 p-3 rounded-lg border border-neutral-700/50 mt-4 mb-4">
-        <div class="flex items-center space-x-2 text-xs text-gray-400 mb-2 md:mb-0">
+        class="flex flex-col md:flex-row items-center justify-between bg-zinc-100 dark:bg-neutral-800/50 p-3 rounded-lg border border-zinc-200 dark:border-neutral-700/50 mt-4 mb-4">
+        <div class="flex items-center space-x-2 text-xs text-zinc-600 dark:text-gray-400 mb-2 md:mb-0">
           <ArrowPathIcon class="w-4 h-4" :class="isLoadingHistory ? 'animate-spin text-primary' : ''" />
           <span>Load More History:</span>
         </div>
         <div class="flex space-x-2 w-full md:w-auto">
           <button @click="loadExtra(10)" :disabled="isLoadingHistory"
-            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            class="flex-1 md:flex-none px-3 py-1.5 bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 rounded text-xs text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white transition disabled:opacity-50">
             +10m
           </button>
           <button @click="loadExtra(30)" :disabled="isLoadingHistory"
-            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            class="flex-1 md:flex-none px-3 py-1.5 bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 rounded text-xs text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white transition disabled:opacity-50">
             +30m
           </button>
           <button @click="loadExtra(60)" :disabled="isLoadingHistory"
-            class="flex-1 md:flex-none px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded text-xs text-gray-300 hover:text-white transition disabled:opacity-50">
+            class="flex-1 md:flex-none px-3 py-1.5 bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 border border-zinc-300 dark:border-neutral-600 rounded text-xs text-zinc-700 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white transition disabled:opacity-50">
             +1h
           </button>
         </div>
