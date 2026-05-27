@@ -22,7 +22,7 @@
  * - info: Blue information icon
  */
 import { useToast } from '../../composables/useToast'
-import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon } from '@heroicons/vue/24/outline'
 
 const { isVisible, message, type, hideToast } = useToast()
 
@@ -48,23 +48,23 @@ const colorMap = {
 </script>
 
 <template>
-    <transition enter-active-class="transform ease-out duration-300 transition"
-        enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
-        enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100"
-        leave-from-class="opacity-100" leave-to-class="opacity-0">
+    <transition enter-active-class="transition ease-out duration-250"
+        enter-from-class="translate-y-2 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition ease-in duration-150"
+        leave-from-class="translate-y-0 opacity-100" leave-to-class="translate-y-2 opacity-0">
         <div v-if="isVisible"
-            class="fixed bottom-4 right-4 z-[9999] flex items-center w-full max-w-xs p-4 space-x-4 text-zinc-900 dark:text-white bg-white dark:bg-neutral-800 rounded-lg shadow-2xl border border-zinc-200 dark:border-neutral-700"
+            class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center w-[min(94vw,40rem)] p-5 space-x-4 text-zinc-900 dark:text-white bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-neutral-700"
             role="alert">
             <div
                 :class="`inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg ${colorMap[type] || colorMap.info}`">
                 <component :is="iconMap[type] || iconMap.info" class="w-5 h-5 text-white" />
             </div>
-            <div class="ml-3 text-sm font-normal">{{ message }}</div>
+            <div class="ml-3 text-base font-medium flex-1 min-w-0">{{ message }}</div>
             <button type="button" @click="hideToast"
-                class="ml-auto -mx-1.5 -my-1.5 bg-transparent text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white rounded-lg focus:ring-2 focus:ring-zinc-300 dark:focus:ring-gray-600 p-1.5 hover:bg-zinc-100 dark:hover:bg-neutral-700 inline-flex items-center justify-center h-8 w-8"
-                aria-label="Close">
-                <span class="sr-only">Close</span>
-                <XMarkIcon class="w-4 h-4" />
+                class="px-3 py-1.5 rounded-md border border-zinc-300 dark:border-neutral-600 text-sm font-semibold text-zinc-700 dark:text-gray-200 hover:bg-zinc-100 dark:hover:bg-neutral-700 focus:ring-2 focus:ring-zinc-300 dark:focus:ring-gray-600"
+                aria-label="Dismiss notification">
+                Dismiss
             </button>
         </div>
     </transition>

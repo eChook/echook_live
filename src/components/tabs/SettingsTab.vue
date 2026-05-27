@@ -484,10 +484,13 @@ const eventThresholdResetButtonClass =
           <!-- Current -->
           <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
             <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Current</h4>
+            <p class="text-xs text-zinc-500 dark:text-gray-500 mb-3">
+              Uses absolute current draw (|A|), not packet-to-packet current change.
+            </p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <div class="flex items-center justify-between gap-2 mb-1">
-                  <span class="text-xs text-zinc-600 dark:text-gray-400">Spike warning (A)</span>
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">High current warning (A)</span>
                   <button
                     type="button"
                     :class="eventThresholdResetButtonClass"
@@ -503,7 +506,7 @@ const eventThresholdResetButtonClass =
               </div>
               <div>
                 <div class="flex items-center justify-between gap-2 mb-1">
-                  <span class="text-xs text-zinc-600 dark:text-gray-400">Spike critical (A)</span>
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">High current critical (A)</span>
                   <button
                     type="button"
                     :class="eventThresholdResetButtonClass"

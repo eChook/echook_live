@@ -25,6 +25,8 @@ import DashboardHeader from '../components/DashboardHeader.vue'
 import DataCard from '../components/DataCard.vue'
 import GraphHelpModal from '../components/GraphHelpModal.vue'
 import draggable from 'vuedraggable'
+import { CARD_THRESHOLD_KEYS, evaluateChannelThresholds } from '../utils/eventThresholds'
+import { useCriticalEventAlerts } from '../composables/useCriticalEventAlerts'
 
 // Lazy-loaded tab components for code splitting
 const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.vue'))
@@ -40,6 +42,12 @@ import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon, Presentation
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
 const settings = useSettingsStore()
+
+useCriticalEventAlerts({
+  telemetry,
+  settings,
+  isEnabled: computed(() => !!auth.user)
+})
 
 /**
  * @brief Get display unit for a telemetry key.
@@ -68,6 +76,27 @@ const orderedKeys = computed({
     settings.dataCardOrder = newOrder
   }
 })
+
+/**
+ * @brief Live threshold severity snapshot for dashboard cards.
+ * @description Evaluates raw live telemetry against user-configured event thresholds.
+ */
+const liveThresholdStatus = computed(() => evaluateChannelThresholds(
+  telemetry.liveData,
+  settings.analyticsSettings
+))
+
+/**
+ * @brief Resolve threshold status for a data-card key.
+ * @param {string} key - Telemetry key displayed by the card
+ * @returns {'normal'|'warning'|'critical'} Threshold severity for the card
+ */
+const getCardThresholdStatus = (key) => {
+  const channelKey = CARD_THRESHOLD_KEYS[key]
+  if (!channelKey) return 'normal'
+  const severity = liveThresholdStatus.value?.[channelKey]?.severity
+  return severity === 'warning' || severity === 'critical' ? severity : 'normal'
+}
 
 // ============================================
 // Tab Configuration
@@ -228,7 +257,8 @@ const handleKeydown = (e) => {
       <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
         <template #item="{ element: key }">
           <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
-            :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale" :tooltip="telemetry.getDescription(key)" />
+            :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
+            :threshold-status="getCardThresholdStatus(key)" :tooltip="telemetry.getDescription(key)" />
         </template>
       </draggable>
       <div v-if="orderedKeys.length === 0" class="text-zinc-500 dark:text-gray-500 text-sm italic">

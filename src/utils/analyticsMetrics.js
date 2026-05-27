@@ -6,6 +6,8 @@
  *              supply-resistance insights from existing telemetry packets.
  */
 
+import { evaluateChannelThresholds, resolveThresholdSeverity } from './eventThresholds'
+
 /**
  * @brief Convert mph speed value to selected unit.
  * @param {number} mphValue - Speed in mph
@@ -988,26 +990,6 @@ export function computeBaselineComparison(currentLapsSource, baselineLapsSource,
 }
 
 /**
- * @brief Resolve event severity from value against warning/critical bounds.
- * @param {number} value - Measured value
- * @param {number} warningThreshold - Warning threshold
- * @param {number} criticalThreshold - Critical threshold
- * @param {boolean} [higherIsWorse=true] - Threshold direction
- * @returns {'info'|'warning'|'critical'} Severity label
- */
-function resolveSeverity(value, warningThreshold, criticalThreshold, higherIsWorse = true) {
-    if (!Number.isFinite(value)) return 'info'
-    if (higherIsWorse) {
-        if (Number.isFinite(criticalThreshold) && value >= criticalThreshold) return 'critical'
-        if (Number.isFinite(warningThreshold) && value >= warningThreshold) return 'warning'
-        return 'info'
-    }
-    if (Number.isFinite(criticalThreshold) && value <= criticalThreshold) return 'critical'
-    if (Number.isFinite(warningThreshold) && value <= warningThreshold) return 'warning'
-    return 'info'
-}
-
-/**
  * @brief Detect reliability events from telemetry stream.
  * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
  * @param {Object} [options] - Detection thresholds and runtime options
@@ -1015,8 +997,8 @@ function resolveSeverity(value, warningThreshold, criticalThreshold, higherIsWor
  * @param {number} [options.undervoltageCriticalV=14] - Undervoltage critical threshold
  * @param {number} [options.overTempWarningC=55] - Over-temp warning threshold
  * @param {number} [options.overTempCriticalC=65] - Over-temp critical threshold
- * @param {number} [options.currentSpikeWarningA=40] - Current spike warning delta
- * @param {number} [options.currentSpikeCriticalA=120] - Current spike critical delta
+ * @param {number} [options.currentSpikeWarningA=40] - High current warning threshold
+ * @param {number} [options.currentSpikeCriticalA=120] - High current critical threshold
  * @param {number} [options.dropoutWarningSec=10] - Dropout threshold (seconds)
  * @param {number} [options.overlapWarningSec=2] - Throttle/brake overlap threshold (seconds)
  * @param {number} [options.throttleOverlapThresholdPct=5] - Overlap throttle threshold
@@ -1028,12 +1010,6 @@ export function detectReliabilityEvents(samples, options = {}) {
     const events = []
     if (data.length === 0) return events
 
-    const undervoltageWarningV = Number.isFinite(options.undervoltageWarningV) ? options.undervoltageWarningV : 18
-    const undervoltageCriticalV = Number.isFinite(options.undervoltageCriticalV) ? options.undervoltageCriticalV : 14
-    const overTempWarningC = Number.isFinite(options.overTempWarningC) ? options.overTempWarningC : 55
-    const overTempCriticalC = Number.isFinite(options.overTempCriticalC) ? options.overTempCriticalC : 65
-    const currentSpikeWarningA = Number.isFinite(options.currentSpikeWarningA) ? options.currentSpikeWarningA : 40
-    const currentSpikeCriticalA = Number.isFinite(options.currentSpikeCriticalA) ? options.currentSpikeCriticalA : 120
     const dropoutWarningSec = Number.isFinite(options.dropoutWarningSec) ? options.dropoutWarningSec : 10
     const overlapWarningSec = Number.isFinite(options.overlapWarningSec) ? options.overlapWarningSec : 2
     const throttleOverlapThresholdPct = Number.isFinite(options.throttleOverlapThresholdPct) ? options.throttleOverlapThresholdPct : 5
@@ -1044,67 +1020,62 @@ export function detectReliabilityEvents(samples, options = {}) {
         const timestamp = toFiniteNumber(sample.timestamp)
         if (timestamp === null) continue
 
-        const voltage = toFiniteNumber(sample.voltage)
-        if (voltage !== null) {
-            const severity = resolveSeverity(voltage, undervoltageWarningV, undervoltageCriticalV, false)
-            if (severity !== 'info') {
-                events.push({
-                    id: `uv_${timestamp}_${i}`,
-                    type: 'undervoltage',
-                    severity,
-                    timestamp,
-                    title: 'Undervoltage',
-                    message: `Voltage dropped to ${voltage.toFixed(2)} V`,
-                    value: voltage,
-                    threshold: severity === 'critical' ? undervoltageCriticalV : undervoltageWarningV
-                })
-            }
+        const thresholds = evaluateChannelThresholds(sample, options)
+
+        const voltageEvent = thresholds.voltage
+        if (voltageEvent.severity !== 'info' && Number.isFinite(voltageEvent.value)) {
+            events.push({
+                id: `uv_${timestamp}_${i}`,
+                type: 'undervoltage',
+                severity: voltageEvent.severity,
+                timestamp,
+                title: 'Undervoltage',
+                message: `Voltage dropped to ${voltageEvent.value.toFixed(2)} V`,
+                value: voltageEvent.value,
+                threshold: voltageEvent.severity === 'critical'
+                    ? voltageEvent.criticalThreshold
+                    : voltageEvent.warningThreshold
+            })
         }
 
-        const temp1 = toFiniteNumber(sample.temp1)
-        const temp2 = toFiniteNumber(sample.temp2)
-        const maxTemp = Math.max(temp1 === null ? -Infinity : temp1, temp2 === null ? -Infinity : temp2)
-        if (Number.isFinite(maxTemp)) {
-            const severity = resolveSeverity(maxTemp, overTempWarningC, overTempCriticalC, true)
-            if (severity !== 'info') {
-                events.push({
-                    id: `temp_${timestamp}_${i}`,
-                    type: 'over_temp',
-                    severity,
-                    timestamp,
-                    title: 'Over Temperature',
-                    message: `Temperature reached ${maxTemp.toFixed(1)} C`,
-                    value: maxTemp,
-                    threshold: severity === 'critical' ? overTempCriticalC : overTempWarningC
-                })
-            }
+        const tempEvent = thresholds.temperatureMax
+        if (tempEvent.severity !== 'info' && Number.isFinite(tempEvent.value)) {
+            events.push({
+                id: `temp_${timestamp}_${i}`,
+                type: 'over_temp',
+                severity: tempEvent.severity,
+                timestamp,
+                title: 'Over Temperature',
+                message: `Temperature reached ${tempEvent.value.toFixed(1)} C`,
+                value: tempEvent.value,
+                threshold: tempEvent.severity === 'critical'
+                    ? tempEvent.criticalThreshold
+                    : tempEvent.warningThreshold
+            })
+        }
+
+        const currentEvent = thresholds.current
+        if (currentEvent.severity !== 'info' && Number.isFinite(currentEvent.value)) {
+            events.push({
+                id: `spike_${timestamp}_${i}`,
+                type: 'current_spike',
+                severity: currentEvent.severity,
+                timestamp,
+                title: 'Current Spike',
+                message: `Current reached ${currentEvent.value.toFixed(1)} A`,
+                value: currentEvent.value,
+                threshold: currentEvent.severity === 'critical'
+                    ? currentEvent.criticalThreshold
+                    : currentEvent.warningThreshold
+            })
         }
 
         if (i > 0) {
             const previous = data[i - 1] || {}
-            const prevCurrent = toFiniteNumber(previous.current)
-            const current = toFiniteNumber(sample.current)
-            if (prevCurrent !== null && current !== null) {
-                const deltaCurrent = Math.abs(current - prevCurrent)
-                const severity = resolveSeverity(deltaCurrent, currentSpikeWarningA, currentSpikeCriticalA, true)
-                if (severity !== 'info') {
-                    events.push({
-                        id: `spike_${timestamp}_${i}`,
-                        type: 'current_spike',
-                        severity,
-                        timestamp,
-                        title: 'Current Spike',
-                        message: `Current changed by ${deltaCurrent.toFixed(1)} A`,
-                        value: deltaCurrent,
-                        threshold: severity === 'critical' ? currentSpikeCriticalA : currentSpikeWarningA
-                    })
-                }
-            }
-
             const prevTs = toFiniteNumber(previous.timestamp)
             if (prevTs !== null) {
                 const gapSec = (timestamp - prevTs) / 1000
-                const severity = resolveSeverity(gapSec, dropoutWarningSec, undefined, true)
+                const severity = resolveThresholdSeverity(gapSec, dropoutWarningSec, undefined, true)
                 if (severity !== 'info') {
                     events.push({
                         id: `dropout_${timestamp}_${i}`,
@@ -1134,7 +1105,7 @@ export function detectReliabilityEvents(samples, options = {}) {
         if (isOverlap && overlapStart === null) overlapStart = ts
         if (!isOverlap && overlapStart !== null) {
             const durationSec = (ts - overlapStart) / 1000
-            const severity = resolveSeverity(durationSec, overlapWarningSec, undefined, true)
+            const severity = resolveThresholdSeverity(durationSec, overlapWarningSec, undefined, true)
             if (severity !== 'info') {
                 events.push({
                     id: `overlap_${overlapStart}_${i}`,
@@ -1157,7 +1128,7 @@ export function detectReliabilityEvents(samples, options = {}) {
         const lastTs = toFiniteNumber(data[data.length - 1]?.timestamp)
         if (lastTs !== null && lastTs > overlapStart) {
             const durationSec = (lastTs - overlapStart) / 1000
-            const severity = resolveSeverity(durationSec, overlapWarningSec, undefined, true)
+            const severity = resolveThresholdSeverity(durationSec, overlapWarningSec, undefined, true)
             if (severity !== 'info') {
                 events.push({
                     id: `overlap_${overlapStart}_end`,

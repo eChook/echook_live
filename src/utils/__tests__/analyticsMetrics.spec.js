@@ -245,7 +245,9 @@ describe('analyticsMetrics', () => {
         })
         expect(events.some((event) => event.type === 'undervoltage')).toBe(true)
         expect(events.some((event) => event.type === 'over_temp')).toBe(true)
+        expect(events.filter((event) => event.type === 'current_spike')).toHaveLength(1)
         expect(events.some((event) => event.type === 'dropout')).toBe(true)
+        expect(events.some((event) => event.message.includes('Current reached 60.0 A'))).toBe(true)
 
         const jumpWindow = buildEventJumpWindow(events[0], { paddingBeforeMs: 1000, paddingAfterMs: 2000 })
         expect(jumpWindow.start).toBeGreaterThanOrEqual(0)
