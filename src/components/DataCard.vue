@@ -11,6 +11,7 @@
  * 
  * Props:
  * - label: Display name for the data point
+ * - dataKey: Raw telemetry key used for formatting/unit rules
  * - value: Raw value to display
  * - unit: Optional unit override
  * - stale: Whether data is stale (reduces opacity)
@@ -25,6 +26,8 @@ import { formatValue, getUnit } from '../utils/formatting'
 const props = defineProps({
   /** @brief Display label for the data point */
   label: String,
+  /** @brief Raw telemetry key for formatting and unit inference */
+  dataKey: String,
   /** @brief Raw value (formatted for display) */
   value: [String, Number],
   /** @brief Optional unit override (auto-detected if not provided) */
@@ -44,13 +47,14 @@ const props = defineProps({
  * @brief Formatted display value using formatting utility.
  * @type {ComputedRef<string>}
  */
-const displayValue = computed(() => formatValue(props.label, props.value))
+const formatKey = computed(() => props.dataKey || props.label || '')
+const displayValue = computed(() => formatValue(formatKey.value, props.value))
 
 /**
- * @brief Display unit (uses prop or auto-detects from label).
+ * @brief Display unit (uses prop or auto-detects from metric key).
  * @type {ComputedRef<string>}
  */
-const displayUnit = computed(() => props.unit || getUnit(props.label))
+const displayUnit = computed(() => props.unit || getUnit(formatKey.value))
 
 /** @brief Card border/background classes by threshold status. */
 const thresholdCardClass = computed(() => {

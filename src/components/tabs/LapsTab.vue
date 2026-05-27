@@ -20,7 +20,7 @@
  * 
  * Metrics displayed:
  * - Lap number, start/finish time, lap duration
- * - Voltage, current, RPM, speed, Ah, efficiency
+ * - Voltage, current, RPM, speed, Ah, Peak W, kWh, efficiency
  */
 import { computed, ref, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
@@ -65,11 +65,13 @@ const headers = computed(() => [
   'RPM',
   `Speed (${telemetry.unitSettings.speedUnit.toUpperCase()})`,
   'Ah',
+  'Peak W',
+  'kWh',
   'Eff'
 ])
 
 /** @brief Data keys corresponding to table columns */
-const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Eff']
+const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_PeakW', 'LL_kWh', 'LL_Eff']
 
 /**
  * @brief Sorted races with converted laps and per-race stats.
@@ -231,6 +233,16 @@ const formatValue = (val) => {
 }
 
 /**
+ * @brief Format laps-table values by key with metric-specific precision.
+ */
+const formatTableValue = (key, val) => {
+  if (!Number.isFinite(val)) return formatValue(val)
+  if (key === 'LL_PeakW') return val.toFixed(1)
+  if (key === 'LL_kWh') return val.toFixed(3)
+  return formatValue(val)
+}
+
+/**
  * @brief Format signed metric values for trend and delta labels.
  */
 const formatSigned = (value, digits = 2) => {
@@ -369,6 +381,7 @@ const viewLapOnGraph = (lap) => {
 const metricDirection = {
   'LL_Time': -1,
   'LL_Ah': -1,
+  'LL_kWh': -1,
   'LL_I': -1,
   'LL_V': 1,
   'LL_RPM': 1,
@@ -651,14 +664,14 @@ const handleDisclaimerConfirm = (doNotShow) => {
                   <div class="relative z-10 flex justify-between items-center space-x-1 md:space-x-2">
                     <span v-if="['startTime', 'finishTime'].includes(key)">{{ formatTime(lap[key]) }}</span>
                     <span v-else-if="key === 'LL_Time'">{{ formatLapDuration(lap[key]) }}</span>
-                    <span v-else>{{ formatValue(lap[key]) }}</span>
+                    <span v-else>{{ formatTableValue(key, lap[key]) }}</span>
 
                     <!-- Diff Badge -->
                     <span
                       v-if="!['startTime', 'finishTime'].includes(key) && getDiff(lap, race.sortedLaps, key, idx) !== null"
                       class="text-[9px] md:text-xs font-bold"
                       :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
-                      {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatValue(getDiff(lap,
+                      {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatTableValue(key, getDiff(lap,
                         race.sortedLaps, key, idx)) }}
                     </span>
                   </div>

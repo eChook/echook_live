@@ -57,6 +57,8 @@ useCriticalEventAlerts({
 const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
   if (key === 'temp1' || key === 'temp2' || key === 'tempDiff') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
+  if (key === 'powerW') return 'W'
+  if (key === 'powerUsedKWh') return 'kWh'
   return undefined
 }
 
@@ -257,7 +259,7 @@ const handleKeydown = (e) => {
       <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
         <template #item="{ element: key }">
           <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
-            :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
+            :data-key="key" :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
             :threshold-status="getCardThresholdStatus(key)" :tooltip="telemetry.getDescription(key)" />
         </template>
       </draggable>

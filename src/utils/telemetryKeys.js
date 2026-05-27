@@ -13,6 +13,7 @@
  */
 export const REGULAR_KEYS = new Set([
     'voltage', 'current', 'ampH', 'speed', 'rpm', 'throttle',
+    'powerW', 'powerUsedKWh',
     'temp1', 'temp2', 'tempDiff', 'voltageLower', 'voltageHigh',
     'voltageDiff', 'gear', 'brake', 'currLap', 'lat', 'lon', 'track'
 ])
@@ -23,7 +24,7 @@ export const REGULAR_KEYS = new Set([
  * @type {Set<string>}
  */
 export const LAP_KEYS = new Set([
-    'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff'
+    'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_Time', 'LL_Eff', 'LL_PeakW', 'LL_kWh'
 ])
 
 /**
@@ -39,6 +40,8 @@ export const KEY_DISPLAY_NAMES = {
     rpm: 'RPM',
     speed: 'Speed',
     throttle: 'Throttle',
+    powerW: 'Power',
+    powerUsedKWh: 'Power Used',
     temp1: 'Temp 1',
     temp2: 'Temp 2',
     tempDiff: 'Temp Diff',
@@ -64,6 +67,8 @@ export const KEY_DESCRIPTIONS = {
     rpm: 'Motor revolutions per minute',
     speed: 'Ground speed in configured units',
     throttle: 'Throttle position (0-100%)',
+    powerW: 'Instantaneous electrical power (voltage x current)',
+    powerUsedKWh: 'Cumulative energy used since last voltage data break',
     temp1: 'Temperature sensor 1',
     temp2: 'Temperature sensor 2',
     tempDiff: 'Absolute difference between the two temperatures',
@@ -82,6 +87,7 @@ export const KEY_DESCRIPTIONS = {
  */
 export const KEY_ORDER = [
     'voltage', 'current', 'ampH',
+    'powerW', 'powerUsedKWh',
     'speed', 'rpm', 'throttle', 'voltageLower',
     'voltageHigh', 'voltageDiff', 'gear', 'brake',
     'temp1', 'temp2', 'tempDiff',

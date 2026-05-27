@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rebuildRaceSessionsFromSamples, updateRaceSessions } from '../raceAnalytics'
+import { deriveLapSummary, rebuildRaceSessionsFromSamples, updateRaceSessions } from '../raceAnalytics'
 
 describe('updateRaceSessions', () => {
     const createPacket = (overrides = {}) => ({
@@ -212,5 +212,34 @@ describe('rebuildRaceSessionsFromSamples', () => {
         expect(lapOne).toBeDefined()
         expect(lapOne.lapSummarySource).toBe('derived')
         expect(lapOne.LL_Time).toBeCloseTo(62, 5)
+    })
+
+    it('derives peak power and lap kWh from sample window', () => {
+        const start = 1_700_000_000_000
+        const summary = deriveLapSummary([
+            { timestamp: start, voltage: 24, current: 10, speed: 8, rpm: 2000 },
+            { timestamp: start + 1000, voltage: 24, current: 12, speed: 9, rpm: 2200 },
+            { timestamp: start + 2000, voltage: 24, current: 8, speed: 9.5, rpm: 2100 }
+        ], start, start + 2000)
+
+        expect(summary.LL_PeakW).toBe(288)
+        expect(summary.LL_kWh).toBeGreaterThan(0)
+    })
+
+    it('backfills missing peak power and kWh on device lap summaries', () => {
+        const start = 1_700_000_000_000
+        const samples = [
+            { timestamp: start, currLap: 1, voltage: 24, current: 10, speed: 8, rpm: 2000, track: 'Track A' },
+            { timestamp: start + 60_000, currLap: 2, voltage: 24, current: 12, speed: 9, rpm: 2200 },
+            { timestamp: start + 61_000, currLap: 2, LL_Time: 60, LL_V: 24, LL_I: 12, LL_RPM: 2200, LL_Spd: 9, LL_Ah: 0.5 },
+            { timestamp: start + 120_000, currLap: 3, voltage: 24, current: 8, speed: 10, rpm: 2100 }
+        ]
+
+        const sessions = rebuildRaceSessionsFromSamples(samples)
+        const race = Object.values(sessions)[0]
+
+        expect(race.laps[2].lapSummarySource).toBe('device')
+        expect(race.laps[2].LL_PeakW).toBeGreaterThan(0)
+        expect(race.laps[2].LL_kWh).toBeGreaterThan(0)
     })
 })

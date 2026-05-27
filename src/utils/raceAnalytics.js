@@ -215,6 +215,19 @@ export function deriveLapSummary(samples, startMs, finishMs) {
         LL_Spd: averageField('speed')
     }
 
+    const powerSamples = windowSamples
+        .map((sample) => {
+            const voltage = toFiniteNumber(sample?.voltage)
+            const current = toFiniteNumber(sample?.current)
+            if (voltage === null || current === null) return null
+            return Math.max(0, voltage * current)
+        })
+        .filter((powerW) => powerW !== null)
+
+    if (powerSamples.length > 0) {
+        derived.LL_PeakW = Math.max(...powerSamples)
+    }
+
     const ampHSeries = windowSamples
         .map((sample) => ({
             timestamp: toFiniteNumber(sample?.timestamp),
@@ -229,21 +242,26 @@ export function deriveLapSummary(samples, startMs, finishMs) {
         }
     }
 
+    let integratedWh = 0
+    for (let index = 0; index < windowSamples.length - 1; index += 1) {
+        const sample = windowSamples[index]
+        const nextSample = windowSamples[index + 1]
+        const t0 = toFiniteNumber(sample?.timestamp)
+        const t1 = toFiniteNumber(nextSample?.timestamp)
+        const voltage = toFiniteNumber(sample?.voltage)
+        const current = toFiniteNumber(sample?.current)
+        if (t0 === null || t1 === null || voltage === null || current === null) continue
+        const dtMs = t1 - t0
+        if (!Number.isFinite(dtMs) || dtMs <= 0 || dtMs > 10000) continue
+        const powerW = Math.max(0, voltage * current)
+        integratedWh += powerW * (dtMs / 3600000)
+    }
+
+    if (integratedWh > 0) {
+        derived.LL_kWh = integratedWh / 1000
+    }
+
     if (!Number.isFinite(derived.LL_Ah)) {
-        let integratedWh = 0
-        for (let index = 0; index < windowSamples.length - 1; index += 1) {
-            const sample = windowSamples[index]
-            const nextSample = windowSamples[index + 1]
-            const t0 = toFiniteNumber(sample?.timestamp)
-            const t1 = toFiniteNumber(nextSample?.timestamp)
-            const voltage = toFiniteNumber(sample?.voltage)
-            const current = toFiniteNumber(sample?.current)
-            if (t0 === null || t1 === null || voltage === null || current === null) continue
-            const dtMs = t1 - t0
-            if (!Number.isFinite(dtMs) || dtMs <= 0 || dtMs > 10000) continue
-            const powerW = Math.max(0, voltage * current)
-            integratedWh += powerW * (dtMs / 3600000)
-        }
         const meanVoltage = averageField('voltage')
         if (Number.isFinite(integratedWh) && integratedWh > 0 && Number.isFinite(meanVoltage) && meanVoltage > 0) {
             derived.LL_Ah = integratedWh / meanVoltage
@@ -292,11 +310,23 @@ export function rebuildRaceSessionsFromSamples(samples, options = {}) {
 
         if (!activeRace) return
 
+        const derivedSummary = deriveLapSummary(sortedSamples, boundary.startTime, boundary.finishTime)
         const existingLap = activeRace.laps?.[boundary.lapNumber]
         const existingLapSummary = extractLapSummary(existingLap || {}).lapData
-        if (existingLap && hasMeaningfulLapSummary(existingLapSummary)) return
+        if (existingLap && hasMeaningfulLapSummary(existingLapSummary)) {
+            // Preserve authoritative device LL_* metrics, but backfill new derived
+            // fields when they are not provided by the sender.
+            const nextLap = { ...existingLap }
+            if (toFiniteNumber(nextLap.LL_PeakW) === null && toFiniteNumber(derivedSummary.LL_PeakW) !== null) {
+                nextLap.LL_PeakW = derivedSummary.LL_PeakW
+            }
+            if (toFiniteNumber(nextLap.LL_kWh) === null && toFiniteNumber(derivedSummary.LL_kWh) !== null) {
+                nextLap.LL_kWh = derivedSummary.LL_kWh
+            }
+            activeRace.laps[boundary.lapNumber] = Object.freeze(nextLap)
+            return
+        }
 
-        const derivedSummary = deriveLapSummary(sortedSamples, boundary.startTime, boundary.finishTime)
         const derivedLap = {
             ...derivedSummary,
             lapNumber: boundary.lapNumber,

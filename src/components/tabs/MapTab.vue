@@ -204,7 +204,7 @@ const trailRange = computed(() => {
                   <button v-for="key in telemetry.availableKeys" :key="key" @click="selectedMetric = key"
                     class="flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all text-xs font-medium"
                     :class="selectedMetric === key ? 'bg-primary/20 text-primary border border-primary/30' : 'text-zinc-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800 hover:text-zinc-900 dark:hover:text-white border border-transparent'">
-                    <span>{{ key }}</span>
+                    <span>{{ telemetry.getDisplayName(key) }}</span>
                     <div v-if="selectedMetric === key"
                       class="w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(203,21,87,0.8)]"></div>
                   </button>

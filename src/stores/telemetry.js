@@ -40,6 +40,9 @@ import { getChartTokens } from '../constants/chartTheme'
  *              data, historical data, lap tracking, and chart controls.
  */
 export const useTelemetryStore = defineStore('telemetry', () => {
+    /** @brief Maximum interval used when integrating energy between samples. */
+    const MAX_POWER_INTERVAL_MS = 10000
+
     // ============================================
     // Core State
     // ============================================
@@ -140,6 +143,81 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @returns {Object} Scaled packet with converted units
      */
     const scalePacketWithUnits = (pt) => scalePacket(pt, unitSettings.value)
+    /**
+     * @brief Parse a candidate value to a finite number.
+     * @param {unknown} value - Candidate numeric input
+     * @returns {number|null} Finite number, otherwise null
+     */
+    const toFiniteNumber = (value) => {
+        const parsed = Number(value)
+        return Number.isFinite(parsed) ? parsed : null
+    }
+
+    /**
+     * @brief Derive `powerW` and cumulative `powerUsedKWh` for a packet.
+     * @description Resets cumulative kWh to zero when current packet voltage
+     *              is missing/invalid as requested.
+     * @param {Object} packet - Current regular telemetry packet
+     * @param {Object|null} previousPacket - Previous packet in sequence
+     * @returns {Object} Packet with derived power metrics
+     */
+    function withDerivedPowerMetrics(packet, previousPacket = null) {
+        if (!packet || typeof packet !== 'object') return packet
+        const nextPacket = { ...packet }
+
+        const voltage = toFiniteNumber(nextPacket.voltage)
+        const current = toFiniteNumber(nextPacket.current)
+        const timestamp = toFiniteNumber(nextPacket.timestamp)
+        const previousTimestamp = toFiniteNumber(previousPacket?.timestamp)
+        const previousVoltage = toFiniteNumber(previousPacket?.voltage)
+        const previousCurrent = toFiniteNumber(previousPacket?.current)
+
+        // Instantaneous power from current sample.
+        nextPacket.powerW = (voltage === null || current === null) ? null : (voltage * current)
+
+        // Reset cumulative energy immediately on invalid voltage packets.
+        if (voltage === null) {
+            nextPacket.powerUsedKWh = 0
+            return nextPacket
+        }
+
+        const previousKWh = toFiniteNumber(previousPacket?.powerUsedKWh) || 0
+        let nextKWh = previousKWh
+
+        // Integrate using previous sample over the interval to current sample.
+        if (
+            timestamp !== null &&
+            previousTimestamp !== null &&
+            previousVoltage !== null &&
+            previousCurrent !== null
+        ) {
+            const dtMs = timestamp - previousTimestamp
+            if (dtMs > 0 && dtMs <= MAX_POWER_INTERVAL_MS) {
+                const previousPowerW = Math.max(0, previousVoltage * previousCurrent)
+                const intervalKWh = previousPowerW * (dtMs / 3600000000)
+                nextKWh += intervalKWh
+            }
+        }
+
+        nextPacket.powerUsedKWh = nextKWh
+        return nextPacket
+    }
+
+    /**
+     * @brief Recompute derived power metrics for an ordered sample sequence.
+     * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+     * @returns {Array<Object>} Samples with power metrics attached
+     */
+    function derivePowerSeries(samples) {
+        const source = Array.isArray(samples) ? samples : []
+        const derivedSeries = []
+        for (let index = 0; index < source.length; index += 1) {
+            const previousPacket = index > 0 ? derivedSeries[index - 1] : null
+            derivedSeries.push(withDerivedPowerMetrics(source[index], previousPacket))
+        }
+        return derivedSeries
+    }
+
     /**
      * @brief Rebuild display history from raw history using current unit settings.
      */
@@ -355,13 +433,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         if (hasRegularData) {
             const previousPoint = history.value.length > 0 ? history.value[history.value.length - 1] : null
+            const enrichedPacket = withDerivedPowerMetrics(regularPacket, previousPoint)
 
-            liveData.value = regularPacket
+            liveData.value = enrichedPacket
             lastPacketTime.value = timestamp
 
             // Add to history
-            history.value.push(regularPacket)
-            displayHistory.value.push(scalePacketWithUnits(regularPacket))
+            history.value.push(enrichedPacket)
+            displayHistory.value.push(scalePacketWithUnits(enrichedPacket))
 
             // Limit history size
             if (history.value.length > maxHistoryPoints.value) {
@@ -374,7 +453,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             triggerRef(displayHistory)
 
             const previousLap = Number(previousPoint?.currLap)
-            const currentLap = Number(regularPacket?.currLap)
+            const currentLap = Number(enrichedPacket?.currLap)
             const lapChanged = Number.isFinite(previousLap) && Number.isFinite(currentLap) && previousLap !== currentLap
             const incomingLapSummary = extractLapSummary(packet).lapData
             const hasAuthoritativeLapSummary = hasMeaningfulLapSummary(incomingLapSummary)
@@ -439,6 +518,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         displayHistoryRef: displayHistory,
         maxPointsRef: maxHistoryPoints,
         processPacket: scalePacketWithUnits,
+        postProcessHistory: derivePowerSeries,
         processLapData,
         clearRaces,
         rebuildRacesFromHistory

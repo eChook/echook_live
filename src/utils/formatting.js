@@ -15,6 +15,8 @@
  */
 export const getUnit = (key) => {
     const k = key.toLowerCase()
+    if (k.includes('kwh')) return 'kWh'
+    if (k === 'powerw' || k.includes('watt') || k === 'power') return 'W'
     if (k.includes('rpm')) return 'RPM'
     if (k.includes('gear')) return ''
     if (k.includes('lap')) return ''
@@ -58,6 +60,10 @@ export const formatValue = (key, value) => {
     if (k === 'lat' || k === 'lon' || k.includes('gps')) {
         return value.toFixed(5)
     }
+
+    // Power and energy metrics
+    if (k.includes('kwh')) return value.toFixed(3)
+    if (k === 'powerw' || k.includes('watt') || k === 'power') return value.toFixed(1)
 
     // Default 2 decimal places
     return value.toFixed(2)
