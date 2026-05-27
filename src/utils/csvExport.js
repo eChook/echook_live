@@ -54,7 +54,7 @@ export function exportHistoryAsCsv(startTime, endTime, filenamePrefix = 'eChook'
     const telemetry = useTelemetryStore()
 
     // 1. Filter Data
-    const history = telemetry.history
+    const history = telemetry.displayHistory
     const data = history.filter(pt => pt.timestamp >= startTime && pt.timestamp <= endTime)
 
     if (data.length === 0) {

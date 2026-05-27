@@ -19,7 +19,8 @@ import { useToast } from './useToast'
  * @param {Object} options - Configuration options
  * @param {Ref<Array>} options.historyRef - Reference to the history array
  * @param {Ref<number>} options.maxPointsRef - Reference to max history points setting
- * @param {Function} options.processPacket - Function to process/scale incoming packets
+ * @param {Ref<Array>} [options.displayHistoryRef] - Optional scaled display history array
+ * @param {Function} options.processPacket - Function to process/scale packets for display history
  * @param {Function} options.processLapData - Function to process lap data from packets
  * @param {Function} options.clearRaces - Function to clear race data
  * @param {Function} [options.rebuildRacesFromHistory] - Optional full race rebuild callback
@@ -27,6 +28,7 @@ import { useToast } from './useToast'
  */
 export function useHistory({
     historyRef,
+    displayHistoryRef,
     maxPointsRef,
     processPacket,
     processLapData,
@@ -162,9 +164,11 @@ export function useHistory({
                     incoming.forEach(pt => dataMap.set(pt.timestamp, pt))
                 }
 
-                // Sort and scale
+                // Sort raw history
                 historyRef.value = Array.from(dataMap.values()).sort((a, b) => a.timestamp - b.timestamp)
-                historyRef.value = historyRef.value.map(pt => processPacket(pt))
+                if (displayHistoryRef) {
+                    displayHistoryRef.value = historyRef.value.map((pt) => processPacket(pt))
+                }
                 if (fetchToken !== activeFetchToken.value) return 0
 
                 // Rebuild race data from history

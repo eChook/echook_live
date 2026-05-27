@@ -74,15 +74,15 @@ const latestTimestamp = computed(() => {
 
 /** @brief Live-mode sample window. */
 const liveSamples = computed(() => {
-  if (telemetry.history.length === 0) return []
+  if (telemetry.displayHistory.length === 0) return []
   const end = latestTimestamp.value
   const start = end - liveWindowMs.value
-  return telemetry.history.filter((sample) => sample.timestamp >= start && sample.timestamp <= end)
+  return telemetry.displayHistory.filter((sample) => sample.timestamp >= start && sample.timestamp <= end)
 })
 
 /** @brief History-mode sample window for selected race. */
 const historySamples = computed(() => {
-  if (sortedRaces.value.length === 0 || telemetry.history.length === 0 || !selectedRaceKey.value) return []
+  if (sortedRaces.value.length === 0 || telemetry.displayHistory.length === 0 || !selectedRaceKey.value) return []
 
   const raceStart = Number(selectedRaceKey.value)
   const selectedIndex = sortedRaces.value.findIndex((race) => race.startTimeMs === raceStart)
@@ -95,13 +95,13 @@ const historySamples = computed(() => {
     ? nextOlderRace.startTimeMs
     : latestTimestamp.value
 
-  return telemetry.history.filter((sample) => sample.timestamp >= start && sample.timestamp <= end)
+  return telemetry.displayHistory.filter((sample) => sample.timestamp >= start && sample.timestamp <= end)
 })
 
 /** @brief History samples for optional second race comparison. */
 const comparisonHistorySamples = computed(() => {
   if (mode.value !== 'history') return []
-  if (sortedRaces.value.length === 0 || telemetry.history.length === 0 || !selectedComparisonRaceKey.value) return []
+  if (sortedRaces.value.length === 0 || telemetry.displayHistory.length === 0 || !selectedComparisonRaceKey.value) return []
 
   const raceStart = Number(selectedComparisonRaceKey.value)
   const selectedIndex = sortedRaces.value.findIndex((race) => race.startTimeMs === raceStart)
@@ -109,7 +109,7 @@ const comparisonHistorySamples = computed(() => {
   const race = sortedRaces.value[selectedIndex]
   const nextOlderRace = sortedRaces.value[selectedIndex + 1]
   const end = nextOlderRace ? nextOlderRace.startTimeMs : latestTimestamp.value
-  return telemetry.history.filter((sample) => sample.timestamp >= race.startTimeMs && sample.timestamp <= end)
+  return telemetry.displayHistory.filter((sample) => sample.timestamp >= race.startTimeMs && sample.timestamp <= end)
 })
 
 /** @brief Samples currently used for analytics calculations. */

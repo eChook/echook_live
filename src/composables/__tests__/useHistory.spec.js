@@ -23,6 +23,7 @@ describe('useHistory', () => {
 
     it('ignores stale overlapping fetch responses', async () => {
         const historyRef = ref([])
+        const displayHistoryRef = ref([])
         const maxPointsRef = ref(1000)
         const processPacket = vi.fn((packet) => packet)
         const processLapData = vi.fn()
@@ -31,6 +32,7 @@ describe('useHistory', () => {
 
         const history = useHistory({
             historyRef,
+            displayHistoryRef,
             maxPointsRef,
             processPacket,
             processLapData,
@@ -60,6 +62,7 @@ describe('useHistory', () => {
         expect(staleCount).toBe(0)
         expect(historyRef.value.map((p) => p.timestamp)).toEqual([2000])
         expect(historyRef.value[0].speed).toBe(15)
+        expect(displayHistoryRef.value.map((p) => p.timestamp)).toEqual([2000])
         expect(rebuildRacesFromHistory).toHaveBeenCalledTimes(1)
     })
 
@@ -67,6 +70,7 @@ describe('useHistory', () => {
         const historyRef = ref([
             { timestamp: 1000, currLap: 1, LL_Time: 61.2, LL_V: 24.7, speed: 10 }
         ])
+        const displayHistoryRef = ref([])
         const maxPointsRef = ref(1000)
         const processPacket = vi.fn((packet) => packet)
         const processLapData = vi.fn()
@@ -75,6 +79,7 @@ describe('useHistory', () => {
 
         const history = useHistory({
             historyRef,
+            displayHistoryRef,
             maxPointsRef,
             processPacket,
             processLapData,
@@ -91,5 +96,37 @@ describe('useHistory', () => {
         expect(historyRef.value).toHaveLength(1)
         expect(historyRef.value[0].LL_Time).toBe(61.2)
         expect(historyRef.value[0].LL_V).toBe(24.7)
+        expect(displayHistoryRef.value).toHaveLength(1)
+    })
+
+    it('keeps history raw while writing scaled display history', async () => {
+        const historyRef = ref([])
+        const displayHistoryRef = ref([])
+        const maxPointsRef = ref(1000)
+        const processPacket = vi.fn((packet) => ({ ...packet, speed: packet.speed * 2 }))
+        const processLapData = vi.fn()
+        const clearRaces = vi.fn()
+        const rebuildRacesFromHistory = vi.fn()
+
+        const history = useHistory({
+            historyRef,
+            displayHistoryRef,
+            maxPointsRef,
+            processPacket,
+            processLapData,
+            clearRaces,
+            rebuildRacesFromHistory
+        })
+
+        api.get.mockResolvedValueOnce({
+            data: [{ timestamp: 1000, speed: '10' }]
+        })
+
+        await history.fetchHistory('car-1')
+
+        expect(historyRef.value).toHaveLength(1)
+        expect(historyRef.value[0].speed).toBe(10)
+        expect(displayHistoryRef.value).toHaveLength(1)
+        expect(displayHistoryRef.value[0].speed).toBe(20)
     })
 })

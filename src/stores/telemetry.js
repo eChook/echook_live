@@ -51,7 +51,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     /** @brief Timestamp of last received data packet */
     const lastPacketTime = ref(0)
 
-    /** @brief Latest telemetry packet (scaled for display) */
+    /** @brief Latest telemetry packet (raw normalized values) */
     const liveData = ref({})
 
     /**
@@ -60,6 +60,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @type {ShallowRef<Array<Object>>}
      */
     const history = shallowRef([])
+    /**
+     * @brief Historical telemetry data scaled for display units.
+     * @description Mirrors `history` but with speed/temperature conversions applied.
+     * @type {ShallowRef<Array<Object>>}
+     */
+    const displayHistory = shallowRef([])
 
     /** @brief Sequential array of lap data for backup/legacy consumers */
     const lapHistory = ref([])
@@ -114,13 +120,6 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         set: (val) => { settings.races = val }
     })
 
-    // Trim history when max points setting changes
-    watch(() => settings.maxHistoryPoints, (val) => {
-        if (history.value.length > val) {
-            history.value = history.value.slice(history.value.length - val)
-        }
-    })
-
     // ============================================
     // Computed Properties
     // ============================================
@@ -141,6 +140,26 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @returns {Object} Scaled packet with converted units
      */
     const scalePacketWithUnits = (pt) => scalePacket(pt, unitSettings.value)
+    /**
+     * @brief Rebuild display history from raw history using current unit settings.
+     */
+    const rescaleDisplayHistory = () => {
+        displayHistory.value = history.value.map(scalePacketWithUnits)
+    }
+
+    // Trim history when max points setting changes
+    watch(() => settings.maxHistoryPoints, (val) => {
+        if (history.value.length > val) {
+            const startIdx = history.value.length - val
+            history.value = history.value.slice(startIdx)
+            displayHistory.value = displayHistory.value.slice(startIdx)
+        }
+    })
+
+    // Refresh scaled display values whenever unit settings change.
+    watch(unitSettings, () => {
+        rescaleDisplayHistory()
+    }, { deep: true })
 
     /**
      * @brief Live data with unit conversions applied.
@@ -148,7 +167,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     const displayLiveData = computed(() => {
         const pt = liveData.value
-        if (!pt) return {}
+        if (!pt || Object.keys(pt).length === 0) return {}
         return scalePacketWithUnits(pt)
     })
 
@@ -337,25 +356,25 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         if (hasRegularData) {
             const previousPoint = history.value.length > 0 ? history.value[history.value.length - 1] : null
 
-            // Scale on ingestion for performance
-            const processed = scalePacketWithUnits(regularPacket)
-
-            liveData.value = processed
+            liveData.value = regularPacket
             lastPacketTime.value = timestamp
 
             // Add to history
-            history.value.push(processed)
+            history.value.push(regularPacket)
+            displayHistory.value.push(scalePacketWithUnits(regularPacket))
 
             // Limit history size
             if (history.value.length > maxHistoryPoints.value) {
                 history.value.shift()
+                displayHistory.value.shift()
             }
 
             // Trigger reactivity without cloning the full history array.
             triggerRef(history)
+            triggerRef(displayHistory)
 
             const previousLap = Number(previousPoint?.currLap)
-            const currentLap = Number(processed?.currLap)
+            const currentLap = Number(regularPacket?.currLap)
             const lapChanged = Number.isFinite(previousLap) && Number.isFinite(currentLap) && previousLap !== currentLap
             const incomingLapSummary = extractLapSummary(packet).lapData
             const hasAuthoritativeLapSummary = hasMeaningfulLapSummary(incomingLapSummary)
@@ -417,6 +436,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     // History composable
     const historyComposable = useHistory({
         historyRef: history,
+        displayHistoryRef: displayHistory,
         maxPointsRef: maxHistoryPoints,
         processPacket: scalePacketWithUnits,
         processLapData,
@@ -502,6 +522,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     function clearHistory() {
         history.value = []
+        displayHistory.value = []
         clearRaces()
         chartZoomComposable.clearCurrentZoomWindow()
     }
@@ -565,6 +586,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         disconnect()
         liveData.value = {}
         history.value = []
+        displayHistory.value = []
         lapHistory.value = []
         races.value = {}
         lastPacketTime.value = 0
@@ -595,7 +617,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         // Data State
         liveData,
         history,
-        displayHistory: history,
+        displayHistory,
         lapHistory,
         races,
         viewingCar,

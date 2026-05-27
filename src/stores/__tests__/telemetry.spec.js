@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { nextTick } from 'vue'
 import { useTelemetryStore } from '../telemetry'
 import { useSettingsStore } from '../settings'
 
@@ -67,6 +68,118 @@ describe('telemetry store', () => {
             const telemetry = useTelemetryStore()
 
             expect(telemetry.displayLiveData).toEqual({})
+        })
+
+        it('applies speed conversion only once for live data', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+
+            telemetry.liveData = { speed: 10 }
+            settings.unitSettings.speedUnit = 'mph'
+            await nextTick()
+
+            expect(telemetry.displayLiveData.speed).toBeCloseTo(22.3694, 4)
+        })
+
+        it('recomputes live display speed when unit changes without new packet', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+
+            telemetry.liveData = { speed: 10 }
+            settings.unitSettings.speedUnit = 'mph'
+            await nextTick()
+            expect(telemetry.displayLiveData.speed).toBeCloseTo(22.3694, 4)
+
+            settings.unitSettings.speedUnit = 'kph'
+            await nextTick()
+            expect(telemetry.displayLiveData.speed).toBeCloseTo(36, 4)
+        })
+
+        it('displays live speed correctly for all speed unit options', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+            const expectedByUnit = {
+                mph: 22.3694,
+                kph: 36,
+                ms: 10
+            }
+
+            telemetry.liveData = { speed: 10 }
+
+            for (const [speedUnit, expected] of Object.entries(expectedByUnit)) {
+                settings.unitSettings.speedUnit = speedUnit
+                await nextTick()
+                expect(telemetry.displayLiveData.speed).toBeCloseTo(expected, 4)
+            }
+        })
+
+        it('displays live temperatures correctly for all temperature unit options', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+            const expectedByUnit = {
+                c: { temp1: 25, temp2: 30, tempDiff: 5 },
+                f: { temp1: 77, temp2: 86, tempDiff: 9 }
+            }
+
+            telemetry.liveData = { temp1: 25, temp2: 30 }
+
+            for (const [tempUnit, expected] of Object.entries(expectedByUnit)) {
+                settings.unitSettings.tempUnit = tempUnit
+                await nextTick()
+                expect(telemetry.displayLiveData.temp1).toBeCloseTo(expected.temp1, 4)
+                expect(telemetry.displayLiveData.temp2).toBeCloseTo(expected.temp2, 4)
+                expect(telemetry.displayLiveData.tempDiff).toBeCloseTo(expected.tempDiff, 4)
+            }
+        })
+
+        it('rescales display history when temperature units change', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+
+            telemetry.history = [{ timestamp: 1000, temp1: 25, temp2: 30, speed: 10 }]
+
+            settings.unitSettings.speedUnit = 'mph'
+            settings.unitSettings.tempUnit = 'f'
+            await nextTick()
+
+            expect(telemetry.displayHistory).toHaveLength(1)
+            expect(telemetry.displayHistory[0].temp1).toBeCloseTo(77, 4)
+            expect(telemetry.displayHistory[0].temp2).toBeCloseTo(86, 4)
+            expect(telemetry.displayHistory[0].tempDiff).toBeCloseTo(9, 4)
+            expect(telemetry.displayHistory[0].speed).toBeCloseTo(22.3694, 4)
+        })
+
+        it('rescales display history correctly for each speed and temperature unit option', async () => {
+            const telemetry = useTelemetryStore()
+            const settings = useSettingsStore()
+            const speedByUnit = {
+                mph: 22.3694,
+                kph: 36,
+                ms: 10
+            }
+            const tempByUnit = {
+                c: { temp1: 25, temp2: 30, tempDiff: 5 },
+                f: { temp1: 77, temp2: 86, tempDiff: 9 }
+            }
+
+            telemetry.history = [{ timestamp: 1000, speed: 10, temp1: 25, temp2: 30 }]
+            // Prime display history by triggering unit-setting watch at least once.
+            settings.unitSettings.tempUnit = 'f'
+            await nextTick()
+
+            for (const [speedUnit, expectedSpeed] of Object.entries(speedByUnit)) {
+                for (const [tempUnit, expectedTemp] of Object.entries(tempByUnit)) {
+                    settings.unitSettings.speedUnit = speedUnit
+                    settings.unitSettings.tempUnit = tempUnit
+                    await nextTick()
+
+                    expect(telemetry.displayHistory).toHaveLength(1)
+                    expect(telemetry.displayHistory[0].speed).toBeCloseTo(expectedSpeed, 4)
+                    expect(telemetry.displayHistory[0].temp1).toBeCloseTo(expectedTemp.temp1, 4)
+                    expect(telemetry.displayHistory[0].temp2).toBeCloseTo(expectedTemp.temp2, 4)
+                    expect(telemetry.displayHistory[0].tempDiff).toBeCloseTo(expectedTemp.tempDiff, 4)
+                }
+            }
         })
     })
 

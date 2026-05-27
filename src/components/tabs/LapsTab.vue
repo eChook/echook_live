@@ -48,7 +48,7 @@ function getRaceSamplesByIndex(raceList, raceIndex) {
   const raceEnd = nextOlderRace
     ? nextOlderRace.startTimeMs
     : (telemetry.history[telemetry.history.length - 1]?.timestamp || Date.now())
-  return telemetry.history.filter((sample) => sample.timestamp >= raceStart && sample.timestamp <= raceEnd)
+  return telemetry.displayHistory.filter((sample) => sample.timestamp >= raceStart && sample.timestamp <= raceEnd)
 }
 
 /**
@@ -132,10 +132,6 @@ const sortedRaces = computed(() => {
     // Sort laps newest first for display
     const sortedLaps = [...filteredLapResult.laps].reverse()
     const stintKpis = computeSessionStintKpis(filteredLapResult.laps, raceSamples, { lastNLaps: 5 })
-    const lapDeltaLookup = stintKpis.lapTimesWithDelta.reduce((lookup, lapSummary) => {
-      lookup[lapSummary.lapNumber] = lapSummary
-      return lookup
-    }, {})
 
     let baselineComparison = null
     const baselineRace = raceList.slice(raceIndex + 1).find((candidate) => {
@@ -161,7 +157,6 @@ const sortedRaces = computed(() => {
       stintKpis,
       filteredLapCount: filteredLapResult.laps.length,
       sourceLapCount: convertedLaps.length,
-      lapDeltaLookup,
       baselineComparison,
       startSummary: computeStartMetrics(raceSamples, {
         speedUnit: telemetry.unitSettings.speedUnit,
@@ -277,6 +272,18 @@ const getConfidenceClass = (label) => {
 const formatTime = (ms) => {
   if (!ms || !Number.isFinite(ms)) return '-'
   return new Date(ms).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+/**
+ * @brief Format lap duration (seconds) as minutes:seconds for the laps table.
+ * @description LL_Time is stored in seconds; display as m:ss.ss (e.g. 62.5 -> 1:02.50).
+ */
+const formatLapDuration = (totalSeconds) => {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return '-'
+  const wholeMinutes = Math.floor(totalSeconds / 60)
+  const remainderSeconds = totalSeconds - (wholeMinutes * 60)
+  const secondsPart = remainderSeconds.toFixed(2).padStart(5, '0')
+  return `${wholeMinutes}:${secondsPart}`
 }
 
 /**
@@ -648,6 +655,7 @@ const handleDisclaimerConfirm = (doNotShow) => {
                   <!-- Content -->
                   <div class="relative z-10 flex justify-between items-center space-x-1 md:space-x-2">
                     <span v-if="['startTime', 'finishTime'].includes(key)">{{ formatTime(lap[key]) }}</span>
+                    <span v-else-if="key === 'LL_Time'">{{ formatLapDuration(lap[key]) }}</span>
                     <span v-else>{{ formatValue(lap[key]) }}</span>
 
                     <!-- Diff Badge -->
@@ -657,18 +665,6 @@ const handleDisclaimerConfirm = (doNotShow) => {
                       :class="getDiffColor(key, getDiff(lap, race.sortedLaps, key, idx))">
                       {{ getDiff(lap, race.sortedLaps, key, idx) > 0 ? '+' : '' }}{{ formatValue(getDiff(lap,
                         race.sortedLaps, key, idx)) }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="key === 'LL_Time' && race.lapDeltaLookup?.[lap.lapNumber]"
-                    class="relative z-10 mt-1 flex flex-wrap gap-2 text-[9px] md:text-[10px] text-zinc-500 dark:text-gray-500"
-                  >
-                    <span>Δ best: <span class="font-mono">{{ formatSigned(race.lapDeltaLookup[lap.lapNumber].deltaToBestSec, 2) }}</span>s</span>
-                    <span>
-                      Δ roll:
-                      <span class="font-mono">
-                        {{ formatSigned(race.lapDeltaLookup[lap.lapNumber].deltaToRollingAverageSec, 2) }}
-                      </span>s
                     </span>
                   </div>
                 </td>
