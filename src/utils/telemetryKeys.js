@@ -95,6 +95,27 @@ export const KEY_ORDER = [
 ]
 
 /**
+ * @brief Client-derived keys available when source fields exist on a packet.
+ * @description Matches values computed in {@link scalePacket} (unitConversions).
+ *              Used so dashboard cards and graphs list derived metrics even though
+ *              the car only sends the underlying channels.
+ * @param {Object} pt - Raw telemetry packet
+ * @returns {string[]} Derived key names supported by this packet
+ */
+export function getDerivedKeysForPacket(pt) {
+    if (!pt || typeof pt !== 'object') return []
+
+    const derived = []
+    if (pt.voltage !== undefined && pt.voltageLower !== undefined) {
+        derived.push('voltageHigh', 'voltageDiff')
+    }
+    if (pt.temp1 !== undefined && pt.temp2 !== undefined) {
+        derived.push('tempDiff')
+    }
+    return derived
+}
+
+/**
  * @brief Get human-readable display name for a telemetry key.
  * @param {string} key - Telemetry key
  * @returns {string} Display name or the key itself if not found

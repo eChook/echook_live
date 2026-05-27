@@ -63,6 +63,28 @@ describe('telemetry store', () => {
         })
     })
 
+    describe('availableKeys', () => {
+        it('includes client-derived voltage keys when voltage and voltageLower are present', async () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.liveData = { voltage: 24.5, voltageLower: 12.1, current: 5 }
+            await nextTick()
+
+            expect(telemetry.availableKeys).toContain('voltageHigh')
+            expect(telemetry.availableKeys).toContain('voltageDiff')
+        })
+
+        it('omits derived voltage keys when voltageLower is missing', async () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.liveData = { voltage: 24.5, current: 5 }
+            await nextTick()
+
+            expect(telemetry.availableKeys).not.toContain('voltageHigh')
+            expect(telemetry.availableKeys).not.toContain('voltageDiff')
+        })
+    })
+
     describe('displayLiveData', () => {
         it('returns empty object when no data', () => {
             const telemetry = useTelemetryStore()

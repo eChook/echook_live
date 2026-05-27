@@ -29,7 +29,8 @@ import {
     REGULAR_KEYS,
     KEY_ORDER,
     getDisplayName,
-    getDescription
+    getDescription,
+    getDerivedKeysForPacket
 } from '../utils/telemetryKeys'
 import { getChartTokens } from '../constants/chartTheme'
 
@@ -257,16 +258,21 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     const availableKeys = computed(() => {
         const keys = new Set()
 
-        // Add keys from live data if they are in REGULAR_KEYS
-        Object.keys(liveData.value).forEach(k => {
-            if (REGULAR_KEYS.has(k)) keys.add(k)
-        })
+        const addKeysFromPacket = (pt) => {
+            if (!pt || typeof pt !== 'object') return
+            Object.keys(pt).forEach((k) => {
+                if (REGULAR_KEYS.has(k)) keys.add(k)
+            })
+            getDerivedKeysForPacket(pt).forEach((k) => {
+                if (REGULAR_KEYS.has(k)) keys.add(k)
+            })
+        }
+
+        addKeysFromPacket(liveData.value)
 
         // Also check recent history for temporarily missing keys
         if (history.value.length > 0) {
-            Object.keys(history.value[history.value.length - 1]).forEach(k => {
-                if (REGULAR_KEYS.has(k)) keys.add(k)
-            })
+            addKeysFromPacket(history.value[history.value.length - 1])
         }
 
         return KEY_ORDER.filter(k => keys.has(k))
