@@ -1011,19 +1011,14 @@ function resolveSeverity(value, warningThreshold, criticalThreshold, higherIsWor
  * @brief Detect reliability events from telemetry stream.
  * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
  * @param {Object} [options] - Detection thresholds and runtime options
- * @param {number} [options.nowTimestamp=Date.now()] - Current timestamp for stale detection
- * @param {number} [options.undervoltageWarningV=20] - Undervoltage warning threshold
- * @param {number} [options.undervoltageCriticalV=18] - Undervoltage critical threshold
+ * @param {number} [options.undervoltageWarningV=18] - Undervoltage warning threshold
+ * @param {number} [options.undervoltageCriticalV=14] - Undervoltage critical threshold
  * @param {number} [options.overTempWarningC=55] - Over-temp warning threshold
  * @param {number} [options.overTempCriticalC=65] - Over-temp critical threshold
- * @param {number} [options.currentSpikeWarningA=20] - Current spike warning delta
- * @param {number} [options.currentSpikeCriticalA=35] - Current spike critical delta
- * @param {number} [options.dropoutWarningSec=10] - Dropout warning duration
- * @param {number} [options.dropoutCriticalSec=30] - Dropout critical duration
- * @param {number} [options.staleLiveWarningSec=5] - Stale-live warning duration
- * @param {number} [options.staleLiveCriticalSec=15] - Stale-live critical duration
- * @param {number} [options.overlapWarningSec=1] - Overlap warning threshold
- * @param {number} [options.overlapCriticalSec=3] - Overlap critical threshold
+ * @param {number} [options.currentSpikeWarningA=40] - Current spike warning delta
+ * @param {number} [options.currentSpikeCriticalA=120] - Current spike critical delta
+ * @param {number} [options.dropoutWarningSec=10] - Dropout threshold (seconds)
+ * @param {number} [options.overlapWarningSec=2] - Throttle/brake overlap threshold (seconds)
  * @param {number} [options.throttleOverlapThresholdPct=5] - Overlap throttle threshold
  * @param {number} [options.brakeThreshold=0.5] - Overlap brake threshold
  * @returns {Array<Object>} Sorted reliability events
@@ -1033,21 +1028,16 @@ export function detectReliabilityEvents(samples, options = {}) {
     const events = []
     if (data.length === 0) return events
 
-    const undervoltageWarningV = Number.isFinite(options.undervoltageWarningV) ? options.undervoltageWarningV : 20
-    const undervoltageCriticalV = Number.isFinite(options.undervoltageCriticalV) ? options.undervoltageCriticalV : 18
+    const undervoltageWarningV = Number.isFinite(options.undervoltageWarningV) ? options.undervoltageWarningV : 18
+    const undervoltageCriticalV = Number.isFinite(options.undervoltageCriticalV) ? options.undervoltageCriticalV : 14
     const overTempWarningC = Number.isFinite(options.overTempWarningC) ? options.overTempWarningC : 55
     const overTempCriticalC = Number.isFinite(options.overTempCriticalC) ? options.overTempCriticalC : 65
-    const currentSpikeWarningA = Number.isFinite(options.currentSpikeWarningA) ? options.currentSpikeWarningA : 20
-    const currentSpikeCriticalA = Number.isFinite(options.currentSpikeCriticalA) ? options.currentSpikeCriticalA : 35
+    const currentSpikeWarningA = Number.isFinite(options.currentSpikeWarningA) ? options.currentSpikeWarningA : 40
+    const currentSpikeCriticalA = Number.isFinite(options.currentSpikeCriticalA) ? options.currentSpikeCriticalA : 120
     const dropoutWarningSec = Number.isFinite(options.dropoutWarningSec) ? options.dropoutWarningSec : 10
-    const dropoutCriticalSec = Number.isFinite(options.dropoutCriticalSec) ? options.dropoutCriticalSec : 30
-    const staleLiveWarningSec = Number.isFinite(options.staleLiveWarningSec) ? options.staleLiveWarningSec : 5
-    const staleLiveCriticalSec = Number.isFinite(options.staleLiveCriticalSec) ? options.staleLiveCriticalSec : 15
-    const overlapWarningSec = Number.isFinite(options.overlapWarningSec) ? options.overlapWarningSec : 1
-    const overlapCriticalSec = Number.isFinite(options.overlapCriticalSec) ? options.overlapCriticalSec : 3
+    const overlapWarningSec = Number.isFinite(options.overlapWarningSec) ? options.overlapWarningSec : 2
     const throttleOverlapThresholdPct = Number.isFinite(options.throttleOverlapThresholdPct) ? options.throttleOverlapThresholdPct : 5
     const brakeThreshold = Number.isFinite(options.brakeThreshold) ? options.brakeThreshold : 0.5
-    const nowTimestamp = Number.isFinite(options.nowTimestamp) ? options.nowTimestamp : Date.now()
 
     for (let i = 0; i < data.length; i += 1) {
         const sample = data[i] || {}
@@ -1114,7 +1104,7 @@ export function detectReliabilityEvents(samples, options = {}) {
             const prevTs = toFiniteNumber(previous.timestamp)
             if (prevTs !== null) {
                 const gapSec = (timestamp - prevTs) / 1000
-                const severity = resolveSeverity(gapSec, dropoutWarningSec, dropoutCriticalSec, true)
+                const severity = resolveSeverity(gapSec, dropoutWarningSec, undefined, true)
                 if (severity !== 'info') {
                     events.push({
                         id: `dropout_${timestamp}_${i}`,
@@ -1126,7 +1116,7 @@ export function detectReliabilityEvents(samples, options = {}) {
                         title: 'Telemetry Dropout',
                         message: `No packets for ${gapSec.toFixed(1)} s`,
                         value: gapSec,
-                        threshold: severity === 'critical' ? dropoutCriticalSec : dropoutWarningSec
+                        threshold: dropoutWarningSec
                     })
                 }
             }
@@ -1144,7 +1134,7 @@ export function detectReliabilityEvents(samples, options = {}) {
         if (isOverlap && overlapStart === null) overlapStart = ts
         if (!isOverlap && overlapStart !== null) {
             const durationSec = (ts - overlapStart) / 1000
-            const severity = resolveSeverity(durationSec, overlapWarningSec, overlapCriticalSec, true)
+            const severity = resolveSeverity(durationSec, overlapWarningSec, undefined, true)
             if (severity !== 'info') {
                 events.push({
                     id: `overlap_${overlapStart}_${i}`,
@@ -1156,7 +1146,7 @@ export function detectReliabilityEvents(samples, options = {}) {
                     title: 'Throttle + Brake Overlap',
                     message: `Overlap persisted for ${durationSec.toFixed(2)} s`,
                     value: durationSec,
-                    threshold: severity === 'critical' ? overlapCriticalSec : overlapWarningSec
+                    threshold: overlapWarningSec
                 })
             }
             overlapStart = null
@@ -1167,7 +1157,7 @@ export function detectReliabilityEvents(samples, options = {}) {
         const lastTs = toFiniteNumber(data[data.length - 1]?.timestamp)
         if (lastTs !== null && lastTs > overlapStart) {
             const durationSec = (lastTs - overlapStart) / 1000
-            const severity = resolveSeverity(durationSec, overlapWarningSec, overlapCriticalSec, true)
+            const severity = resolveSeverity(durationSec, overlapWarningSec, undefined, true)
             if (severity !== 'info') {
                 events.push({
                     id: `overlap_${overlapStart}_end`,
@@ -1179,28 +1169,9 @@ export function detectReliabilityEvents(samples, options = {}) {
                     title: 'Throttle + Brake Overlap',
                     message: `Overlap persisted for ${durationSec.toFixed(2)} s`,
                     value: durationSec,
-                    threshold: severity === 'critical' ? overlapCriticalSec : overlapWarningSec
+                    threshold: overlapWarningSec
                 })
             }
-        }
-    }
-
-    const lastTimestamp = toFiniteNumber(data[data.length - 1]?.timestamp)
-    if (lastTimestamp !== null) {
-        const staleSec = Math.max(0, (nowTimestamp - lastTimestamp) / 1000)
-        const severity = resolveSeverity(staleSec, staleLiveWarningSec, staleLiveCriticalSec, true)
-        if (severity !== 'info') {
-            events.push({
-                id: `stale_${lastTimestamp}`,
-                type: 'stale_live',
-                severity,
-                timestamp: lastTimestamp,
-                durationSec: staleSec,
-                title: 'Stale Live Data',
-                message: `Latest packet is ${staleSec.toFixed(1)} s old`,
-                value: staleSec,
-                threshold: severity === 'critical' ? staleLiveCriticalSec : staleLiveWarningSec
-            })
         }
     }
 

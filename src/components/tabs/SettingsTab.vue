@@ -190,6 +190,10 @@ const themeOptions = [
   { value: 'system', label: 'Auto' }
 ]
 
+/** @brief Shared styling for event-threshold reset icon buttons. */
+const eventThresholdResetButtonClass =
+  'shrink-0 p-1.5 rounded-md text-zinc-400 hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 transition focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-zinc-50 dark:focus:ring-offset-neutral-900'
+
 </script>
 
 <template>
@@ -348,10 +352,9 @@ const themeOptions = [
         <InformationCircleIcon class="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div class="text-xs text-zinc-600 dark:text-gray-400 leading-relaxed">
           <p class="font-bold text-zinc-800 dark:text-gray-300 mb-1 uppercase tracking-wider">Browser Storage</p>
-          Unit, visual, performance, and analytics thresholds are saved automatically to your browser's local storage
+          Unit, visual, and performance settings are saved automatically to your browser's local storage
           for this device.
-          Use the menu at the top to download a backup file or load settings on a different machine. Export/import
-          includes analytics window, overlap threshold, and race-start current threshold values.
+          Use the menu at the top to download a backup file or load settings on a different machine.
         </div>
       </div>
 
@@ -382,9 +385,197 @@ const themeOptions = [
         </div>
       </section>
 
-      <!-- Analytics Controls -->
+      <!-- Event thresholds (all users) -->
       <section class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700">
-        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4 border-b border-zinc-200 dark:border-neutral-700 pb-2">Analytics Controls</h3>
+        <div class="flex items-center justify-between gap-3 border-b border-zinc-200 dark:border-neutral-700 pb-2 mb-2">
+          <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Event Thresholds</h3>
+          <button
+            type="button"
+            :class="eventThresholdResetButtonClass"
+            title="Reset all event thresholds to defaults"
+            aria-label="Reset all event thresholds to defaults"
+            @click="settings.resetAllEventThresholds()"
+          >
+            <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+          </button>
+        </div>
+        <p class="text-sm text-zinc-600 dark:text-gray-400 mb-6">
+          Warning and critical levels used when detecting analytics events. Grouped by telemetry type.
+        </p>
+        <div class="space-y-5">
+          <!-- Voltage -->
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Voltage</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Warning (V)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset voltage warning to default"
+                    @click="settings.resetEventThreshold('eventUndervoltageWarningV')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventUndervoltageWarningV" type="number" step="0.1"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Critical (V)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset voltage critical to default"
+                    @click="settings.resetEventThreshold('eventUndervoltageCriticalV')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventUndervoltageCriticalV" type="number" step="0.1"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Temperature -->
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Temperature</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Warning (°C)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset temperature warning to default"
+                    @click="settings.resetEventThreshold('eventOverTempWarningC')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventOverTempWarningC" type="number" step="0.5"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Critical (°C)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset temperature critical to default"
+                    @click="settings.resetEventThreshold('eventOverTempCriticalC')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventOverTempCriticalC" type="number" step="0.5"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Current -->
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Current</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Spike warning (A)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset current spike warning to default"
+                    @click="settings.resetEventThreshold('eventCurrentSpikeWarningA')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeWarningA" type="number" step="1"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Spike critical (A)</span>
+                  <button
+                    type="button"
+                    :class="eventThresholdResetButtonClass"
+                    title="Reset to default"
+                    aria-label="Reset current spike critical to default"
+                    @click="settings.resetEventThreshold('eventCurrentSpikeCriticalA')"
+                  >
+                    <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                  </button>
+                </div>
+                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeCriticalA" type="number" step="1"
+                  class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Telemetry dropout -->
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Telemetry dropout</h4>
+            <div>
+              <div class="flex items-start justify-between gap-2 mb-1">
+                <div>
+                  <span class="text-xs text-zinc-600 dark:text-gray-400">Gap threshold (s)</span>
+                  <span class="block text-zinc-500 dark:text-gray-500 font-normal mt-0.5">Alert when no packets arrive for this long between samples</span>
+                </div>
+                <button
+                  type="button"
+                  :class="eventThresholdResetButtonClass"
+                  title="Reset to default"
+                  aria-label="Reset telemetry dropout threshold to default"
+                  @click="settings.resetEventThreshold('eventDropoutWarningSec')"
+                >
+                  <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                </button>
+              </div>
+              <input v-model.number="settings.analyticsSettings.eventDropoutWarningSec" type="number" step="1"
+                class="w-full max-w-xs bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+            </div>
+          </div>
+
+          <!-- Driver input -->
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/40 p-4">
+            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Throttle and brake overlap</h4>
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-xs text-zinc-600 dark:text-gray-400">Minimum overlap duration (s)</span>
+                <button
+                  type="button"
+                  :class="eventThresholdResetButtonClass"
+                  title="Reset to default"
+                  aria-label="Reset throttle and brake overlap duration to default"
+                  @click="settings.resetEventThreshold('eventOverlapWarningSec')"
+                >
+                  <ArrowPathIcon class="h-4 w-4 -scale-x-100" aria-hidden="true" />
+                </button>
+              </div>
+              <input v-model.number="settings.analyticsSettings.eventOverlapWarningSec" type="number" step="0.1"
+                class="w-full max-w-xs bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics controls (admin only) -->
+      <section
+        v-if="auth.isAdmin"
+        class="bg-white/90 dark:bg-neutral-800/50 rounded-lg p-6 border border-zinc-200 dark:border-neutral-700"
+      >
+        <h3 class="text-lg font-semibold text-zinc-900 dark:text-white mb-2 border-b border-zinc-200 dark:border-neutral-700 pb-2">Analytics Controls</h3>
+        <p class="text-sm text-zinc-600 dark:text-gray-400 mb-6">
+          Advanced analytics configuration. Visible to administrators only while the Analytics tab is in preview.
+        </p>
         <div class="space-y-6">
           <div>
             <div class="flex justify-between mb-2">
@@ -472,60 +663,6 @@ const themeOptions = [
                   Exclude first lap
                 </label>
               </div>
-            </div>
-          </div>
-
-          <div class="border-t border-zinc-200 dark:border-neutral-700 pt-4">
-            <h4 class="text-sm font-semibold text-zinc-800 dark:text-gray-200 mb-3">Event Thresholds and Severity</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Undervoltage Warn (V)
-                <input v-model.number="settings.analyticsSettings.eventUndervoltageWarningV" type="number" step="0.1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Undervoltage Critical (V)
-                <input v-model.number="settings.analyticsSettings.eventUndervoltageCriticalV" type="number" step="0.1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Over-temp Warn (C)
-                <input v-model.number="settings.analyticsSettings.eventOverTempWarningC" type="number" step="0.5"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Over-temp Critical (C)
-                <input v-model.number="settings.analyticsSettings.eventOverTempCriticalC" type="number" step="0.5"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Current Spike Warn (A)
-                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeWarningA" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Current Spike Critical (A)
-                <input v-model.number="settings.analyticsSettings.eventCurrentSpikeCriticalA" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Dropout Warn (s)
-                <input v-model.number="settings.analyticsSettings.eventDropoutWarningSec" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Dropout Critical (s)
-                <input v-model.number="settings.analyticsSettings.eventDropoutCriticalSec" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Stale Warn (s)
-                <input v-model.number="settings.analyticsSettings.eventStaleWarningSec" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Stale Critical (s)
-                <input v-model.number="settings.analyticsSettings.eventStaleCriticalSec" type="number" step="1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Overlap Warn (s)
-                <input v-model.number="settings.analyticsSettings.eventOverlapWarningSec" type="number" step="0.1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
-              <label class="text-xs text-zinc-600 dark:text-gray-400">Overlap Critical (s)
-                <input v-model.number="settings.analyticsSettings.eventOverlapCriticalSec" type="number" step="0.1"
-                  class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-              </label>
             </div>
           </div>
 

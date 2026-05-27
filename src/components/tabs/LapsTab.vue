@@ -257,14 +257,57 @@ const getOverlapSeverityClass = (severity) => {
   return 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20'
 }
 
-/**
- * @brief Badge classes for lap confidence labels.
- */
-const getConfidenceClass = (label) => {
-  if (label === 'invalid') return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/20'
-  if (label === 'suspect') return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/20'
-  return 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/20'
+/** @brief Human-readable text for lap confidence reason codes. */
+const CONFIDENCE_REASON_TEXT = {
+  missing_or_nonpositive_lap_time: 'Lap time is missing or zero.',
+  lap_time_below_minimum_bound: 'Lap time is below the configured minimum.',
+  lap_time_above_maximum_bound: 'Lap time is above the configured maximum.',
+  missing_ll_placeholder_metrics: 'Several lap summary metrics are missing.',
+  lap_sequence_jump_detected: 'Lap number sequence has a gap or jump.'
 }
+
+/** @brief Summary tooltip text for each confidence label. */
+const CONFIDENCE_SUMMARY = {
+  good: 'Lap passed confidence checks — timing and metrics look consistent.',
+  suspect: 'Lap may be unreliable — review timing and metrics before comparing.',
+  invalid: 'Lap failed confidence checks — exclude from timing analysis.'
+}
+
+/**
+ * @brief Single-letter icon for lap confidence label.
+ */
+const getConfidenceIcon = (label) => {
+  if (label === 'invalid') return 'I'
+  if (label === 'suspect') return 'S'
+  return 'G'
+}
+
+/**
+ * @brief Colour classes for compact confidence icon badges.
+ */
+const getConfidenceIconClass = (label) => {
+  if (label === 'invalid') return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30'
+  if (label === 'suspect') return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30'
+  return 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30'
+}
+
+/**
+ * @brief Build mouseover tooltip for lap confidence icon.
+ */
+const getConfidenceTooltip = (lap) => {
+  const label = lap.confidenceLabel || 'good'
+  const parts = [CONFIDENCE_SUMMARY[label] || CONFIDENCE_SUMMARY.good]
+  const reasons = Array.isArray(lap.confidenceReasons) ? lap.confidenceReasons : []
+  reasons.forEach((code) => {
+    const reasonText = CONFIDENCE_REASON_TEXT[code]
+    if (reasonText) parts.push(reasonText)
+  })
+  return parts.join(' ')
+}
+
+/** @brief Tooltip for derived lap summary icon. */
+const DERIVED_LAP_TOOLTIP =
+  'This lap uses live data streamed directly from the car, rather than a local more accurate lap summary from the car. As a result, lap timing accuracy is very limited. We are working to reduce this occurrence.'
 
 /**
  * @brief Format timestamp as time string.
@@ -409,57 +452,6 @@ const handleDisclaimerConfirm = (doNotShow) => {
     <div v-if="sortedRaces.length === 0" class="flex items-center justify-center h-full text-zinc-500 dark:text-gray-500 italic text-sm">
       No lap data recorded yet.
     </div>
-
-    <!-- Lap Confidence + Filters -->
-    <section class="bg-zinc-50 dark:bg-neutral-900/60 border border-zinc-200 dark:border-neutral-700 rounded-lg p-3 md:p-4">
-      <h3 class="text-xs md:text-sm font-semibold text-zinc-800 dark:text-gray-200 uppercase tracking-wider">Lap Confidence Filters</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-xs">
-        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
-          <input v-model="settings.analyticsSettings.hideSuspectLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
-          Hide suspect laps
-        </label>
-        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
-          <input v-model="settings.analyticsSettings.hideInvalidLaps" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
-          Hide invalid laps
-        </label>
-        <label class="flex items-center gap-2 text-zinc-700 dark:text-gray-300">
-          <input v-model="settings.analyticsSettings.excludeFirstLap" type="checkbox" class="rounded border-zinc-300 dark:border-neutral-700">
-          Exclude first lap (out-lap)
-        </label>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 text-xs">
-        <label class="block text-zinc-600 dark:text-gray-400">
-          Min Lap Time (s)
-          <input
-            v-model.number="settings.analyticsSettings.minimumLapTimeSec"
-            type="number"
-            min="0"
-            step="0.1"
-            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
-          >
-        </label>
-        <label class="block text-zinc-600 dark:text-gray-400">
-          Confidence Min Time (s)
-          <input
-            v-model.number="settings.analyticsSettings.lapConfidenceMinTimeSec"
-            type="number"
-            min="1"
-            step="0.5"
-            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
-          >
-        </label>
-        <label class="block text-zinc-600 dark:text-gray-400">
-          Confidence Max Time (s)
-          <input
-            v-model.number="settings.analyticsSettings.lapConfidenceMaxTimeSec"
-            type="number"
-            min="1"
-            step="1"
-            class="mt-1 w-full bg-white dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 rounded px-2 py-1 text-zinc-900 dark:text-gray-100"
-          >
-        </label>
-      </div>
-    </section>
 
     <!-- Race List -->
     <div class="flex-1 overflow-y-auto space-y-4 md:space-y-8 pr-1 md:pr-2">
@@ -621,19 +613,22 @@ const handleDisclaimerConfirm = (doNotShow) => {
             <tbody class="divide-y divide-zinc-200 dark:divide-neutral-700">
               <tr v-for="(lap, idx) in race.sortedLaps" :key="lap.lapNumber" class="hover:bg-zinc-100 dark:hover:bg-neutral-700/50 transition">
                 <td class="px-2 md:px-8 py-1.5 md:py-4 font-mono text-xs md:text-base text-primary font-bold">
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center gap-1">
                     <span>{{ lap.lapNumber ?? '-' }}</span>
                     <span
-                      class="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] uppercase tracking-wider"
-                      :class="getConfidenceClass(lap.confidenceLabel)"
+                      v-if="(lap.confidenceLabel || 'good') !== 'good'"
+                      class="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold leading-none cursor-help shrink-0"
+                      :class="getConfidenceIconClass(lap.confidenceLabel)"
+                      :title="getConfidenceTooltip(lap)"
                     >
-                      {{ lap.confidenceLabel || 'good' }}
+                      {{ getConfidenceIcon(lap.confidenceLabel) }}
                     </span>
                     <span
                       v-if="lap.lapSummarySource === 'derived'"
-                      class="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] uppercase tracking-wider text-zinc-700 dark:text-gray-300 bg-zinc-200 dark:bg-neutral-700"
+                      class="inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold leading-none cursor-help shrink-0 text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-900/30"
+                      :title="DERIVED_LAP_TOOLTIP"
                     >
-                      derived
+                      D
                     </span>
                     <button @click="viewLapOnGraph(lap)"
                       class="text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"

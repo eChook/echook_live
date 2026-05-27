@@ -185,7 +185,6 @@ const energyThermal = computed(() =>
 
 /** @brief Reliability event stream for current mode window. */
 const reliabilityEvents = computed(() => detectReliabilityEvents(activeSamples.value, {
-  nowTimestamp: latestTimestamp.value,
   throttleOverlapThresholdPct: Number.isFinite(analyticsConfig.value.throttleOverlapThresholdPct)
     ? analyticsConfig.value.throttleOverlapThresholdPct
     : 5,
@@ -196,11 +195,7 @@ const reliabilityEvents = computed(() => detectReliabilityEvents(activeSamples.v
   currentSpikeWarningA: analyticsConfig.value.eventCurrentSpikeWarningA,
   currentSpikeCriticalA: analyticsConfig.value.eventCurrentSpikeCriticalA,
   dropoutWarningSec: analyticsConfig.value.eventDropoutWarningSec,
-  dropoutCriticalSec: analyticsConfig.value.eventDropoutCriticalSec,
-  staleLiveWarningSec: analyticsConfig.value.eventStaleWarningSec,
-  staleLiveCriticalSec: analyticsConfig.value.eventStaleCriticalSec,
-  overlapWarningSec: analyticsConfig.value.eventOverlapWarningSec,
-  overlapCriticalSec: analyticsConfig.value.eventOverlapCriticalSec
+  overlapWarningSec: analyticsConfig.value.eventOverlapWarningSec
 }))
 
 /** @brief Optional baseline race comparison for history mode. */

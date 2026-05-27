@@ -22,7 +22,11 @@ describe('settings store', () => {
         expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(5)
         expect(settings.analyticsSettings.startCurrentThresholdA).toBe(10)
         expect(settings.analyticsSettings.hideSuspectLaps).toBe(false)
-        expect(settings.analyticsSettings.eventUndervoltageWarningV).toBe(20)
+        expect(settings.analyticsSettings.eventUndervoltageWarningV).toBe(18)
+        expect(settings.analyticsSettings.eventUndervoltageCriticalV).toBe(14)
+        expect(settings.analyticsSettings.eventCurrentSpikeWarningA).toBe(40)
+        expect(settings.analyticsSettings.eventCurrentSpikeCriticalA).toBe(120)
+        expect(settings.analyticsSettings.eventOverlapWarningSec).toBe(2)
         expect(settings.analyticsSettings.eventOverTempCriticalC).toBe(65)
     })
 
@@ -126,6 +130,19 @@ describe('settings store', () => {
             expect(settings.dataCardOrder).toEqual(['current', 'voltage', 'speed'])
         })
 
+        it('resets event thresholds to defaults', () => {
+            const settings = useSettingsStore()
+
+            settings.analyticsSettings.eventUndervoltageWarningV = 99
+            settings.analyticsSettings.eventOverlapWarningSec = 99
+            settings.resetEventThreshold('eventUndervoltageWarningV')
+            expect(settings.analyticsSettings.eventUndervoltageWarningV).toBe(18)
+            expect(settings.analyticsSettings.eventOverlapWarningSec).toBe(99)
+
+            settings.resetAllEventThresholds()
+            expect(settings.analyticsSettings.eventOverlapWarningSec).toBe(2)
+        })
+
         it('imports analyticsSettings with clamping', () => {
             const settings = useSettingsStore()
 
@@ -135,7 +152,7 @@ describe('settings store', () => {
                     throttleOverlapThresholdPct: -5,
                     startCurrentThresholdA: 20,
                     eventDropoutWarningSec: -100,
-                    eventDropoutCriticalSec: 99999
+                    eventUndervoltageCriticalV: 99999
                 }
             })
 
@@ -143,7 +160,7 @@ describe('settings store', () => {
             expect(settings.analyticsSettings.throttleOverlapThresholdPct).toBe(0)
             expect(settings.analyticsSettings.startCurrentThresholdA).toBe(20)
             expect(settings.analyticsSettings.eventDropoutWarningSec).toBe(0)
-            expect(settings.analyticsSettings.eventDropoutCriticalSec).toBe(3600)
+            expect(settings.analyticsSettings.eventUndervoltageCriticalV).toBe(1000)
         })
     })
 

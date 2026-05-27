@@ -33,18 +33,14 @@ describe('AnalyticsTab', () => {
                 manualStartOffsetSec: null,
                 autoCollapseStartCardSec: 60,
                 enableSideBySideHistoryCompare: false,
-                eventUndervoltageWarningV: 20,
-                eventUndervoltageCriticalV: 18,
+                eventUndervoltageWarningV: 18,
+                eventUndervoltageCriticalV: 14,
                 eventOverTempWarningC: 55,
                 eventOverTempCriticalC: 65,
-                eventCurrentSpikeWarningA: 20,
-                eventCurrentSpikeCriticalA: 35,
+                eventCurrentSpikeWarningA: 40,
+                eventCurrentSpikeCriticalA: 120,
                 eventDropoutWarningSec: 10,
-                eventDropoutCriticalSec: 30,
-                eventStaleWarningSec: 5,
-                eventStaleCriticalSec: 15,
-                eventOverlapWarningSec: 1,
-                eventOverlapCriticalSec: 3
+                eventOverlapWarningSec: 2
             },
             activeTabId: 'analytics'
         }

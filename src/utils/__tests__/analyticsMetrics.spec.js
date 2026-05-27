@@ -234,7 +234,6 @@ describe('analyticsMetrics', () => {
     })
 
     it('detects reliability events and builds jump windows', () => {
-        const now = 40_000
         const samples = [
             { timestamp: 0, voltage: 24, temp1: 30, temp2: 31, current: 10, throttle: 0, brake: 0 },
             { timestamp: 5_000, voltage: 17.5, temp1: 70, temp2: 68, current: 60, throttle: 20, brake: 1 },
@@ -242,9 +241,7 @@ describe('analyticsMetrics', () => {
         ]
 
         const events = detectReliabilityEvents(samples, {
-            nowTimestamp: now,
-            dropoutWarningSec: 10,
-            dropoutCriticalSec: 20
+            dropoutWarningSec: 10
         })
         expect(events.some((event) => event.type === 'undervoltage')).toBe(true)
         expect(events.some((event) => event.type === 'over_temp')).toBe(true)

@@ -10,6 +10,21 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 /**
+ * @brief Default analytics event threshold values.
+ * @description Shared by the settings UI reset controls and store initial state.
+ */
+export const DEFAULT_EVENT_THRESHOLD_SETTINGS = Object.freeze({
+    eventUndervoltageWarningV: 18,
+    eventUndervoltageCriticalV: 14,
+    eventOverTempWarningC: 55,
+    eventOverTempCriticalC: 65,
+    eventCurrentSpikeWarningA: 40,
+    eventCurrentSpikeCriticalA: 120,
+    eventDropoutWarningSec: 10,
+    eventOverlapWarningSec: 2
+})
+
+/**
  * @brief Settings store for user preferences and race history.
  * @description Centralizes all user-configurable settings with automatic
  *              persistence. Separates UI preferences from telemetry data.
@@ -172,18 +187,7 @@ export const useSettingsStore = defineStore('settings', () => {
         manualStartOffsetSec: null,
         autoCollapseStartCardSec: 60,
         enableSideBySideHistoryCompare: false,
-        eventUndervoltageWarningV: 20,
-        eventUndervoltageCriticalV: 18,
-        eventOverTempWarningC: 55,
-        eventOverTempCriticalC: 65,
-        eventCurrentSpikeWarningA: 20,
-        eventCurrentSpikeCriticalA: 35,
-        eventDropoutWarningSec: 10,
-        eventDropoutCriticalSec: 30,
-        eventStaleWarningSec: 5,
-        eventStaleCriticalSec: 15,
-        eventOverlapWarningSec: 1,
-        eventOverlapCriticalSec: 3
+        ...DEFAULT_EVENT_THRESHOLD_SETTINGS
     })
 
     // ============================================
@@ -201,6 +205,20 @@ export const useSettingsStore = defineStore('settings', () => {
     // ============================================
     // Utility Actions
     // ============================================
+
+    /**
+     * @brief Reset one analytics event threshold to its default value.
+     * @param {keyof typeof DEFAULT_EVENT_THRESHOLD_SETTINGS} key - Threshold setting key
+     */
+    function resetEventThreshold(key) {
+        if (!(key in DEFAULT_EVENT_THRESHOLD_SETTINGS)) return
+        analyticsSettings.value[key] = DEFAULT_EVENT_THRESHOLD_SETTINGS[key]
+    }
+
+    /** @brief Reset all analytics event thresholds to their default values. */
+    function resetAllEventThresholds() {
+        Object.assign(analyticsSettings.value, DEFAULT_EVENT_THRESHOLD_SETTINGS)
+    }
 
     /**
      * @brief Import settings from an external source.
@@ -581,39 +599,6 @@ export const useSettingsStore = defineStore('settings', () => {
                         errors.push('analyticsSettings.eventDropoutWarningSec must be a valid number.')
                     }
                 }
-                if (newData.analyticsSettings.eventDropoutCriticalSec !== undefined) {
-                    if (Number.isFinite(newData.analyticsSettings.eventDropoutCriticalSec)) {
-                        nextAnalyticsSettings.eventDropoutCriticalSec = clampNumber(
-                            Number(newData.analyticsSettings.eventDropoutCriticalSec),
-                            0,
-                            3600
-                        )
-                    } else {
-                        errors.push('analyticsSettings.eventDropoutCriticalSec must be a valid number.')
-                    }
-                }
-                if (newData.analyticsSettings.eventStaleWarningSec !== undefined) {
-                    if (Number.isFinite(newData.analyticsSettings.eventStaleWarningSec)) {
-                        nextAnalyticsSettings.eventStaleWarningSec = clampNumber(
-                            Number(newData.analyticsSettings.eventStaleWarningSec),
-                            0,
-                            3600
-                        )
-                    } else {
-                        errors.push('analyticsSettings.eventStaleWarningSec must be a valid number.')
-                    }
-                }
-                if (newData.analyticsSettings.eventStaleCriticalSec !== undefined) {
-                    if (Number.isFinite(newData.analyticsSettings.eventStaleCriticalSec)) {
-                        nextAnalyticsSettings.eventStaleCriticalSec = clampNumber(
-                            Number(newData.analyticsSettings.eventStaleCriticalSec),
-                            0,
-                            3600
-                        )
-                    } else {
-                        errors.push('analyticsSettings.eventStaleCriticalSec must be a valid number.')
-                    }
-                }
                 if (newData.analyticsSettings.eventOverlapWarningSec !== undefined) {
                     if (Number.isFinite(newData.analyticsSettings.eventOverlapWarningSec)) {
                         nextAnalyticsSettings.eventOverlapWarningSec = clampNumber(
@@ -623,17 +608,6 @@ export const useSettingsStore = defineStore('settings', () => {
                         )
                     } else {
                         errors.push('analyticsSettings.eventOverlapWarningSec must be a valid number.')
-                    }
-                }
-                if (newData.analyticsSettings.eventOverlapCriticalSec !== undefined) {
-                    if (Number.isFinite(newData.analyticsSettings.eventOverlapCriticalSec)) {
-                        nextAnalyticsSettings.eventOverlapCriticalSec = clampNumber(
-                            Number(newData.analyticsSettings.eventOverlapCriticalSec),
-                            0,
-                            300
-                        )
-                    } else {
-                        errors.push('analyticsSettings.eventOverlapCriticalSec must be a valid number.')
                     }
                 }
                 analyticsSettings.value = nextAnalyticsSettings
@@ -676,7 +650,9 @@ export const useSettingsStore = defineStore('settings', () => {
         races,
 
         // Actions
-        importSettings
+        importSettings,
+        resetEventThreshold,
+        resetAllEventThresholds
     }
 }, {
     persist: true
