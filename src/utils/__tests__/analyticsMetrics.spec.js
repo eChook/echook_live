@@ -5,6 +5,7 @@ import {
     detectRaceStart,
     computeStartMetrics,
     computeSupplyResistance,
+    computeBatteryWindowMetrics,
     computeSessionStintKpis,
     computeLapDegradation,
     computeEnergyThermalSummary,
@@ -84,14 +85,19 @@ describe('analyticsMetrics', () => {
         expect(metrics.time0to20mphSec).toBeCloseTo(6.67, 2)
     })
 
-    it('estimates supply resistance from V-I trend', () => {
-        // Synthetic model: V = 24 - 0.02 * I (R = 20 mOhm)
+    it('estimates supply resistance branches from V-I trends', () => {
+        // Synthetic model:
+        // Total: V = 24 - 0.02 * I (20 mOhm)
+        // Lower: V = 12 - 0.011 * I (11 mOhm)
+        // Upper: V = 12 - 0.009 * I (9 mOhm)
         const samples = Array.from({ length: 12 }, (_, idx) => {
             const current = 2 + (idx * 2)
             return {
                 timestamp: idx * 1000,
                 current,
-                voltage: 24 - (0.02 * current)
+                voltage: 24 - (0.02 * current),
+                voltageLower: 12 - (0.011 * current),
+                voltageHigh: 12 - (0.009 * current)
             }
         })
 
@@ -103,6 +109,80 @@ describe('analyticsMetrics', () => {
         expect(resistance.valid).toBe(true)
         expect(resistance.rMilliOhm).toBeCloseTo(20, 3)
         expect(resistance.fitR2).toBeGreaterThan(0.99)
+        expect(resistance.branches.total.valid).toBe(true)
+        expect(resistance.branches.lower.valid).toBe(true)
+        expect(resistance.branches.upper.valid).toBe(true)
+        expect(resistance.branches.lower.rMilliOhm).toBeCloseTo(11, 3)
+        expect(resistance.branches.upper.rMilliOhm).toBeCloseTo(9, 3)
+        expect(resistance.absDeltaMilliOhm).toBeCloseTo(2, 3)
+    })
+
+    it('reports missing split voltage channels for branch resistance', () => {
+        const samples = Array.from({ length: 10 }, (_, idx) => {
+            const current = 5 + idx
+            return {
+                timestamp: idx * 1000,
+                current,
+                voltage: 24 - (0.02 * current)
+            }
+        })
+
+        const resistance = computeSupplyResistance(samples, {
+            minSampleCount: 8,
+            minCurrentSpread: 3
+        })
+
+        expect(resistance.valid).toBe(true)
+        expect(resistance.branches.lower.valid).toBe(false)
+        expect(resistance.branches.upper.valid).toBe(false)
+        expect(resistance.branches.lower.reason).toBe('missing_voltage_lower')
+        expect(resistance.branches.upper.reason).toBe('missing_voltage_high')
+        expect(resistance.absDeltaMilliOhm).toBe(null)
+    })
+
+    it('computes per-battery power, discharge, regen, and voltage extrema', () => {
+        const samples = [
+            { timestamp: 0, current: 10, voltage: 24, voltageLower: 12, voltageHigh: 12 },
+            { timestamp: 1000, current: 20, voltage: 24, voltageLower: 11.8, voltageHigh: 12.2 },
+            { timestamp: 2000, current: -5, voltage: 24, voltageLower: 12.1, voltageHigh: 11.9 },
+            { timestamp: 3000, current: 0, voltage: 24, voltageLower: 12.0, voltageHigh: 12.0 }
+        ]
+
+        const metrics = computeBatteryWindowMetrics(samples, { maxDtMs: 10000 })
+
+        expect(metrics.combined.maxPowerW).toBe(480)
+        expect(metrics.combined.dischargeKWh).toBeCloseTo(((24 * 10) + (24 * 20)) / 3_600_000, 8)
+        expect(metrics.combined.regenKWh).toBeCloseTo((24 * 5) / 3_600_000, 8)
+        expect(metrics.combined.maxVoltage).toBe(24)
+        expect(metrics.combined.minVoltage).toBe(24)
+        expect(metrics.lower.maxPowerW).toBe(236)
+        expect(metrics.upper.maxPowerW).toBe(244)
+        expect(metrics.lower.dischargeKWh).toBeCloseTo((12 * 10 + 11.8 * 20) / 3_600_000, 8)
+        expect(metrics.upper.dischargeKWh).toBeCloseTo((12 * 10 + 12.2 * 20) / 3_600_000, 8)
+        expect(metrics.lower.regenKWh).toBeCloseTo((12.1 * 5) / 3_600_000, 8)
+        expect(metrics.upper.regenKWh).toBeCloseTo((11.9 * 5) / 3_600_000, 8)
+        expect(metrics.lower.maxVoltage).toBe(12.1)
+        expect(metrics.lower.minVoltage).toBe(11.8)
+        expect(metrics.upper.maxVoltage).toBe(12.2)
+        expect(metrics.upper.minVoltage).toBe(11.9)
+    })
+
+    it('handles missing lower and upper channels in battery window metrics', () => {
+        const samples = [
+            { timestamp: 0, current: 8, voltage: 24 },
+            { timestamp: 1000, current: 9, voltage: 24.1 }
+        ]
+
+        const metrics = computeBatteryWindowMetrics(samples)
+        expect(metrics.combined.sampleCount).toBe(2)
+        expect(metrics.lower.sampleCount).toBe(0)
+        expect(metrics.upper.sampleCount).toBe(0)
+        expect(metrics.lower.maxPowerW).toBe(null)
+        expect(metrics.upper.maxPowerW).toBe(null)
+        expect(metrics.lower.maxVoltage).toBe(null)
+        expect(metrics.upper.minVoltage).toBe(null)
+        expect(metrics.lower.dischargeKWh).toBe(0)
+        expect(metrics.upper.regenKWh).toBe(0)
     })
 
     it('rejects resistance estimate when current spread is too small', () => {
@@ -135,7 +215,7 @@ describe('analyticsMetrics', () => {
         ]
         const samples = [
             { timestamp: 0, temp1: 34, temp2: 35, voltageDiff: 0.09 },
-            { timestamp: 1000, temp1: 36, temp2: 37, voltageDiff: 0.12 }
+            { timestamp: 1000, temp1: 36, temp2: 37, voltageDiff: -0.14 }
         ]
 
         const kpis = computeSessionStintKpis(laps, samples, { lastNLaps: 3 })
@@ -146,7 +226,7 @@ describe('analyticsMetrics', () => {
         expect(kpis.totalAh).toBeCloseTo(2.02, 5)
         expect(kpis.averageEfficiency).toBeCloseTo(6.25, 3)
         expect(kpis.maxTemp).toBe(37)
-        expect(kpis.maxImbalance).toBe(0.12)
+        expect(kpis.maxImbalance).toBe(-0.14)
         expect(kpis.lapTimesWithDelta.length).toBe(4)
         expect(kpis.lapTimesWithDelta[0].deltaToBestSec).toBe(2)
         expect(kpis.lastNLaps).toEqual([74, 76, 73])
@@ -171,8 +251,8 @@ describe('analyticsMetrics', () => {
     it('computes energy and thermal summary from time-window samples', () => {
         const samples = [
             { timestamp: 0, voltage: 24, current: 10, speed: 36, temp1: 30, temp2: 32, voltageDiff: 0.1 },
-            { timestamp: 1000, voltage: 24, current: 12, speed: 36, temp1: 31, temp2: 33, voltageDiff: 0.12 },
-            { timestamp: 2000, voltage: 24, current: 8, speed: 18, temp1: 32, temp2: 34, voltageDiff: 0.11 }
+            { timestamp: 1000, voltage: 24, current: 12, speed: 36, temp1: 31, temp2: 33, voltageDiff: -0.12 },
+            { timestamp: 2000, voltage: 24, current: 8, speed: 18, temp1: 32, temp2: 34, voltageDiff: -0.13 }
         ]
 
         const summary = computeEnergyThermalSummary(samples, { speedUnit: 'kph' })
@@ -182,7 +262,7 @@ describe('analyticsMetrics', () => {
         expect(summary.distanceMiles).toBeGreaterThan(0)
         expect(summary.whPerMile).toBeGreaterThan(0)
         expect(summary.maxTemp).toBe(32)
-        expect(summary.maxVoltageDiff).toBe(0.12)
+        expect(summary.maxVoltageDiff).toBe(-0.12)
     })
 
     it('handles sparse cadence and no-data windows for session KPIs', () => {

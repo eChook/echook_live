@@ -37,7 +37,7 @@ const SettingsTab = defineAsyncComponent(() => import('../components/tabs/Settin
 const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.vue'))
 
 // Heroicons for tab navigation
-import { ChartBarIcon, MapIcon, FlagIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MapIcon, TableCellsIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
@@ -120,7 +120,7 @@ const tabs = computed(() => {
   const baseTabs = [
     { id: 'graph', label: 'Graph', icon: ChartBarIcon, component: GraphTab },
     { id: 'map', label: 'Map', icon: MapIcon, component: MapTab },
-    { id: 'laps', label: 'Laps', icon: FlagIcon, component: LapsTab },
+    { id: 'laps', label: 'Laps', icon: TableCellsIcon, component: LapsTab },
   ]
 
   if (auth.isAdmin) {

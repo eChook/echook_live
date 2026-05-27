@@ -502,28 +502,43 @@ function linearRegression(xs, ys) {
 }
 
 /**
- * @brief Compute rolling supply resistance estimate from V-I behavior.
+ * @brief Build resistance fit dataset for the selected voltage channel.
  * @param {Array<Object>} samples - Telemetry points sorted by timestamp
- * @param {Object} [options] - Resistance estimation options
- * @param {number} [options.minSampleCount=8] - Min sample count for fit
- * @param {number} [options.minCurrentSpread=5] - Min current spread in amps
- * @param {number} [options.rollingWindowSize=12] - Rolling window sample count
- * @param {number} [options.rollingStep=4] - Rolling window step
- * @returns {Object} Resistance estimate with confidence and trend
+ * @param {string} voltageKey - Sample voltage key to evaluate
+ * @returns {Array<{timestamp: number, voltage: number, current: number}>} Filtered fit dataset
  */
-export function computeSupplyResistance(samples, options = {}) {
-    const minSampleCount = Number.isFinite(options.minSampleCount) ? Math.max(2, Math.round(options.minSampleCount)) : 8
-    const minCurrentSpread = Number.isFinite(options.minCurrentSpread) ? options.minCurrentSpread : 5
-    const rollingWindowSize = Number.isFinite(options.rollingWindowSize) ? Math.max(4, Math.round(options.rollingWindowSize)) : 12
-    const rollingStep = Number.isFinite(options.rollingStep) ? Math.max(1, Math.round(options.rollingStep)) : 4
-
-    const filtered = (Array.isArray(samples) ? samples : [])
+function buildResistanceDataset(samples, voltageKey) {
+    return (Array.isArray(samples) ? samples : [])
         .map((sample) => ({
             timestamp: toFiniteNumber(sample?.timestamp),
-            voltage: toFiniteNumber(sample?.voltage),
+            voltage: toFiniteNumber(sample?.[voltageKey]),
             current: toFiniteNumber(sample?.current)
         }))
         .filter((sample) => sample.timestamp !== null && sample.voltage !== null && sample.current !== null)
+}
+
+/**
+ * @brief Check if any sample contains a finite value for a given key.
+ * @param {Array<Object>} samples - Telemetry points
+ * @param {string} key - Sample key to inspect
+ * @returns {boolean} True when at least one finite value is present
+ */
+function hasFiniteChannelValue(samples, key) {
+    return (Array.isArray(samples) ? samples : []).some((sample) => toFiniteNumber(sample?.[key]) !== null)
+}
+
+/**
+ * @brief Estimate resistance from a prepared V-I dataset.
+ * @param {Array<{timestamp: number, voltage: number, current: number}>} filtered - Filtered fit dataset
+ * @param {Object} options - Resistance estimation options
+ * @param {number} options.minSampleCount - Min sample count for fit
+ * @param {number} options.minCurrentSpread - Min current spread in amps
+ * @param {number} options.rollingWindowSize - Rolling window sample count
+ * @param {number} options.rollingStep - Rolling window step
+ * @returns {Object} Resistance estimate with confidence and trend
+ */
+function estimateSupplyResistanceFromDataset(filtered, options) {
+    const { minSampleCount, minCurrentSpread, rollingWindowSize, rollingStep } = options
 
     if (filtered.length < minSampleCount) {
         return {
@@ -612,6 +627,117 @@ export function computeSupplyResistance(samples, options = {}) {
             deltaRMilliOhm
         },
         rolling
+    }
+}
+
+/**
+ * @brief Compute rolling supply resistance estimate from V-I behavior.
+ * @param {Array<Object>} samples - Telemetry points sorted by timestamp
+ * @param {Object} [options] - Resistance estimation options
+ * @param {number} [options.minSampleCount=8] - Min sample count for fit
+ * @param {number} [options.minCurrentSpread=5] - Min current spread in amps
+ * @param {number} [options.rollingWindowSize=12] - Rolling window sample count
+ * @param {number} [options.rollingStep=4] - Rolling window step
+ * @returns {Object} Resistance estimates with branch breakdown
+ */
+export function computeSupplyResistance(samples, options = {}) {
+    const minSampleCount = Number.isFinite(options.minSampleCount) ? Math.max(2, Math.round(options.minSampleCount)) : 8
+    const minCurrentSpread = Number.isFinite(options.minCurrentSpread) ? options.minCurrentSpread : 5
+    const rollingWindowSize = Number.isFinite(options.rollingWindowSize) ? Math.max(4, Math.round(options.rollingWindowSize)) : 12
+    const rollingStep = Number.isFinite(options.rollingStep) ? Math.max(1, Math.round(options.rollingStep)) : 4
+    const config = { minSampleCount, minCurrentSpread, rollingWindowSize, rollingStep }
+
+    const total = estimateSupplyResistanceFromDataset(buildResistanceDataset(samples, 'voltage'), config)
+    const lower = estimateSupplyResistanceFromDataset(buildResistanceDataset(samples, 'voltageLower'), config)
+    const upper = estimateSupplyResistanceFromDataset(buildResistanceDataset(samples, 'voltageHigh'), config)
+
+    if (!hasFiniteChannelValue(samples, 'voltageLower') && lower.reason === 'insufficient_samples') {
+        lower.reason = 'missing_voltage_lower'
+    }
+    if (!hasFiniteChannelValue(samples, 'voltageHigh') && upper.reason === 'insufficient_samples') {
+        upper.reason = 'missing_voltage_high'
+    }
+
+    const absDeltaMilliOhm = lower.valid && upper.valid
+        ? Math.abs(upper.rMilliOhm - lower.rMilliOhm)
+        : null
+
+    return {
+        ...total,
+        absDeltaMilliOhm,
+        branches: {
+            total,
+            lower,
+            upper
+        }
+    }
+}
+
+/**
+ * @brief Compute per-channel battery power, energy, and voltage statistics.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {string} voltageKey - Voltage channel key
+ * @param {number} maxDtMs - Max interval duration for energy integration
+ * @returns {Object} Channel battery metric summary
+ */
+function computeBatteryChannelMetrics(samples, voltageKey, maxDtMs) {
+    const data = Array.isArray(samples) ? samples : []
+    const voltageValues = []
+    let maxPowerW = null
+    let dischargeWh = 0
+    let regenWh = 0
+
+    for (let i = 0; i < data.length; i += 1) {
+        const sample = data[i] || {}
+        const voltage = toFiniteNumber(sample?.[voltageKey])
+        const current = toFiniteNumber(sample?.current)
+        if (voltage !== null) voltageValues.push(voltage)
+        if (voltage === null || current === null) continue
+        const powerW = voltage * current
+        maxPowerW = maxPowerW === null ? powerW : Math.max(maxPowerW, powerW)
+
+        if (i >= data.length - 1) continue
+        const nextSample = data[i + 1] || {}
+        const ts = toFiniteNumber(sample.timestamp)
+        const nextTs = toFiniteNumber(nextSample.timestamp)
+        if (ts === null || nextTs === null) continue
+        const dtMs = nextTs - ts
+        if (!isValidDuration(dtMs, maxDtMs)) continue
+
+        if (powerW >= 0) {
+            dischargeWh += powerW * (dtMs / 3600000)
+        } else {
+            regenWh += Math.abs(powerW) * (dtMs / 3600000)
+        }
+    }
+
+    const maxVoltage = voltageValues.length > 0 ? Math.max(...voltageValues) : null
+    const minVoltage = voltageValues.length > 0 ? Math.min(...voltageValues) : null
+
+    return {
+        sampleCount: voltageValues.length,
+        maxPowerW,
+        dischargeKWh: dischargeWh / 1000,
+        regenKWh: regenWh / 1000,
+        maxVoltage,
+        minVoltage,
+        avgVoltage: average(voltageValues)
+    }
+}
+
+/**
+ * @brief Compute lower/upper battery channel metrics for analytics panels.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Metric computation options
+ * @param {number} [options.maxDtMs=10000] - Max interval duration for integration
+ * @returns {Object} Lower and upper battery metric groups
+ */
+export function computeBatteryWindowMetrics(samples, options = {}) {
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    return {
+        combined: computeBatteryChannelMetrics(samples, 'voltage', maxDtMs),
+        lower: computeBatteryChannelMetrics(samples, 'voltageLower', maxDtMs),
+        upper: computeBatteryChannelMetrics(samples, 'voltageHigh', maxDtMs)
     }
 }
 
@@ -934,7 +1060,8 @@ export function computeSessionStintKpis(lapsSource, samples = [], options = {}) 
     const maxImbalance = (Array.isArray(samples) ? samples : []).reduce((acc, sample) => {
         const imbalance = toFiniteNumber(sample?.voltageDiff)
         if (imbalance === null) return acc
-        return acc === null ? imbalance : Math.max(acc, imbalance)
+        if (acc === null) return imbalance
+        return Math.abs(imbalance) > Math.abs(acc) ? imbalance : acc
     }, null)
 
     return {
@@ -1295,7 +1422,11 @@ export function computeEnergyThermalSummary(samples, options = {}) {
         whPerMile: distanceMiles > 0 ? totalWh / distanceMiles : null,
         avgVoltage: average(voltageValues),
         avgCurrent: average(currentValues),
-        maxVoltageDiff: imbalanceValues.length > 0 ? Math.max(...imbalanceValues) : null,
+        maxVoltageDiff: imbalanceValues.reduce((acc, imbalance) => {
+            if (!Number.isFinite(imbalance)) return acc
+            if (acc === null) return imbalance
+            return Math.abs(imbalance) > Math.abs(acc) ? imbalance : acc
+        }, null),
         avgVoltageDiff: average(imbalanceValues),
         maxTemp: tempSeries.length > 0 ? Math.max(...tempSeries.map((entry) => entry.temp)) : null,
         tempRisePerMin

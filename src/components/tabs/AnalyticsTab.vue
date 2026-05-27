@@ -14,6 +14,7 @@ import {
   computeThrottleBrakeOverlap,
   computeStartMetrics,
   computeSupplyResistance,
+  computeBatteryWindowMetrics,
   computeSessionStintKpis,
   computeEnergyThermalSummary,
   computeBaselineComparison,
@@ -36,6 +37,8 @@ const selectedComparisonRaceKey = ref(null)
 const isStartCardOpen = ref(true)
 /** @brief Shared collapse state for analytics cards. */
 const cardsCollapsed = ref(false)
+/** @brief Supply resistance help modal visibility state. */
+const showResistanceHelp = ref(false)
 
 /** @brief Analytics settings with safe defaults. */
 const analyticsConfig = computed(() => settings.analyticsSettings || {})
@@ -183,6 +186,13 @@ const energyThermal = computed(() =>
   })
 )
 
+/** @brief Per-battery power/energy/voltage summary for the active window. */
+const batteryMetrics = computed(() =>
+  computeBatteryWindowMetrics(activeSamples.value, {
+    maxDtMs: 10000
+  })
+)
+
 /** @brief Reliability event stream for current mode window. */
 const reliabilityEvents = computed(() => detectReliabilityEvents(activeSamples.value, {
   throttleOverlapThresholdPct: Number.isFinite(analyticsConfig.value.throttleOverlapThresholdPct)
@@ -286,6 +296,35 @@ function getEventSeverityClass(severity) {
   if (severity === 'critical') return 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/20'
   if (severity === 'warning') return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/20'
   return 'text-zinc-700 dark:text-gray-300 bg-zinc-200 dark:bg-neutral-700'
+}
+
+/**
+ * @brief Convert resistance estimator reason code to user-facing text.
+ * @param {string|null|undefined} reason - Reason identifier from metrics output
+ * @returns {string} Human-readable reason text
+ */
+function getResistanceReasonText(reason) {
+  if (reason === 'insufficient_samples') return 'insufficient samples'
+  if (reason === 'insufficient_current_spread') return 'insufficient current spread'
+  if (reason === 'fit_failed') return 'fit failed'
+  if (reason === 'non_physical_resistance') return 'non-physical fit'
+  if (reason === 'missing_voltage_lower') return 'missing voltageLower data'
+  if (reason === 'missing_voltage_high') return 'missing voltageHigh data'
+  return reason || 'unavailable'
+}
+
+/**
+ * @brief Format numeric diff against the other battery channel.
+ * @param {number|null} value - Difference value
+ * @param {string} otherLabel - Label of comparison channel
+ * @param {number} [digits=3] - Decimal precision
+ * @param {string} [unit=''] - Optional unit suffix
+ * @returns {string} Formatted bracketed diff text
+ */
+function formatDiffToOther(value, otherLabel, digits = 3, unit = '') {
+  if (!Number.isFinite(value)) return `(Δ vs ${otherLabel}: -)`
+  const suffix = unit ? ` ${unit}` : ''
+  return `(Δ vs ${otherLabel}: ${formatSigned(value, digits)}${suffix})`
 }
 
 /**
@@ -503,7 +542,7 @@ function downloadSummaryReport() {
         </div>
       </details>
 
-      <div v-show="!cardsCollapsed" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div v-show="!cardsCollapsed" class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
           <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Energy</div>
           <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
@@ -521,14 +560,6 @@ function downloadSummaryReport() {
           </div>
         </div>
         <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
-          <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Voltage / Imbalance</div>
-          <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
-            <div>Avg Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.avgVoltage, 2) }} V</span></div>
-            <div>Max Imbalance: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.maxVoltageDiff, 3) }} V</span></div>
-            <div>Avg Imbalance: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.avgVoltageDiff, 3) }} V</span></div>
-          </div>
-        </div>
-        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
           <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Thermal</div>
           <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
             <div>Max Temp: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.maxTemp, 1) }} °</span></div>
@@ -538,7 +569,128 @@ function downloadSummaryReport() {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div v-show="!cardsCollapsed" class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">Battery</div>
+          <button
+            @click="showResistanceHelp = true"
+            class="h-5 w-5 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold text-zinc-700 dark:text-gray-300 hover:bg-zinc-200 dark:hover:bg-neutral-700 transition"
+            title="How supply resistance is calculated"
+            aria-label="Show supply resistance help"
+          >
+            ?
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-3">
+            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Combined Resistance</div>
+            <div class="text-xs text-zinc-700 dark:text-gray-300 space-y-0.5">
+              <div>R Total: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.branches?.total?.valid ? `${formatMetric(resistanceMetrics.branches.total.rMilliOhm, 3)} mΩ` : '-' }}</span></div>
+              <div>|ΔR|: <span class="font-mono text-zinc-900 dark:text-white">{{ Number.isFinite(resistanceMetrics.absDeltaMilliOhm) ? `${formatMetric(resistanceMetrics.absDeltaMilliOhm, 3)} mΩ` : '-' }}</span></div>
+              <div>Fit (R²): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.fitR2, 3) }}</span></div>
+              <div>Confidence: <span class="font-mono text-zinc-900 dark:text-white uppercase">{{ resistanceMetrics.confidence || '-' }}</span></div>
+              <div>Samples: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.sampleCount ?? 0 }}</span></div>
+            </div>
+          </div>
+          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-3">
+            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Combined Power + Energy</div>
+            <div class="text-xs text-zinc-700 dark:text-gray-300 space-y-0.5">
+              <div>Max Power: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.maxPowerW, 1) }} W</span></div>
+              <div>Discharge Total: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.dischargeKWh, 4) }} kWh</span></div>
+              <div>Regen Total: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.regenKWh, 4) }} kWh</span></div>
+            </div>
+          </div>
+          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-3">
+            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Combined Voltage + Imbalance</div>
+            <div class="text-xs text-zinc-700 dark:text-gray-300 space-y-0.5">
+              <div>Max Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.maxVoltage, 3) }} V</span></div>
+              <div>Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.minVoltage, 3) }} V</span></div>
+              <div>Avg Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.combined.avgVoltage, 3) }} V</span></div>
+              <div>Max Imbalance: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.maxVoltageDiff, 3) }} V</span></div>
+              <div>Avg Imbalance: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.avgVoltageDiff, 3) }} V</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-4">
+            <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Lower Battery</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-zinc-700 dark:text-gray-300">
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Resistance</div>
+                <div>
+                  R:
+                  <span v-if="resistanceMetrics.branches?.lower?.valid" class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.branches.lower.rMilliOhm, 3) }} mΩ</span>
+                  <span v-else class="font-mono text-zinc-600 dark:text-gray-400">Unavailable</span>
+                </div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(resistanceMetrics.branches?.lower?.rMilliOhm - resistanceMetrics.branches?.upper?.rMilliOhm, 'Upper', 3, 'mΩ') }}</div>
+                <div>Fit (R²): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.branches?.lower?.fitR2, 3) }}</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(resistanceMetrics.branches?.lower?.fitR2 - resistanceMetrics.branches?.upper?.fitR2, 'Upper', 3) }}</div>
+                <div>Confidence: <span class="font-mono text-zinc-900 dark:text-white uppercase">{{ resistanceMetrics.branches?.lower?.confidence || '-' }}</span></div>
+                <div v-if="!resistanceMetrics.branches?.lower?.valid" class="text-[11px] text-zinc-500 dark:text-gray-400">
+                  Reason: {{ getResistanceReasonText(resistanceMetrics.branches?.lower?.reason) }}.
+                </div>
+              </div>
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Power + Energy</div>
+                <div>Max Power: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.maxPowerW, 1) }} W</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.lower.maxPowerW - batteryMetrics.upper.maxPowerW, 'Upper', 1, 'W') }}</div>
+                <div>Discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.dischargeKWh, 4) }} kWh</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.lower.dischargeKWh - batteryMetrics.upper.dischargeKWh, 'Upper', 4, 'kWh') }}</div>
+                <div>Regen: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.regenKWh, 4) }} kWh</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.lower.regenKWh - batteryMetrics.upper.regenKWh, 'Upper', 4, 'kWh') }}</div>
+              </div>
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Voltage</div>
+                Max Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.maxVoltage, 3) }} V</span>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.lower.maxVoltage - batteryMetrics.upper.maxVoltage, 'Upper', 3, 'V') }}</div>
+                Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.minVoltage, 3) }} V</span>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.lower.minVoltage - batteryMetrics.upper.minVoltage, 'Upper', 3, 'V') }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-4">
+            <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Upper Battery</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-zinc-700 dark:text-gray-300">
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Resistance</div>
+                <div>
+                  R:
+                  <span v-if="resistanceMetrics.branches?.upper?.valid" class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.branches.upper.rMilliOhm, 3) }} mΩ</span>
+                  <span v-else class="font-mono text-zinc-600 dark:text-gray-400">Unavailable</span>
+                </div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(resistanceMetrics.branches?.upper?.rMilliOhm - resistanceMetrics.branches?.lower?.rMilliOhm, 'Lower', 3, 'mΩ') }}</div>
+                <div>Fit (R²): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.branches?.upper?.fitR2, 3) }}</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(resistanceMetrics.branches?.upper?.fitR2 - resistanceMetrics.branches?.lower?.fitR2, 'Lower', 3) }}</div>
+                <div>Confidence: <span class="font-mono text-zinc-900 dark:text-white uppercase">{{ resistanceMetrics.branches?.upper?.confidence || '-' }}</span></div>
+                <div v-if="!resistanceMetrics.branches?.upper?.valid" class="text-[11px] text-zinc-500 dark:text-gray-400">
+                  Reason: {{ getResistanceReasonText(resistanceMetrics.branches?.upper?.reason) }}.
+                </div>
+              </div>
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Power + Energy</div>
+                <div>Max Power: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.maxPowerW, 1) }} W</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.upper.maxPowerW - batteryMetrics.lower.maxPowerW, 'Lower', 1, 'W') }}</div>
+                <div>Discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.dischargeKWh, 4) }} kWh</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.upper.dischargeKWh - batteryMetrics.lower.dischargeKWh, 'Lower', 4, 'kWh') }}</div>
+                <div>Regen: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.regenKWh, 4) }} kWh</span></div>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.upper.regenKWh - batteryMetrics.lower.regenKWh, 'Lower', 4, 'kWh') }}</div>
+              </div>
+              <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2 space-y-0.5">
+                <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Voltage</div>
+                Max Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.maxVoltage, 3) }} V</span>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.upper.maxVoltage - batteryMetrics.lower.maxVoltage, 'Lower', 3, 'V') }}</div>
+                Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.minVoltage, 3) }} V</span>
+                <div class="text-[11px] text-zinc-500 dark:text-gray-400">{{ formatDiffToOther(batteryMetrics.upper.minVoltage - batteryMetrics.lower.minVoltage, 'Lower', 3, 'V') }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <details class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4" :open="isStartCardOpen && !cardsCollapsed">
           <summary class="cursor-pointer text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Race Start</summary>
           <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300 mt-3">
@@ -559,20 +711,6 @@ function downloadSummaryReport() {
             <div>Total Duration: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.totalDurationSec, 2) }} s</span></div>
             <div>Longest Event: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.maxDurationSec, 2) }} s</span></div>
             <div>Overlap Energy: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.overlapWh, 3) }} Wh</span></div>
-          </div>
-        </div>
-
-        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
-          <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Supply Resistance</div>
-          <div v-if="resistanceMetrics.valid" class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
-            <div>R Estimate: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.rMilliOhm, 3) }} mΩ</span></div>
-            <div>Fit (R²): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(resistanceMetrics.fitR2, 3) }}</span></div>
-            <div>Samples: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.sampleCount }}</span></div>
-            <div>Confidence: <span class="font-mono text-zinc-900 dark:text-white uppercase">{{ resistanceMetrics.confidence }}</span></div>
-          </div>
-          <div v-else class="text-sm text-zinc-600 dark:text-gray-400">
-            Not enough quality data for resistance estimation
-            <span v-if="resistanceMetrics.reason" class="font-mono">({{ resistanceMetrics.reason }})</span>.
           </div>
         </div>
       </div>
@@ -632,6 +770,49 @@ function downloadSummaryReport() {
             </div>
             <p class="text-xs text-zinc-600 dark:text-gray-400 mt-1">{{ event.message }}</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showResistanceHelp"
+      class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      @click.self="showResistanceHelp = false"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Supply resistance calculation help"
+    >
+      <div class="w-full max-w-2xl rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4 md:p-5">
+        <div class="flex items-start justify-between gap-3">
+          <h3 class="text-sm md:text-base font-semibold text-zinc-900 dark:text-white">Supply Resistance Calculation</h3>
+          <button
+            @click="showResistanceHelp = false"
+            class="px-2 py-1 rounded text-xs font-semibold border transition bg-zinc-200 dark:bg-neutral-700 border-zinc-300 dark:border-neutral-600 text-zinc-700 dark:text-gray-300"
+          >
+            Close
+          </button>
+        </div>
+
+        <div class="mt-3 space-y-2 text-sm text-zinc-700 dark:text-gray-300">
+          <p>
+            Resistance is estimated from measured voltage and current using a linear fit of
+            <span class="font-mono text-zinc-900 dark:text-white">V = V_oc - I*R</span>.
+            The slope gives the resistance value (mΩ), and R² indicates how well the data follows this model.
+          </p>
+          <p>
+            <span class="font-semibold text-zinc-900 dark:text-white">R Total</span> uses the full battery supply voltage.
+            <span class="font-semibold text-zinc-900 dark:text-white">R Lower</span> uses the lower half supply measurement, and
+            <span class="font-semibold text-zinc-900 dark:text-white">R Upper</span> uses the upper half supply measurement.
+          </p>
+          <p>
+            <span class="font-semibold text-zinc-900 dark:text-white">|ΔR|</span> is the absolute difference between upper and lower estimates.
+            A larger value indicates a larger mismatch between the two battery supply paths under load.
+          </p>
+          <p class="text-amber-700 dark:text-amber-400">
+            Caveat: Upper and Lower values include harness and path losses as well as battery resistance.
+            The Lower measure includes losses between the eChook ground reference point and the battery midpoint.
+            The Upper measure includes losses between the battery midpoint and the eChook 24V supply point.
+          </p>
         </div>
       </div>
     </div>
