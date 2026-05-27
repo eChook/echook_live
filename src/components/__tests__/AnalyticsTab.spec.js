@@ -19,6 +19,7 @@ describe('AnalyticsTab', () => {
         telemetryState = {
             unitSettings: { speedUnit: 'mph' },
             history: [],
+            displayHistory: [],
             races: {},
             requestChartZoom: vi.fn(),
             togglePause: vi.fn(),
@@ -62,11 +63,13 @@ describe('AnalyticsTab', () => {
 
     it('renders session parity and energy/thermal cards in history mode', async () => {
         const start = Date.now() - 60_000
-        telemetryState.history = [
+        const samples = [
             { timestamp: start, speed: 12, voltage: 24, current: 8, temp1: 30, temp2: 31, voltageDiff: 0.09, throttle: 10, brake: 0 },
             { timestamp: start + 1000, speed: 16, voltage: 24, current: 9, temp1: 31, temp2: 32, voltageDiff: 0.1, throttle: 15, brake: 0 },
             { timestamp: start + 2000, speed: 20, voltage: 24, current: 10, temp1: 32, temp2: 33, voltageDiff: 0.11, throttle: 20, brake: 0 }
         ]
+        telemetryState.history = samples
+        telemetryState.displayHistory = samples
         telemetryState.races = {
             [start]: {
                 startTimeMs: start,
