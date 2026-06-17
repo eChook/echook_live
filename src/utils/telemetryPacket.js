@@ -44,6 +44,18 @@ export function normalizeTelemetryPacket(rawPacket) {
         }
     })
 
+    // Legacy kWh fields from older senders/history — convert to Wh.
+    if (packet.powerUsedKWh !== undefined && packet.powerUsedWh === undefined) {
+        const legacyKWh = Number(packet.powerUsedKWh)
+        if (Number.isFinite(legacyKWh)) packet.powerUsedWh = legacyKWh * 1000
+        delete packet.powerUsedKWh
+    }
+    if (packet.LL_kWh !== undefined && packet.LL_Wh === undefined) {
+        const legacyLapKWh = Number(packet.LL_kWh)
+        if (Number.isFinite(legacyLapKWh)) packet.LL_Wh = legacyLapKWh * 1000
+        delete packet.LL_kWh
+    }
+
     const timestamp = packet.timestamp || packet.updated
     if (timestamp !== undefined) {
         packet.timestamp = normalizeTimestampToMs(timestamp)

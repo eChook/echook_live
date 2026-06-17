@@ -1,4 +1,5 @@
 import { LAP_KEYS } from './telemetryKeys'
+import { roundMetric } from './metricPrecision'
 /**
  * @file raceAnalytics.js
  * @brief Race session detection and lap tracking utilities.
@@ -258,7 +259,7 @@ export function deriveLapSummary(samples, startMs, finishMs) {
     }
 
     if (integratedWh > 0) {
-        derived.LL_kWh = integratedWh / 1000
+        derived.LL_Wh = integratedWh
     }
 
     if (!Number.isFinite(derived.LL_Ah)) {
@@ -267,6 +268,15 @@ export function deriveLapSummary(samples, startMs, finishMs) {
             derived.LL_Ah = integratedWh / meanVoltage
         }
     }
+
+    // Quantize derived lap metrics to policy precision before export.
+    if (Number.isFinite(derived.LL_V)) derived.LL_V = roundMetric(derived.LL_V, 'voltage')
+    if (Number.isFinite(derived.LL_I)) derived.LL_I = roundMetric(derived.LL_I, 'current')
+    if (Number.isFinite(derived.LL_Spd)) derived.LL_Spd = roundMetric(derived.LL_Spd, 'voltage')
+    if (Number.isFinite(derived.LL_RPM)) derived.LL_RPM = roundMetric(derived.LL_RPM, 'integer')
+    if (Number.isFinite(derived.LL_PeakW)) derived.LL_PeakW = roundMetric(derived.LL_PeakW, 'powerW')
+    if (Number.isFinite(derived.LL_Ah)) derived.LL_Ah = roundMetric(derived.LL_Ah, 'current')
+    if (Number.isFinite(derived.LL_Wh)) derived.LL_Wh = roundMetric(derived.LL_Wh, 'energyWh')
 
     return Object.fromEntries(Object.entries(derived).filter(([, value]) => value !== undefined))
 }
@@ -320,8 +330,8 @@ export function rebuildRaceSessionsFromSamples(samples, options = {}) {
             if (toFiniteNumber(nextLap.LL_PeakW) === null && toFiniteNumber(derivedSummary.LL_PeakW) !== null) {
                 nextLap.LL_PeakW = derivedSummary.LL_PeakW
             }
-            if (toFiniteNumber(nextLap.LL_kWh) === null && toFiniteNumber(derivedSummary.LL_kWh) !== null) {
-                nextLap.LL_kWh = derivedSummary.LL_kWh
+            if (toFiniteNumber(nextLap.LL_Wh) === null && toFiniteNumber(derivedSummary.LL_Wh) !== null) {
+                nextLap.LL_Wh = derivedSummary.LL_Wh
             }
             activeRace.laps[boundary.lapNumber] = Object.freeze(nextLap)
             return

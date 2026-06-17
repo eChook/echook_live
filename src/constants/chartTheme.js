@@ -108,7 +108,7 @@ export function getMetricColorMap(theme) {
             current: '#dc2626',
             voltage: '#059669',
             powerW: '#be185d',
-            powerUsedKWh: '#7c2d12',
+            powerUsedWh: '#7c2d12',
             throttle: '#2563eb',
             temp1: '#ea580c',
             temp2: '#c2410c',
@@ -118,6 +118,9 @@ export function getMetricColorMap(theme) {
             voltageLower: '#047857',
             voltageHigh: '#065f46',
             voltageDiff: '#064e3b',
+            estimatedVoc: '#4f46e5',
+            smoothedVoc: '#b45309',
+            vC20: '#0891b2',
             tempDiff: '#9a3412'
         })
     }
@@ -127,7 +130,7 @@ export function getMetricColorMap(theme) {
         current: '#f87171',
         voltage: '#34d399',
         powerW: '#f472b6',
-        powerUsedKWh: '#fdba74',
+        powerUsedWh: '#fdba74',
         throttle: '#60a5fa',
         temp1: '#fb923c',
         temp2: '#f97316',
@@ -137,8 +140,52 @@ export function getMetricColorMap(theme) {
         voltageLower: '#10b981',
         voltageHigh: '#059669',
         voltageDiff: '#047857',
+        estimatedVoc: '#818cf8',
+        smoothedVoc: '#fbbf24',
+        vC20: '#22d3ee',
         tempDiff: '#c2410c'
     })
+}
+
+/**
+ * @brief ECharts dataZoom components for time-axis analytics charts.
+ * @description Scroll (including trackpad sideways) pans the visible window; Ctrl+scroll zooms.
+ *              Drag the bottom slider handles to zoom without the keyboard.
+ * @param {ChartThemeTokens} t - Theme tokens from {@link getChartTokens}
+ * @param {Object} [options] - Interaction options
+ * @param {boolean} [options.moveOnMouseMove=true] - Pan by dragging the plot (disable when chart has custom drag handlers)
+ * @returns {Object[]} Inside + slider dataZoom definitions
+ */
+export function getTimeAxisDataZoom(t, options = {}) {
+    const moveOnMouseMove = options.moveOnMouseMove !== false
+    return [
+        {
+            type: 'inside',
+            xAxisIndex: 0,
+            filterMode: 'filter',
+            zoomOnMouseWheel: 'ctrl',
+            moveOnMouseMove,
+            moveOnMouseWheel: true
+        },
+        {
+            type: 'slider',
+            xAxisIndex: 0,
+            filterMode: 'filter',
+            height: 20,
+            bottom: 6,
+            borderColor: t.zoomBorder,
+            textStyle: { color: t.zoomText },
+            handleStyle: { color: t.zoomHandle },
+            dataBackground: {
+                lineStyle: { color: t.zoomDataLine },
+                areaStyle: { color: t.zoomDataArea }
+            },
+            selectedDataBackground: {
+                lineStyle: { color: t.zoomSelectedLine },
+                areaStyle: { color: t.zoomSelectedArea }
+            }
+        }
+    ]
 }
 
 /**

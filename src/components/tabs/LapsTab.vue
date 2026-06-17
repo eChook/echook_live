@@ -20,7 +20,7 @@
  * 
  * Metrics displayed:
  * - Lap number, start/finish time, lap duration
- * - Voltage, current, RPM, speed, Ah, Peak W, kWh, efficiency
+ * - Voltage, current, RPM, speed, Ah, Peak W, Wh, efficiency
  */
 import { computed, ref, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
@@ -30,6 +30,7 @@ import { ChartBarIcon, ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/vue/2
 import {
   filterLapSummaries
 } from '../../utils/analyticsMetrics'
+import { METRIC_PRECISION } from '../../utils/metricPrecision'
 
 const telemetry = useTelemetryStore()
 const settings = useSettingsStore()
@@ -50,12 +51,12 @@ const headers = computed(() => [
   `Speed (${telemetry.unitSettings.speedUnit.toUpperCase()})`,
   'Ah',
   'Peak W',
-  'kWh',
+  'Wh',
   'Eff'
 ])
 
 /** @brief Data keys corresponding to table columns */
-const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_PeakW', 'LL_kWh', 'LL_Eff']
+const keys = ['lapNumber', 'startTime', 'finishTime', 'LL_Time', 'LL_V', 'LL_I', 'LL_RPM', 'LL_Spd', 'LL_Ah', 'LL_PeakW', 'LL_Wh', 'LL_Eff']
 
 /**
  * @brief Sorted races with converted laps and per-race stats.
@@ -189,8 +190,8 @@ const formatValue = (val) => {
  */
 const formatTableValue = (key, val) => {
   if (!Number.isFinite(val)) return formatValue(val)
-  if (key === 'LL_PeakW') return val.toFixed(1)
-  if (key === 'LL_kWh') return val.toFixed(3)
+  if (key === 'LL_PeakW') return val.toFixed(METRIC_PRECISION.powerW)
+  if (key === 'LL_Wh') return val.toFixed(METRIC_PRECISION.energyWh)
   return formatValue(val)
 }
 
@@ -306,7 +307,7 @@ const viewLapOnGraph = (lap) => {
 const metricDirection = {
   'LL_Time': -1,
   'LL_Ah': -1,
-  'LL_kWh': -1,
+  'LL_Wh': -1,
   'LL_I': -1,
   'LL_V': 1,
   'LL_RPM': 1,

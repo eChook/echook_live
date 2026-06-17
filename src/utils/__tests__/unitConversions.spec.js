@@ -67,9 +67,26 @@ describe('scalePacket', () => {
         expect(result.voltageDiff).toBeCloseTo(0.3, 1) // 12.4 - 12.1
     })
 
+    it('rounds computed voltageHigh and voltageDiff to 2 decimal places', () => {
+        const result = scalePacket({
+            voltage: 24.333333333,
+            voltageLower: 12.111111111
+        })
+        expect(result.voltageHigh).toBe(12.22)
+        expect(result.voltageDiff).toBe(0.11)
+    })
+
     it('calculates tempDiff correctly', () => {
         const result = scalePacket(basePacket)
         expect(result.tempDiff).toBe(5) // |25 - 30|
+    })
+
+    it('rounds tempDiff to 2 decimal places', () => {
+        const result = scalePacket({
+            temp1: 25.333,
+            temp2: 25.111
+        })
+        expect(result.tempDiff).toBe(0.22)
     })
 
     it('converts speed to mph by default', () => {

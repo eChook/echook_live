@@ -6,6 +6,10 @@
  *              for display with calculated derived values.
  */
 
+import { METRIC_PRECISION, roundMetric, roundToDecimals } from './metricPrecision'
+
+export { roundToDecimals }
+
 /**
  * @brief Speed conversion factors from m/s to various units.
  * @type {Object.<string, number>}
@@ -87,16 +91,16 @@ export function scalePacket(pt, unitSettings = { speedUnit: 'mph', tempUnit: 'c'
         newPt.temp2 = convertTemp(pt.temp2, unitSettings.tempUnit)
     }
 
-    // Calculate V_Batt High = Voltage - V_Batt Low
+    // Calculate V_Batt High = Voltage - V_Batt Low (2 d.p. for stable display/charts)
     if (newPt.voltage !== undefined && newPt.voltageLower !== undefined) {
-        newPt.voltageHigh = newPt.voltage - newPt.voltageLower
+        newPt.voltageHigh = roundMetric(newPt.voltage - newPt.voltageLower, 'voltage')
         // V_Batt Diff = High - Low (positive if H > L)
-        newPt.voltageDiff = newPt.voltageHigh - newPt.voltageLower
+        newPt.voltageDiff = roundMetric(newPt.voltageHigh - newPt.voltageLower, 'voltage')
     }
 
     // Calculate Temp Diff = |temp1 - temp2|
     if (newPt.temp1 !== undefined && newPt.temp2 !== undefined) {
-        newPt.tempDiff = Math.abs(newPt.temp1 - newPt.temp2)
+        newPt.tempDiff = roundMetric(Math.abs(newPt.temp1 - newPt.temp2), 'tempDiff')
     }
 
     return Object.freeze(newPt)

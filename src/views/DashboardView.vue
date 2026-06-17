@@ -58,7 +58,7 @@ const getDisplayUnit = (key) => {
   if (key === 'speed') return telemetry.unitSettings.speedUnit
   if (key === 'temp1' || key === 'temp2' || key === 'tempDiff') return telemetry.unitSettings.tempUnit === 'f' ? '°F' : '°C'
   if (key === 'powerW') return 'W'
-  if (key === 'powerUsedKWh') return 'kWh'
+  if (key === 'powerUsedWh') return 'Wh'
   return undefined
 }
 
@@ -253,20 +253,25 @@ const handleKeydown = (e) => {
     <DashboardHeader />
     <GraphHelpModal :isOpen="settings.showShortcutsModal" @close="settings.showShortcutsModal = false" />
 
-    <!-- Data Ribbon - horizontal scroll on mobile -->
-    <div
-      class="h-20 md:h-28 border-b border-zinc-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/50 backdrop-blur flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
-      <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
-        <template #item="{ element: key }">
-          <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
-            :data-key="key" :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
-            :threshold-status="getCardThresholdStatus(key)" :tooltip="telemetry.getDescription(key)" />
-        </template>
-      </draggable>
-      <div v-if="orderedKeys.length === 0" class="text-zinc-500 dark:text-gray-500 text-sm italic">
-        Waiting for telemetry data... (You can load historic data from the "Loaded Data" box)
+    <!-- Data Ribbon - hidden when disconnected or viewing a previous day's historic data -->
+    <Transition enter-active-class="transition-all duration-300 ease-out overflow-hidden"
+      enter-from-class="opacity-0 max-h-0 border-b-0" enter-to-class="opacity-100 max-h-32 border-b"
+      leave-active-class="transition-all duration-300 ease-in overflow-hidden"
+      leave-from-class="opacity-100 max-h-32 border-b" leave-to-class="opacity-0 max-h-0 border-b-0">
+      <div v-if="telemetry.showDataRibbon"
+        class="h-20 md:h-28 shrink-0 border-b border-zinc-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/50 backdrop-blur flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
+        <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
+          <template #item="{ element: key }">
+            <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
+              :data-key="key" :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
+              :threshold-status="getCardThresholdStatus(key)" :tooltip="telemetry.getDescription(key)" />
+          </template>
+        </draggable>
+        <div v-if="orderedKeys.length === 0" class="text-zinc-500 dark:text-gray-500 text-sm italic">
+          Waiting for telemetry data... (You can load historic data from the "Loaded Data" box)
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
