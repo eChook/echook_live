@@ -27,7 +27,6 @@ import { useSettingsStore } from '../../stores/settings'
 import { connect } from 'echarts/core'
 import TelemetryGraph from '../../components/TelemetryGraph.vue'
 import MasterZoom from '../../components/MasterZoom.vue'
-import GraphHelpModal from '../../components/GraphHelpModal.vue'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import { getMetricColorMap, getFallbackMetricColors } from '../../constants/chartTheme'
 
@@ -110,16 +109,11 @@ const getColor = (key) => {
   return palette[index]
 }
 
-const showHelp = ref(false)
-
 // Ensure charts are connected when tab mounts
 onMounted(() => {
   requestAnimationFrame(() => {
     connect(CHART_GROUP)
   })
-  if (settings.showGraphHelp) {
-    showHelp.value = true
-  }
 })
 
 // Re-connect when MasterZoom mounts (when history > 0)
@@ -201,6 +195,5 @@ onActivated(() => {
         </div>
       </div>
     </main>
-    <GraphHelpModal :is-open="showHelp" @close="showHelp = false" />
   </div>
 </template>
