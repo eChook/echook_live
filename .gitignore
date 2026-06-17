@@ -12,6 +12,8 @@ dist
 coverage
 dist-ssr
 *.local
+*.pdf
+
 
 # Editor directories and files
 .vscode/*
