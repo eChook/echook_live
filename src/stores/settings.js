@@ -13,6 +13,22 @@ import { ref, computed } from 'vue'
  * @brief Default analytics event threshold values.
  * @description Shared by the settings UI reset controls and store initial state.
  */
+/** @brief Default battery pack parameters used by analytics health metrics. */
+export const DEFAULT_BATTERY_PACK_SETTINGS = Object.freeze({
+    packNominalCapacityAh: 36,
+    /** @brief Deliverable pack capacity (Ah) used as C_actual for DoD and SoH. */
+    packActualCapacityAh: 36,
+    packNominalSeriesVoltage: 24,
+    peukertExponent: 1.16
+})
+
+/** @brief Default internal-resistance estimation settings for analytics IR v2. */
+export const DEFAULT_IR_ESTIMATION_SETTINGS = Object.freeze({
+    irCurrentDeadbandA: 0.5,
+    irRcTauSec: 30,
+    irRcResistanceScale: 0.35
+})
+
 export const DEFAULT_EVENT_THRESHOLD_SETTINGS = Object.freeze({
     eventUndervoltageWarningV: 18,
     eventUndervoltageCriticalV: 14,
@@ -187,6 +203,8 @@ export const useSettingsStore = defineStore('settings', () => {
         manualStartOffsetSec: null,
         autoCollapseStartCardSec: 60,
         enableSideBySideHistoryCompare: false,
+        ...DEFAULT_BATTERY_PACK_SETTINGS,
+        ...DEFAULT_IR_ESTIMATION_SETTINGS,
         ...DEFAULT_EVENT_THRESHOLD_SETTINGS
     })
 
@@ -608,6 +626,83 @@ export const useSettingsStore = defineStore('settings', () => {
                         )
                     } else {
                         errors.push('analyticsSettings.eventOverlapWarningSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.packNominalCapacityAh !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.packNominalCapacityAh)) {
+                        nextAnalyticsSettings.packNominalCapacityAh = clampNumber(
+                            Number(newData.analyticsSettings.packNominalCapacityAh),
+                            1,
+                            500
+                        )
+                    } else {
+                        errors.push('analyticsSettings.packNominalCapacityAh must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.packActualCapacityAh !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.packActualCapacityAh)) {
+                        nextAnalyticsSettings.packActualCapacityAh = clampNumber(
+                            Number(newData.analyticsSettings.packActualCapacityAh),
+                            1,
+                            500
+                        )
+                    } else {
+                        errors.push('analyticsSettings.packActualCapacityAh must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.packNominalSeriesVoltage !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.packNominalSeriesVoltage)) {
+                        nextAnalyticsSettings.packNominalSeriesVoltage = clampNumber(
+                            Number(newData.analyticsSettings.packNominalSeriesVoltage),
+                            6,
+                            96
+                        )
+                    } else {
+                        errors.push('analyticsSettings.packNominalSeriesVoltage must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.peukertExponent !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.peukertExponent)) {
+                        nextAnalyticsSettings.peukertExponent = clampNumber(
+                            Number(newData.analyticsSettings.peukertExponent),
+                            1,
+                            2.5
+                        )
+                    } else {
+                        errors.push('analyticsSettings.peukertExponent must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.irCurrentDeadbandA !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.irCurrentDeadbandA)) {
+                        nextAnalyticsSettings.irCurrentDeadbandA = clampNumber(
+                            Number(newData.analyticsSettings.irCurrentDeadbandA),
+                            0,
+                            20
+                        )
+                    } else {
+                        errors.push('analyticsSettings.irCurrentDeadbandA must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.irRcTauSec !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.irRcTauSec)) {
+                        nextAnalyticsSettings.irRcTauSec = clampNumber(
+                            Number(newData.analyticsSettings.irRcTauSec),
+                            1,
+                            600
+                        )
+                    } else {
+                        errors.push('analyticsSettings.irRcTauSec must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.irRcResistanceScale !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.irRcResistanceScale)) {
+                        nextAnalyticsSettings.irRcResistanceScale = clampNumber(
+                            Number(newData.analyticsSettings.irRcResistanceScale),
+                            0,
+                            1
+                        )
+                    } else {
+                        errors.push('analyticsSettings.irRcResistanceScale must be a valid number.')
                     }
                 }
                 analyticsSettings.value = nextAnalyticsSettings

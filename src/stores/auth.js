@@ -259,6 +259,81 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     /**
+     * @brief Delete all server-stored telemetry for the authenticated user's car.
+     * @description Calls POST /account/delete-telemetry with deleteAll. Account remains active.
+     * @param {string} code - Email verification code from /account/request-code
+     * @returns {Promise<{success: boolean, message?: string, deleted?: number, error?: string}>}
+     */
+    async function deleteTelemetry(code) {
+        try {
+            const response = await api.post('/account/delete-telemetry', {
+                code,
+                deleteAll: true
+            }, { withCredentials: true })
+            if (response.data?.success) {
+                return {
+                    success: true,
+                    message: response.data.message,
+                    deleted: response.data.deleted
+                }
+            }
+            return { success: false, error: response.data?.message || 'Failed to delete telemetry' }
+        } catch (error) {
+            console.error('Delete telemetry failed', error)
+            return { success: false, error: error.response?.data?.message || 'Failed to delete telemetry' }
+        }
+    }
+
+    /**
+     * @brief Delete server-stored telemetry within inclusive UTC calendar days.
+     * @description Calls POST /account/delete-telemetry with fromDate/toDate (YYYY-MM-DD).
+     * @param {string} code - Email verification code from /account/request-code
+     * @param {string} fromDate - Range start day (inclusive), UTC YYYY-MM-DD
+     * @param {string} toDate - Range end day (inclusive), UTC YYYY-MM-DD
+     * @returns {Promise<{success: boolean, message?: string, deleted?: number, error?: string}>}
+     */
+    async function deleteTelemetryRange(code, fromDate, toDate) {
+        try {
+            const response = await api.post('/account/delete-telemetry', {
+                code,
+                fromDate,
+                toDate
+            }, { withCredentials: true })
+            if (response.data?.success) {
+                return {
+                    success: true,
+                    message: response.data.message,
+                    deleted: response.data.deleted
+                }
+            }
+            return { success: false, error: response.data?.message || 'Failed to delete telemetry' }
+        } catch (error) {
+            console.error('Delete telemetry range failed', error)
+            return { success: false, error: error.response?.data?.message || 'Failed to delete telemetry' }
+        }
+    }
+
+    /**
+     * @brief Delete the authenticated user's account and all associated server data.
+     * @description Calls POST /account/delete, then clears local session state.
+     * @param {string} code - Email verification code from /account/request-code
+     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+     */
+    async function deleteAccount(code) {
+        try {
+            const response = await api.post('/account/delete', { code }, { withCredentials: true })
+            if (response.data?.success) {
+                logout()
+                return { success: true, message: response.data.message }
+            }
+            return { success: false, error: response.data?.message || 'Failed to delete account' }
+        } catch (error) {
+            console.error('Delete account failed', error)
+            return { success: false, error: error.response?.data?.message || 'Failed to delete account' }
+        }
+    }
+
+    /**
      * @brief Log out the current user.
      * @description Clears the local user state. Server-side session is
      *              invalidated via cookie expiration.
@@ -284,6 +359,9 @@ export const useAuthStore = defineStore('auth', () => {
         refreshAdminStatus,
         updateProfile,
         requestVerificationCode,
+        deleteTelemetry,
+        deleteTelemetryRange,
+        deleteAccount,
         startDemo
     }
 }, {

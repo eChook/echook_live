@@ -6,7 +6,8 @@ import { useAuthStore } from '../auth'
 vi.mock('../../utils/msgpack', () => ({
     api: {
         post: vi.fn(),
-        get: vi.fn()
+        get: vi.fn(),
+        delete: vi.fn()
     },
     authApi: {
         post: vi.fn(),
@@ -218,6 +219,95 @@ describe('auth store', () => {
 
             expect(result).toEqual({ success: false, transient: true, error: 'Session check failed' })
             expect(auth.user).toEqual({ id: 'u1', name: 'Driver 1' })
+        })
+    })
+
+    describe('deleteTelemetry', () => {
+        it('returns success when server deletes telemetry', async () => {
+            const auth = useAuthStore()
+            api.post.mockResolvedValue({
+                data: { success: true, message: 'Telemetry deleted', deleted: 1200 }
+            })
+
+            const result = await auth.deleteTelemetry('123456')
+
+            expect(api.post).toHaveBeenCalledWith(
+                '/account/delete-telemetry',
+                { code: '123456', deleteAll: true },
+                { withCredentials: true }
+            )
+            expect(result).toEqual({ success: true, message: 'Telemetry deleted', deleted: 1200 })
+        })
+
+        it('returns error when server rejects deletion', async () => {
+            const auth = useAuthStore()
+            api.post.mockRejectedValue({
+                response: { data: { message: 'Invalid or expired verification code' } }
+            })
+
+            const result = await auth.deleteTelemetry('000000')
+
+            expect(result).toEqual({ success: false, error: 'Invalid or expired verification code' })
+        })
+    })
+
+    describe('deleteTelemetryRange', () => {
+        it('returns success when server deletes telemetry in range', async () => {
+            const auth = useAuthStore()
+            api.post.mockResolvedValue({
+                data: { success: true, message: 'Telemetry deleted', deleted: 48210 }
+            })
+
+            const result = await auth.deleteTelemetryRange('123456', '2026-01-01', '2026-01-31')
+
+            expect(api.post).toHaveBeenCalledWith(
+                '/account/delete-telemetry',
+                { code: '123456', fromDate: '2026-01-01', toDate: '2026-01-31' },
+                { withCredentials: true }
+            )
+            expect(result).toEqual({ success: true, message: 'Telemetry deleted', deleted: 48210 })
+        })
+
+        it('returns error when server rejects range deletion', async () => {
+            const auth = useAuthStore()
+            api.post.mockRejectedValue({
+                response: { data: { message: 'Invalid range' } }
+            })
+
+            const result = await auth.deleteTelemetryRange('123456', '2026-01-31', '2026-01-01')
+
+            expect(result).toEqual({ success: false, error: 'Invalid range' })
+        })
+    })
+
+    describe('deleteAccount', () => {
+        it('logs out and returns success when server deletes account', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', car: 'TestCar' }
+            api.post.mockResolvedValue({
+                data: { success: true, message: 'Account deleted' }
+            })
+
+            const result = await auth.deleteAccount('123456')
+
+            expect(api.post).toHaveBeenCalledWith(
+                '/account/delete',
+                { code: '123456' },
+                { withCredentials: true }
+            )
+            expect(result).toEqual({ success: true, message: 'Account deleted' })
+            expect(auth.user).toBeNull()
+        })
+
+        it('returns error without logging out on failure', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', car: 'TestCar' }
+            api.post.mockResolvedValue({ data: { success: false, message: 'Forbidden' } })
+
+            const result = await auth.deleteAccount('000000')
+
+            expect(result).toEqual({ success: false, error: 'Forbidden' })
+            expect(auth.user).toEqual({ id: 'u1', car: 'TestCar' })
         })
     })
 })
