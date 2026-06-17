@@ -20,9 +20,13 @@ import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import bgImage from '../assets/background.jpg'
 import PublicHeader from '../components/PublicHeader.vue'
+import PublicFooter from '../components/PublicFooter.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+
+/** @brief User must accept policies before registering. */
+const acceptedPolicies = ref(false)
 
 /**
  * @brief Form data for registration.
@@ -66,6 +70,11 @@ const handleRegister = async () => {
 
   if (formData.value.password !== formData.value.confirmPassword) {
     error.value = "Passwords do not match"
+    return
+  }
+
+  if (!acceptedPolicies.value) {
+    error.value = 'You must accept the Terms of Service and Privacy Policy to register.'
     return
   }
 
@@ -138,10 +147,23 @@ const handleRegister = async () => {
             <p v-if="passwordMismatch" class="text-red-500 text-xs mt-1">Passwords do not match</p>
           </div>
 
-          <button type="submit" :disabled="isLoading"
+          <button type="submit" :disabled="isLoading || !acceptedPolicies"
             class="w-full mt-2 bg-primary hover:opacity-90 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition">
             {{ isLoading ? 'Registering...' : 'Create Account' }}
           </button>
+
+          <label class="flex items-start gap-3 mt-4 text-xs text-zinc-600 dark:text-gray-400 cursor-pointer">
+            <input v-model="acceptedPolicies" type="checkbox" required
+              class="mt-0.5 rounded border-zinc-300 dark:border-neutral-600 text-primary focus:ring-primary" />
+            <span>
+              I agree to the
+              <router-link to="/terms" class="text-primary hover:underline" @click.stop>Terms of Service</router-link>
+              and
+              <router-link to="/privacy" class="text-primary hover:underline" @click.stop>Privacy Policy</router-link>,
+              and acknowledge the
+              <router-link to="/data-management" class="text-primary hover:underline" @click.stop>Data Management Policy</router-link>.
+            </span>
+          </label>
 
           <div class="text-center text-sm text-zinc-500 dark:text-gray-500 mt-4">
             Already have an account? <router-link to="/login" class="text-primary hover:underline">Login</router-link>
@@ -149,5 +171,6 @@ const handleRegister = async () => {
         </form>
       </div>
     </div>
+    <PublicFooter />
   </div>
 </template>

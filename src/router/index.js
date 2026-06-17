@@ -42,6 +42,23 @@ const router = createRouter({
             path: '/spectate/:trackName',
             name: 'spectate',
             component: () => import('../views/SpectatorView.vue')
+        },
+        {
+            path: '/privacy',
+            redirect: { name: 'policy', params: { slug: 'privacy' } }
+        },
+        {
+            path: '/data-management',
+            redirect: { name: 'policy', params: { slug: 'data-management' } }
+        },
+        {
+            path: '/terms',
+            redirect: { name: 'policy', params: { slug: 'terms' } }
+        },
+        {
+            path: '/policy/:slug',
+            name: 'policy',
+            component: () => import('../views/PolicyView.vue')
         }
     ]
 })

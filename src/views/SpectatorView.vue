@@ -21,6 +21,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSpectatorStore } from '../stores/spectator'
 import PublicHeader from '../components/PublicHeader.vue'
+import PublicFooter from '../components/PublicFooter.vue'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LCircleMarker, LTooltip } from "@vue-leaflet/vue-leaflet"
 
@@ -212,6 +213,7 @@ watch(() => mapCars.value, (cars) => {
                 </div>
             </div>
         </div>
+        <PublicFooter />
     </div>
 </template>
 

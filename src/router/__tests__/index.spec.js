@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { runAuthGuard, resetSessionCheckState } from '../index'
 
+/** @brief Policy and legal routes must stay public (no auth redirect). */
+const PUBLIC_POLICY_ROUTES = [
+    { name: 'policy', meta: {}, params: { slug: 'privacy' } },
+    { path: '/privacy', meta: {} },
+    { path: '/terms', meta: {} },
+    { path: '/data-management', meta: {} }
+]
+
 describe('router auth guard', () => {
     beforeEach(() => {
         resetSessionCheckState()
@@ -45,5 +53,18 @@ describe('router auth guard', () => {
         await runAuthGuard({ meta: { requiresAuth: false } }, {}, next, authStore)
 
         expect(authStore.checkSession).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(PUBLIC_POLICY_ROUTES)('allows public policy navigation without login (%#)', async (route) => {
+        const next = vi.fn()
+        const authStore = {
+            isAuthenticated: false,
+            checkSession: vi.fn()
+        }
+
+        await runAuthGuard(route, {}, next, authStore)
+
+        expect(next).toHaveBeenCalledWith()
+        expect(next).not.toHaveBeenCalledWith({ name: 'login' })
     })
 })

@@ -21,6 +21,7 @@ import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import bgImage from '../assets/background.jpg'
 import PublicHeader from '../components/PublicHeader.vue'
+import PublicFooter from '../components/PublicFooter.vue'
 import { useSpectatorStore } from '../stores/spectator'
 import { onMounted, onUnmounted } from 'vue'
 
@@ -209,8 +210,8 @@ const handleDemo = async () => {
             </li>
             <li class="flex items-start">
               <span class="text-primary mr-2">+</span>
-              <span><strong>Data Retention</strong> - Your car data is stored by the server and history can be
-                retrieved.</span>
+              <span><strong>Data Retention</strong> - Server history is stored at full resolution, but we make no
+                guarantee how long it will be kept. Export CSV backups regularly.</span>
             </li>
             <li class="flex items-start">
               <span class="text-primary mr-2">+</span>
@@ -244,11 +245,16 @@ const handleDemo = async () => {
       </div>
     </div>
 
+    <PublicFooter />
+
     <!-- Cookie Notice -->
     <div v-if="showCookieNotice"
-      class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur border-t border-zinc-200 dark:border-neutral-700 p-4 z-50 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl transition-all duration-300">
+      class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur border-t border-zinc-200 dark:border-neutral-700 p-4 z-50 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl transition-all duration-300 mb-0">
       <div class="text-sm text-zinc-700 dark:text-gray-300 text-center md:text-left">
-        <p>This website uses the bare minimum cookies required for functionality. No ads, no tracking.</p>
+        <p>
+          This website uses essential cookies required for login. No ads, no tracking.
+          See our <router-link to="/privacy" class="text-primary hover:underline">Privacy Policy</router-link>.
+        </p>
       </div>
       <button @click="acceptCookies"
         class="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-lg text-sm transition transform active:scale-95 whitespace-nowrap">
