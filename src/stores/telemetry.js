@@ -81,6 +81,13 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     /** @brief Whether live data ingestion is paused */
     const isPaused = ref(false)
 
+    /**
+     * @brief True when history was loaded via the calendar day picker.
+     * @description Distinguishes deliberate historic-day viewing from a paused
+     *              live session that happens to span midnight.
+     */
+    const wasLoadedFromCalendar = ref(false)
+
     /** @brief Currently subscribed socket room (car ID) */
     const activeRoomId = ref(null)
     /** @brief Requested room while socket is disconnected */
@@ -147,15 +154,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @type {ComputedRef<boolean>}
      */
     const isViewingHistoricalDay = computed(() => {
-        if (!isPaused.value || history.value.length === 0) return false
-
-        const lastPoint = history.value[history.value.length - 1]
-        const timestamp = Number(lastPoint?.timestamp)
-        if (!Number.isFinite(timestamp)) return false
-
-        const lastDate = new Date(timestamp).toDateString()
-        const today = new Date().toDateString()
-        return lastDate !== today
+        return isPaused.value && wasLoadedFromCalendar.value
     })
 
     /**
@@ -695,20 +694,16 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const wasPaused = isPaused.value
         isPaused.value = !isPaused.value
 
-        // If resuming, fill the gap
+        // If resuming, fill the gap unless viewing a calendar-loaded historic day
         if (wasPaused && !isPaused.value) {
+            const shouldFillGap = !wasLoadedFromCalendar.value
+            wasLoadedFromCalendar.value = false
             const lastTime = historyComposable.latestTime.value
             const carId = viewingCar.value?.id || auth.userId
 
-            if (lastTime && carId) {
-                const today = new Date().toDateString()
-                const lastDate = new Date(lastTime).toDateString()
-
-                // Only fill gap if same day
-                if (today === lastDate) {
-                    const now = Date.now()
-                    await historyComposable.fetchHistory(carId, lastTime, now, true)
-                }
+            if (shouldFillGap && lastTime && carId) {
+                const now = Date.now()
+                await historyComposable.fetchHistory(carId, lastTime, now, true)
             }
         }
     }
@@ -722,6 +717,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @returns {Promise<void>}
      */
     async function loadDay(carId, dateString, startTimeStr = '00:00', endTimeStr = '23:59') {
+        wasLoadedFromCalendar.value = true
         await historyComposable.loadDay(carId, dateString, startTimeStr, endTimeStr, clearHistory, isPaused)
     }
 
@@ -733,6 +729,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     async function resetToLive(carId) {
         if (!carId) return
+        wasLoadedFromCalendar.value = false
         isPaused.value = false
         clearHistory()
         await historyComposable.fetchHistory(carId)
@@ -753,6 +750,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         activeRoomId.value = null
         historyComposable.availableDays.value = new Set()
         isPaused.value = false
+        wasLoadedFromCalendar.value = false
         chartZoomComposable.clearCurrentZoomWindow()
     }
 
@@ -785,6 +783,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         // Pause State
         isPaused,
+        wasLoadedFromCalendar,
         isViewingHistoricalDay,
         showDataRibbon,
         availableDays: historyComposable.availableDays,

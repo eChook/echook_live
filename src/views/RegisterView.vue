@@ -74,7 +74,7 @@ const handleRegister = async () => {
   }
 
   if (!acceptedPolicies.value) {
-    error.value = 'You must accept the Terms of Service and Privacy Policy to register.'
+    error.value = 'You must accept the Terms of Service, Privacy Policy, and Data Management Policy to register.'
     return
   }
 

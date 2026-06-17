@@ -314,41 +314,43 @@ describe('telemetry store', () => {
     describe('isViewingHistoricalDay', () => {
         it('is false when live (not paused)', () => {
             const telemetry = useTelemetryStore()
-            const yesterday = Date.now() - 24 * 60 * 60 * 1000
 
             telemetry.isPaused = false
-            telemetry.history = [{ timestamp: yesterday }]
+            telemetry.wasLoadedFromCalendar = true
+            telemetry.history = [{ timestamp: Date.now() - 24 * 60 * 60 * 1000 }]
 
             expect(telemetry.isViewingHistoricalDay).toBe(false)
         })
 
-        it('is false when paused on today\'s data', () => {
+        it('is false when paused on today without a calendar load', () => {
             const telemetry = useTelemetryStore()
 
             telemetry.isPaused = true
+            telemetry.wasLoadedFromCalendar = false
             telemetry.history = [{ timestamp: Date.now() }]
 
             expect(telemetry.isViewingHistoricalDay).toBe(false)
         })
 
-        it('is true when paused on a previous calendar day', () => {
+        it('is true when paused after loading a day from the calendar', () => {
             const telemetry = useTelemetryStore()
-            const yesterday = Date.now() - 24 * 60 * 60 * 1000
 
             telemetry.isPaused = true
-            telemetry.history = [{ timestamp: yesterday }]
+            telemetry.wasLoadedFromCalendar = true
+            telemetry.history = [{ timestamp: Date.now() - 24 * 60 * 60 * 1000 }]
 
             expect(telemetry.isViewingHistoricalDay).toBe(true)
         })
 
-        it('becomes false after resetToLive clears historic data', async () => {
+        it('becomes false after resetToLive clears the calendar flag', async () => {
             const telemetry = useTelemetryStore()
-            const yesterday = Date.now() - 24 * 60 * 60 * 1000
 
             telemetry.isPaused = true
-            telemetry.history = [{ timestamp: yesterday }]
+            telemetry.wasLoadedFromCalendar = true
+            telemetry.history = [{ timestamp: Date.now() - 24 * 60 * 60 * 1000 }]
             expect(telemetry.isViewingHistoricalDay).toBe(true)
 
+            telemetry.wasLoadedFromCalendar = false
             telemetry.isPaused = false
             telemetry.history = []
 
@@ -408,12 +410,13 @@ describe('telemetry store', () => {
             expect(telemetry.showDataRibbon).toBe(true)
         })
 
-        it('is false when connected but viewing a previous day', () => {
+        it('is false when connected but viewing a previous day from the calendar', () => {
             const telemetry = useTelemetryStore()
             const yesterday = Date.now() - 24 * 60 * 60 * 1000
 
             telemetry.isConnected = true
             telemetry.isPaused = true
+            telemetry.wasLoadedFromCalendar = true
             telemetry.lastPacketTime = yesterday
             telemetry.history = [{ timestamp: yesterday }]
 

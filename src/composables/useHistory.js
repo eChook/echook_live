@@ -227,7 +227,8 @@ export function useHistory({
 
         const getTs = (timeStr) => {
             const [h, m] = timeStr.split(':')
-            const d = new Date(dateString)
+            // Append T00:00:00 (no Z) so YYYY-MM-DD parses as local midnight, not UTC.
+            const d = new Date(`${dateString}T00:00:00`)
             d.setHours(parseInt(h), parseInt(m), 0, 0)
             return d.getTime()
         }

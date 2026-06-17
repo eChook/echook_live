@@ -63,6 +63,11 @@ const props = defineProps({
     confirmButtonClass: {
         type: String,
         default: 'bg-primary hover:bg-primary/90'
+    },
+    /** @brief When true, the confirm button is disabled (e.g. during async submit). */
+    disabled: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -122,8 +127,8 @@ function confirm() {
                             <div
                                 class="px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 space-y-2 sm:space-y-0 sm:space-x-2 sm:space-x-reverse">
                                 <button type="button"
-                                    class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition"
-                                    :class="confirmButtonClass" @click="confirm">{{ confirmText }}</button>
+                                    class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    :class="confirmButtonClass" :disabled="disabled" @click="confirm">{{ confirmText }}</button>
                                 <button type="button"
                                     class="mt-3 inline-flex w-full justify-center rounded-md bg-zinc-200 dark:bg-neutral-800 px-3 py-2 text-sm font-semibold text-zinc-800 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-700 sm:mt-0 sm:w-auto transition"
                                     @click="close">{{ cancelText }}</button>

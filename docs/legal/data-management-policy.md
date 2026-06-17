@@ -29,9 +29,9 @@ Your team maintains practical control over your car's telemetry at all times:
 |-------|-------------------|
 | **View** | Log in to eChook Live to see live and historical data |
 | **Download** | Export telemetry as CSV from the dashboard (lap data, history, analytics events) |
-| **Delete** | Remove all server-stored telemetry via **Settings → Delete Server Telemetry** |
+| **Delete** | Remove server-stored telemetry via **Settings → Delete Server Telemetry** (delete all, or choose an inclusive UTC date range) |
 
-Deleting telemetry is **permanent and irreversible**. Your account remains active unless you separately delete it.
+Deleting telemetry is **permanent and irreversible**. Your account remains active unless you separately delete it. Date-range deletion uses UTC calendar days, matching how telemetry is stored on the server.
 
 Contact [info@echook.uk](mailto:info@echook.uk) if you need assistance exercising these rights.
 
@@ -91,7 +91,7 @@ Account deletion (see Privacy Policy) removes your account and all associated te
 
 ## 8. Backups
 
-eChook may maintain server backups (including optional Cloudflare R2 backups operated by administrators). Deleted telemetry will be removed from active storage immediately; residual copies in backups may persist until those backups rotate or are overwritten.
+eChook may maintain server backups. Deleted telemetry will be removed from active storage immediately; residual copies in backups may persist until those backups rotate or are overwritten.
 
 ## 9. Relationship to other policies
 

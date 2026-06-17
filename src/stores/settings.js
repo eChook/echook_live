@@ -7,7 +7,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 /**
  * @brief Default analytics event threshold values.
@@ -39,6 +39,31 @@ export const DEFAULT_EVENT_THRESHOLD_SETTINGS = Object.freeze({
     eventDropoutWarningSec: 10,
     eventOverlapWarningSec: 2
 })
+
+/**
+ * @brief Default analytics settings object for store initialisation and resets.
+ * @returns {Object} Fresh analytics settings with all default thresholds
+ */
+function createDefaultAnalyticsSettings() {
+    return {
+        liveWindowMinutes: 10,
+        throttleOverlapThresholdPct: 5,
+        startCurrentThresholdA: 10,
+        lapConfidenceMinTimeSec: 15,
+        lapConfidenceMaxTimeSec: 600,
+        hideSuspectLaps: false,
+        hideInvalidLaps: false,
+        excludeFirstLap: false,
+        minimumLapTimeSec: 0,
+        baselineRequireTrackMatch: true,
+        manualStartOffsetSec: null,
+        autoCollapseStartCardSec: 60,
+        enableSideBySideHistoryCompare: false,
+        ...DEFAULT_BATTERY_PACK_SETTINGS,
+        ...DEFAULT_IR_ESTIMATION_SETTINGS,
+        ...DEFAULT_EVENT_THRESHOLD_SETTINGS
+    }
+}
 
 /**
  * @brief Settings store for user preferences and race history.
@@ -189,36 +214,110 @@ export const useSettingsStore = defineStore('settings', () => {
      * @property {number} startCurrentThresholdA - Min current used by race start detector
      * @type {Ref<Object>}
      */
-    const analyticsSettings = ref({
-        liveWindowMinutes: 10,
-        throttleOverlapThresholdPct: 5,
-        startCurrentThresholdA: 10,
-        lapConfidenceMinTimeSec: 15,
-        lapConfidenceMaxTimeSec: 600,
-        hideSuspectLaps: false,
-        hideInvalidLaps: false,
-        excludeFirstLap: false,
-        minimumLapTimeSec: 0,
-        baselineRequireTrackMatch: true,
-        manualStartOffsetSec: null,
-        autoCollapseStartCardSec: 60,
-        enableSideBySideHistoryCompare: false,
-        ...DEFAULT_BATTERY_PACK_SETTINGS,
-        ...DEFAULT_IR_ESTIMATION_SETTINGS,
-        ...DEFAULT_EVENT_THRESHOLD_SETTINGS
-    })
+    const analyticsSettings = ref(createDefaultAnalyticsSettings())
+
+    // ============================================
+    // Per-Account Analytics Persistence
+    // ============================================
+
+    /**
+     * @brief Analytics settings keyed by account ID for multi-user browsers.
+     * @description Shape: { [userId]: { analyticsSettings: {...} } }
+     * @type {Ref<Object>}
+     */
+    const perAccountData = ref({})
+
+    /** @brief Account ID whose analytics settings are currently loaded in memory. */
+    const activeAccountId = ref(null)
 
     // ============================================
     // Race Records (Historical Lap Data)
     // ============================================
 
     /**
-     * @brief Historical race session data.
+     * @brief Historical race session data (derived at runtime, not persisted).
      * @description Stores lap data organized by race start time:
      *              { [raceStartTime]: { startTimeMs, laps: { [lapNum]: data } } }
      * @type {Ref<Object>}
      */
     const races = ref({})
+
+    /**
+     * @brief Persist current analytics settings for an account into perAccountData.
+     * @param {string} userId - Account identifier
+     */
+    function persistAccountAnalytics(userId) {
+        if (!userId) return
+        perAccountData.value[userId] = {
+            analyticsSettings: { ...analyticsSettings.value }
+        }
+    }
+
+    /**
+     * @brief Load analytics settings for the given account from perAccountData.
+     * @param {string|null|undefined} userId - Account identifier
+     */
+    function loadAccountSettings(userId) {
+        if (!userId) return
+        activeAccountId.value = userId
+        const saved = perAccountData.value[userId]
+        analyticsSettings.value = saved?.analyticsSettings
+            ? { ...createDefaultAnalyticsSettings(), ...saved.analyticsSettings }
+            : createDefaultAnalyticsSettings()
+    }
+
+    /**
+     * @brief Save the active account's analytics settings and reset to defaults.
+     * @description Called on logout so the next login starts with a clean slate.
+     * @param {string|null|undefined} userId - Account identifier to save
+     */
+    function saveAndUnloadAccountSettings(userId) {
+        if (userId) {
+            persistAccountAnalytics(userId)
+        }
+        activeAccountId.value = null
+        analyticsSettings.value = createDefaultAnalyticsSettings()
+        races.value = {}
+    }
+
+    /**
+     * @brief Reset all settings to defaults and remove per-account data.
+     * @description Used after account deletion to wipe local preferences.
+     * @param {string|null|undefined} [userId] - Account whose stored entry should be removed
+     */
+    function resetAll(userId) {
+        if (userId && perAccountData.value[userId]) {
+            const nextPerAccount = { ...perAccountData.value }
+            delete nextPerAccount[userId]
+            perAccountData.value = nextPerAccount
+        }
+        activeAccountId.value = null
+        maxHistoryPoints.value = 50000
+        unitSettings.value = { speedUnit: 'mph', tempUnit: 'c' }
+        graphSettings.value = {
+            showLapHighlights: true,
+            showAnimations: false,
+            showGrid: true,
+            graphHeight: 320
+        }
+        activeTabId.value = 'graph'
+        selectedDashboardKeys.value = ['voltage', 'current', 'speed', 'rpm']
+        showDashboardMetrics.value = true
+        hideLapsDisclaimer.value = false
+        hideHistoryClearConfirmation.value = false
+        showGraphHelp.value = true
+        themeMode.value = 'system'
+        dataCardOrder.value = []
+        analyticsSettings.value = createDefaultAnalyticsSettings()
+        races.value = {}
+    }
+
+    // Auto-save analytics tuning while an account session is active.
+    watch(analyticsSettings, () => {
+        if (activeAccountId.value) {
+            persistAccountAnalytics(activeAccountId.value)
+        }
+    }, { deep: true })
 
     // ============================================
     // Utility Actions
@@ -740,6 +839,7 @@ export const useSettingsStore = defineStore('settings', () => {
         showShortcutsModal,
         dataCardOrder,
         analyticsSettings,
+        perAccountData,
 
         // Race Data
         races,
@@ -747,8 +847,26 @@ export const useSettingsStore = defineStore('settings', () => {
         // Actions
         importSettings,
         resetEventThreshold,
-        resetAllEventThresholds
+        resetAllEventThresholds,
+        loadAccountSettings,
+        saveAndUnloadAccountSettings,
+        resetAll
     }
 }, {
-    persist: true
+    persist: {
+        pick: [
+            'maxHistoryPoints',
+            'unitSettings',
+            'graphSettings',
+            'activeTabId',
+            'selectedDashboardKeys',
+            'showDashboardMetrics',
+            'hideLapsDisclaimer',
+            'hideHistoryClearConfirmation',
+            'showGraphHelp',
+            'themeMode',
+            'dataCardOrder',
+            'perAccountData'
+        ]
+    }
 })

@@ -9,6 +9,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, api } from '../utils/msgpack'
+import { useSettingsStore } from './settings'
 
 /**
  * @brief Authentication store for user session management.
@@ -59,6 +60,10 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = sanitizeUser(rawUser)
         trustedIsAdmin.value = !!rawUser?.isAdmin
         adminStatusChecked.value = true
+        const accountId = rawUser?.id || rawUser?._id || null
+        if (accountId) {
+            useSettingsStore().loadAccountSettings(accountId)
+        }
     }
 
     // Strip any privileged fields if store is hydrated from persisted storage.
@@ -339,6 +344,8 @@ export const useAuthStore = defineStore('auth', () => {
      *              invalidated via cookie expiration.
      */
     function logout() {
+        const accountId = user.value?.id || user.value?._id || null
+        useSettingsStore().saveAndUnloadAccountSettings(accountId)
         user.value = null
         trustedIsAdmin.value = false
         adminStatusChecked.value = false

@@ -274,14 +274,19 @@ function isValidVerificationCode(code) {
 
 /**
  * @brief Request an email verification code before opening a destructive-action modal.
+ * @param {Object} [options]
+ * @param {import('vue').Ref<string>} [options.errorRef] - Modal error ref to clear on success
  * @returns {Promise<boolean>} True when the code was sent successfully
  */
-async function requestDeleteVerificationCode() {
+async function requestDeleteVerificationCode({ errorRef } = {}) {
   isRequestingDeleteCode.value = true
   const result = await auth.requestVerificationCode()
   isRequestingDeleteCode.value = false
 
   if (result.success) {
+    if (errorRef) {
+      errorRef.value = ''
+    }
     return true
   }
 
@@ -293,6 +298,7 @@ async function requestDeleteVerificationCode() {
  * @brief Open delete-all-telemetry confirmation modal.
  */
 async function openDeleteAllTelemetryModal() {
+  isDeleteRangeTelemetryModalOpen.value = false
   const codeSent = await requestDeleteVerificationCode()
   if (!codeSent) return
 
@@ -305,6 +311,7 @@ async function openDeleteAllTelemetryModal() {
  * @brief Open delete-range-telemetry confirmation modal.
  */
 async function openDeleteRangeTelemetryModal() {
+  isDeleteAllTelemetryModalOpen.value = false
   const codeSent = await requestDeleteVerificationCode()
   if (!codeSent) return
 
@@ -330,8 +337,8 @@ async function confirmDeleteAllTelemetry() {
 
   if (result.success) {
     isDeleteAllTelemetryModalOpen.value = false
-    telemetry.clearHistory()
     if (auth.userId) {
+      await telemetry.resetToLive(auth.userId)
       await telemetry.fetchAvailableDays(auth.userId)
     }
     showMessage('Telemetry Deleted', result.message || 'All server-stored telemetry for your car has been removed.', 'success')
@@ -403,11 +410,13 @@ async function confirmDeleteAccount() {
     return
   }
 
+  const accountId = auth.userId
   isDeletingAccount.value = true
   const result = await auth.deleteAccount(deleteAccountCode.value)
   isDeletingAccount.value = false
 
   if (result.success) {
+    settings.resetAll(accountId)
     isDeleteAccountModalOpen.value = false
     router.push('/login')
     return
@@ -1324,6 +1333,7 @@ async function confirmDeleteAccount() {
     <ConfirmationModal :is-open="isDeleteAllTelemetryModalOpen" title="Delete All Telemetry"
       message="A 6-digit verification code has been sent to your email. Enter it below to permanently remove all telemetry stored on eChook Server for your car. Your account will remain active."
       confirm-text="Delete All Telemetry" cancel-text="Cancel" confirm-button-class="bg-red-700 hover:bg-red-600"
+      :disabled="isDeletingTelemetry"
       @close="isDeleteAllTelemetryModalOpen = false" @confirm="confirmDeleteAllTelemetry">
       <template #body>
         <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">
@@ -1336,12 +1346,19 @@ async function confirmDeleteAccount() {
         <p v-if="deleteAllTelemetryError" class="mt-2 text-sm text-red-400 font-medium">
           {{ deleteAllTelemetryError }}
         </p>
+        <button type="button"
+          class="mt-3 text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="isRequestingDeleteCode || isDeletingTelemetry"
+          @click="requestDeleteVerificationCode({ errorRef: deleteAllTelemetryError })">
+          Resend code
+        </button>
       </template>
     </ConfirmationModal>
 
     <ConfirmationModal :is-open="isDeleteRangeTelemetryModalOpen" title="Delete Telemetry Date Range"
-      message="A 6-digit verification code has been sent to your email. Choose UTC calendar dates (inclusive) and enter the code to permanently remove matching server telemetry. Your account will remain active."
+      message="A 6-digit verification code has been sent to your email. Choose UTC calendar dates (inclusive) and enter the code to permanently remove matching server telemetry. Dates are UTC calendar days, matching the server's storage format. Your account will remain active."
       confirm-text="Delete Date Range" cancel-text="Cancel" confirm-button-class="bg-red-700 hover:bg-red-600"
+      :disabled="isDeletingTelemetry"
       @close="isDeleteRangeTelemetryModalOpen = false" @confirm="confirmDeleteRangeTelemetry">
       <template #body>
         <div class="space-y-3">
@@ -1373,6 +1390,12 @@ async function confirmDeleteAccount() {
           <p v-if="deleteRangeTelemetryError" class="text-sm text-red-400 font-medium">
             {{ deleteRangeTelemetryError }}
           </p>
+          <button type="button"
+            class="text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isRequestingDeleteCode || isDeletingTelemetry"
+            @click="requestDeleteVerificationCode({ errorRef: deleteRangeTelemetryError })">
+            Resend code
+          </button>
         </div>
       </template>
     </ConfirmationModal>
@@ -1380,6 +1403,7 @@ async function confirmDeleteAccount() {
     <ConfirmationModal :is-open="isDeleteAccountModalOpen" title="Delete Account"
       message="A 6-digit verification code has been sent to your email. Enter it below to permanently delete your account and all associated server data. This cannot be undone."
       confirm-text="Delete Account" cancel-text="Cancel" confirm-button-class="bg-red-700 hover:bg-red-600"
+      :disabled="isDeletingAccount"
       @close="isDeleteAccountModalOpen = false" @confirm="confirmDeleteAccount">
       <template #body>
         <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">
@@ -1391,6 +1415,12 @@ async function confirmDeleteAccount() {
         <p v-if="deleteAccountError" class="mt-2 text-sm text-red-400 font-medium">
           {{ deleteAccountError }}
         </p>
+        <button type="button"
+          class="mt-3 text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="isRequestingDeleteCode || isDeletingAccount"
+          @click="requestDeleteVerificationCode({ errorRef: deleteAccountError })">
+          Resend code
+        </button>
       </template>
     </ConfirmationModal>
   </div>

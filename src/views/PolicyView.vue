@@ -6,13 +6,14 @@
 -->
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import bgImage from '../assets/background.jpg'
 import PublicHeader from '../components/PublicHeader.vue'
 import PublicFooter from '../components/PublicFooter.vue'
 import { getPolicyDocument, renderPolicyMarkdown } from '../utils/policyMarkdown'
 
 const route = useRoute()
+const router = useRouter()
 const markdown = ref('')
 const loadError = ref('')
 const isLoading = ref(true)
@@ -85,7 +86,10 @@ watch(() => route.params.slug, loadPolicy)
           class="bg-white/95 dark:bg-neutral-900/95 rounded-xl border border-red-300 dark:border-red-800 p-10 text-center"
         >
           <p class="text-red-700 dark:text-red-300">{{ loadError }}</p>
-          <router-link to="/login" class="inline-block mt-4 text-primary hover:underline">Return to login</router-link>
+          <div class="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
+            <button type="button" class="text-primary hover:underline" @click="router.back()">Back</button>
+            <router-link to="/login" class="text-primary hover:underline">Return to login</router-link>
+          </div>
         </div>
       </div>
     </main>

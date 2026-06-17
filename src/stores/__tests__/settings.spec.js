@@ -238,4 +238,54 @@ describe('settings store', () => {
             expect(freshSettings.maxHistoryPoints).toBe(99999)
         })
     })
+
+    describe('per-account analytics persistence', () => {
+        it('loads and saves analytics settings per account', () => {
+            const settings = useSettingsStore()
+
+            settings.loadAccountSettings('user-a')
+            settings.analyticsSettings.liveWindowMinutes = 25
+            settings.analyticsSettings.packNominalCapacityAh = 40
+            settings.saveAndUnloadAccountSettings('user-a')
+
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)
+            expect(settings.perAccountData['user-a'].analyticsSettings.liveWindowMinutes).toBe(25)
+            expect(settings.perAccountData['user-a'].analyticsSettings.packNominalCapacityAh).toBe(40)
+
+            settings.loadAccountSettings('user-a')
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(25)
+            expect(settings.analyticsSettings.packNominalCapacityAh).toBe(40)
+        })
+
+        it('keeps analytics isolated between accounts', () => {
+            const settings = useSettingsStore()
+
+            settings.loadAccountSettings('user-a')
+            settings.analyticsSettings.liveWindowMinutes = 30
+            settings.saveAndUnloadAccountSettings('user-a')
+
+            settings.loadAccountSettings('user-b')
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)
+
+            settings.analyticsSettings.liveWindowMinutes = 15
+            settings.saveAndUnloadAccountSettings('user-b')
+
+            settings.loadAccountSettings('user-a')
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(30)
+        })
+
+        it('resetAll removes stored analytics for the deleted account', () => {
+            const settings = useSettingsStore()
+
+            settings.loadAccountSettings('user-a')
+            settings.analyticsSettings.liveWindowMinutes = 22
+            settings.saveAndUnloadAccountSettings('user-a')
+
+            settings.resetAll('user-a')
+
+            expect(settings.perAccountData['user-a']).toBeUndefined()
+            expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)
+            expect(settings.themeMode).toBe('system')
+        })
+    })
 })
