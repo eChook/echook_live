@@ -19,6 +19,7 @@ import {
 } from '../utils/raceAnalytics'
 import { decodeMsgpack } from '../utils/msgpack'
 import { scalePacket } from '../utils/unitConversions'
+import { roundMetric } from '../utils/metricPrecision'
 import { extractRegularTelemetryPacket, normalizeTelemetryPacket } from '../utils/telemetryPacket'
 
 // Extracted modules
@@ -139,6 +140,45 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     })
 
     /**
+     * @brief Whether loaded history is from a calendar day before today.
+     * @description True when paused on historic data that is not from the current
+     *              local calendar day. The dashboard data-card ribbon is hidden
+     *              in this mode because live values are not meaningful.
+     * @type {ComputedRef<boolean>}
+     */
+    const isViewingHistoricalDay = computed(() => {
+        if (!isPaused.value || history.value.length === 0) return false
+
+        const lastPoint = history.value[history.value.length - 1]
+        const timestamp = Number(lastPoint?.timestamp)
+        if (!Number.isFinite(timestamp)) return false
+
+        const lastDate = new Date(timestamp).toDateString()
+        const today = new Date().toDateString()
+        return lastDate !== today
+    })
+
+    /**
+     * @brief Whether the dashboard live data-card ribbon should be visible.
+     * @description Hidden when the server socket is down, when no live car packets
+     *              have been received, when live car data has gone stale, or when
+     *              viewing a previous day's historic data.
+     * @type {ComputedRef<boolean>}
+     */
+    const showDataRibbon = computed(() => {
+        if (!socketComposable.isConnected.value) return false
+        if (isViewingHistoricalDay.value) return false
+
+        // Socket may be up while the car is offline — require at least one live packet.
+        if (lastPacketTime.value === 0) return false
+
+        // Hide when live stream stops, unless the user paused today's session intentionally.
+        if (!isPaused.value && isDataStale.value) return false
+
+        return true
+    })
+
+    /**
      * @brief Scale a packet using current unit settings.
      * @param {Object} pt - Raw telemetry packet
      * @returns {Object} Scaled packet with converted units
@@ -155,8 +195,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     /**
-     * @brief Derive `powerW` and cumulative `powerUsedKWh` for a packet.
-     * @description Resets cumulative kWh to zero when current packet voltage
+     * @brief Derive `powerW` and cumulative `powerUsedWh` for a packet.
+     * @description Resets cumulative Wh to zero when current packet voltage
      *              is missing/invalid as requested.
      * @param {Object} packet - Current regular telemetry packet
      * @param {Object|null} previousPacket - Previous packet in sequence
@@ -173,17 +213,22 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         const previousVoltage = toFiniteNumber(previousPacket?.voltage)
         const previousCurrent = toFiniteNumber(previousPacket?.current)
 
-        // Instantaneous power from current sample.
-        nextPacket.powerW = (voltage === null || current === null) ? null : (voltage * current)
+        // Instantaneous power from current sample (2 d.p. — derived from V×I).
+        nextPacket.powerW = (voltage === null || current === null)
+            ? null
+            : roundMetric(voltage * current, 'powerW')
 
         // Reset cumulative energy immediately on invalid voltage packets.
         if (voltage === null) {
-            nextPacket.powerUsedKWh = 0
+            nextPacket.powerUsedWh = 0
             return nextPacket
         }
 
-        const previousKWh = toFiniteNumber(previousPacket?.powerUsedKWh) || 0
-        let nextKWh = previousKWh
+        const previousWh = toFiniteNumber(previousPacket?.powerUsedWh)
+            ?? (toFiniteNumber(previousPacket?.powerUsedKWh) !== null
+                ? toFiniteNumber(previousPacket?.powerUsedKWh) * 1000
+                : 0)
+        let nextWh = previousWh
 
         // Integrate using previous sample over the interval to current sample.
         if (
@@ -195,12 +240,13 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             const dtMs = timestamp - previousTimestamp
             if (dtMs > 0 && dtMs <= MAX_POWER_INTERVAL_MS) {
                 const previousPowerW = Math.max(0, previousVoltage * previousCurrent)
-                const intervalKWh = previousPowerW * (dtMs / 3600000000)
-                nextKWh += intervalKWh
+                const intervalWh = previousPowerW * (dtMs / 3600000)
+                nextWh += intervalWh
             }
         }
 
-        nextPacket.powerUsedKWh = nextKWh
+        nextPacket.powerUsedWh = roundMetric(nextWh, 'powerUsedWh')
+        delete nextPacket.powerUsedKWh
         return nextPacket
     }
 
@@ -614,6 +660,33 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     /**
+     * @brief Remove locally loaded history samples within an inclusive timestamp range.
+     * @description Used after a successful server-side range delete so the UI matches storage.
+     * @param {number} startMs - Range start (inclusive), epoch milliseconds
+     * @param {number} endMs - Range end (inclusive), epoch milliseconds
+     */
+    function removeHistoryInRange(startMs, endMs) {
+        const isInDeletedRange = (timestamp) => timestamp >= startMs && timestamp <= endMs
+        const keptHistory = []
+        const keptDisplay = []
+
+        for (let index = 0; index < history.value.length; index += 1) {
+            const point = history.value[index]
+            if (!isInDeletedRange(point.timestamp)) {
+                keptHistory.push(point)
+                keptDisplay.push(displayHistory.value[index])
+            }
+        }
+
+        history.value = keptHistory
+        displayHistory.value = keptDisplay
+        triggerRef(history)
+        triggerRef(displayHistory)
+        rebuildRacesFromHistory(history.value)
+        chartZoomComposable.clearCurrentZoomWindow()
+    }
+
+    /**
      * @brief Toggle pause state for live data ingestion.
      * @description When resuming, automatically fetches data from the gap period.
      * @returns {Promise<void>}
@@ -712,6 +785,8 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         // Pause State
         isPaused,
+        isViewingHistoricalDay,
+        showDataRibbon,
         availableDays: historyComposable.availableDays,
         earliestTime: historyComposable.earliestTime,
         latestTime: historyComposable.latestTime,
@@ -725,6 +800,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
 
         // Data Actions
         clearHistory,
+        removeHistoryInRange,
         fetchHistory: historyComposable.fetchHistory,
         togglePause,
         fetchAvailableDays: historyComposable.fetchAvailableDays,

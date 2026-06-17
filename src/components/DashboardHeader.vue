@@ -221,36 +221,13 @@ const toggleHistoryMenu = () => {
 // Smart Play Button logic
 const playButtonTitle = computed(() => {
   if (!telemetry.isPaused) return 'Pause'
-
-  // Check if we are in history mode (not today)
-  const lastPoint = telemetry.history.length > 0 ? telemetry.history[telemetry.history.length - 1] : null
-  if (lastPoint) {
-    const lastDate = new Date(lastPoint.timestamp).getDate()
-    const today = new Date().getDate()
-    if (lastDate !== today) {
-      return 'Reset to Live'
-    }
-  }
+  if (telemetry.isViewingHistoricalDay) return 'Reset to Live'
   return 'Resume'
 })
 
 function handlePlayButton() {
   if (telemetry.isPaused) {
-    // Check if we should reset to live
-    const lastPoint = telemetry.history.length > 0 ? telemetry.history[telemetry.history.length - 1] : null
-
-    let shouldReset = false
-    if (lastPoint) {
-      // Simple day check
-      const lastDate = new Date(lastPoint.timestamp).toDateString()
-      const today = new Date().toDateString()
-      if (lastDate !== today) {
-        shouldReset = true
-      }
-    }
-
-    if (shouldReset && displayedCar.value?.id) {
-      // Show Resume Confirmation Modal
+    if (telemetry.isViewingHistoricalDay && displayedCar.value?.id) {
       showResumeConfirmModal.value = true
     } else {
       telemetry.togglePause()
@@ -461,9 +438,9 @@ const downloadAllData = () => {
               <div class="flex flex-col">
                 <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
                 <p class="text-[10px] text-zinc-500 dark:text-gray-500 max-w-[250px] leading-tight mt-2 cursor-help"
-                  title="After 10 days the data resolution is reduced to 10s. Depending on database size and server storage, it will be deleted at a later date.">
+                  title="Telemetry is stored at full resolution while kept on our servers. eChook makes no guarantee how long data will remain — export CSV backups if you need a permanent record.">
                   <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />
-                  Data stored on the server is not permanent.
+                  Server data retention is not guaranteed.
                 </p>
               </div>
 

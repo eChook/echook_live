@@ -3,11 +3,15 @@ import { setActivePinia, createPinia } from 'pinia'
 import { nextTick } from 'vue'
 import { useTelemetryStore } from '../telemetry'
 import { useSettingsStore } from '../settings'
+import { roundMetric } from '../../utils/metricPrecision'
 
 // Mock socket.io-client
+const socketHandlers = {}
 vi.mock('socket.io-client', () => ({
     io: vi.fn(() => ({
-        on: vi.fn(),
+        on: vi.fn((event, cb) => {
+            socketHandlers[event] = cb
+        }),
         emit: vi.fn(),
         connect: vi.fn(),
         disconnect: vi.fn(),
@@ -21,7 +25,8 @@ vi.mock('../../utils/msgpack', () => ({
         get: vi.fn()
     },
     decodeMsgpack: vi.fn((data) => data),
-    socketMsgpackOptions: { query: { format: 'msgpack' } }
+    socketMsgpackOptions: { query: { format: 'msgpack' } },
+    createSocketOptions: vi.fn(() => ({}))
 }))
 
 describe('telemetry store', () => {
@@ -237,6 +242,28 @@ describe('telemetry store', () => {
             expect(tempF).toBe(77)
         })
     })
+    describe('derived power metrics', () => {
+        it('rounds powerW and powerUsedWh to 2 decimal places on ingest', () => {
+            const telemetry = useTelemetryStore()
+            telemetry.connect()
+
+            const t0 = Date.now()
+            socketHandlers.data?.({
+                timestamp: t0,
+                voltage: 24.567,
+                current: 10.123
+            })
+            expect(telemetry.liveData.powerW).toBe(roundMetric(24.567 * 10.123, 'powerW'))
+
+            socketHandlers.data?.({
+                timestamp: t0 + 1000,
+                voltage: 24.567,
+                current: 10.123
+            })
+            expect(telemetry.liveData.powerUsedWh).toBe(0.07)
+        })
+    })
+
     describe('lapMarkAreas', () => {
         it('calculates current lap number with +1 offset', () => {
             const telemetry = useTelemetryStore()
@@ -281,6 +308,128 @@ describe('telemetry store', () => {
             telemetry.resetState()
             expect(Array.isArray(telemetry.races)).toBe(false)
             expect(typeof telemetry.races).toBe('object')
+        })
+    })
+
+    describe('isViewingHistoricalDay', () => {
+        it('is false when live (not paused)', () => {
+            const telemetry = useTelemetryStore()
+            const yesterday = Date.now() - 24 * 60 * 60 * 1000
+
+            telemetry.isPaused = false
+            telemetry.history = [{ timestamp: yesterday }]
+
+            expect(telemetry.isViewingHistoricalDay).toBe(false)
+        })
+
+        it('is false when paused on today\'s data', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isPaused = true
+            telemetry.history = [{ timestamp: Date.now() }]
+
+            expect(telemetry.isViewingHistoricalDay).toBe(false)
+        })
+
+        it('is true when paused on a previous calendar day', () => {
+            const telemetry = useTelemetryStore()
+            const yesterday = Date.now() - 24 * 60 * 60 * 1000
+
+            telemetry.isPaused = true
+            telemetry.history = [{ timestamp: yesterday }]
+
+            expect(telemetry.isViewingHistoricalDay).toBe(true)
+        })
+
+        it('becomes false after resetToLive clears historic data', async () => {
+            const telemetry = useTelemetryStore()
+            const yesterday = Date.now() - 24 * 60 * 60 * 1000
+
+            telemetry.isPaused = true
+            telemetry.history = [{ timestamp: yesterday }]
+            expect(telemetry.isViewingHistoricalDay).toBe(true)
+
+            telemetry.isPaused = false
+            telemetry.history = []
+
+            expect(telemetry.isViewingHistoricalDay).toBe(false)
+        })
+    })
+
+    describe('showDataRibbon', () => {
+        it('is false when disconnected', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = false
+            telemetry.isPaused = false
+            telemetry.lastPacketTime = Date.now()
+
+            expect(telemetry.showDataRibbon).toBe(false)
+        })
+
+        it('is false when connected but no live car data has been received', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = true
+            telemetry.isPaused = false
+            telemetry.lastPacketTime = 0
+
+            expect(telemetry.showDataRibbon).toBe(false)
+        })
+
+        it('is true when connected and receiving live data', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = true
+            telemetry.isPaused = false
+            telemetry.lastPacketTime = Date.now()
+
+            expect(telemetry.showDataRibbon).toBe(true)
+        })
+
+        it('is false when live car data goes stale', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = true
+            telemetry.isPaused = false
+            telemetry.lastPacketTime = Date.now() - 10000
+
+            expect(telemetry.showDataRibbon).toBe(false)
+        })
+
+        it('stays visible when paused on today even if data is stale', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = true
+            telemetry.isPaused = true
+            telemetry.lastPacketTime = Date.now() - 10000
+            telemetry.history = [{ timestamp: Date.now() }]
+
+            expect(telemetry.showDataRibbon).toBe(true)
+        })
+
+        it('is false when connected but viewing a previous day', () => {
+            const telemetry = useTelemetryStore()
+            const yesterday = Date.now() - 24 * 60 * 60 * 1000
+
+            telemetry.isConnected = true
+            telemetry.isPaused = true
+            telemetry.lastPacketTime = yesterday
+            telemetry.history = [{ timestamp: yesterday }]
+
+            expect(telemetry.showDataRibbon).toBe(false)
+        })
+
+        it('is true again when connection is restored and live data resumes', () => {
+            const telemetry = useTelemetryStore()
+
+            telemetry.isConnected = false
+            telemetry.lastPacketTime = 0
+            expect(telemetry.showDataRibbon).toBe(false)
+
+            telemetry.isConnected = true
+            telemetry.lastPacketTime = Date.now()
+            expect(telemetry.showDataRibbon).toBe(true)
         })
     })
 })
