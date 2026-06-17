@@ -331,6 +331,9 @@ async function confirmDeleteAllTelemetry() {
   if (result.success) {
     isDeleteAllTelemetryModalOpen.value = false
     telemetry.clearHistory()
+    if (auth.userId) {
+      await telemetry.fetchAvailableDays(auth.userId)
+    }
     showMessage('Telemetry Deleted', result.message || 'All server-stored telemetry for your car has been removed.', 'success')
     return
   }
@@ -369,6 +372,9 @@ async function confirmDeleteRangeTelemetry() {
     isDeleteRangeTelemetryModalOpen.value = false
     const { startMs, endMs } = utcDateRangeToMillis(deleteRangeStartDate.value, deleteRangeEndDate.value)
     telemetry.removeHistoryInRange(startMs, endMs)
+    if (auth.userId) {
+      await telemetry.fetchAvailableDays(auth.userId)
+    }
     showMessage('Telemetry Deleted', result.message || 'Selected telemetry has been removed from the server.', 'success')
     return
   }
