@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getUnit, formatValue } from '../formatting'
+import { getUnit, formatValue, formatClockTime } from '../formatting'
 
 describe('getUnit', () => {
     it('returns RPM for rpm-related keys', () => {
@@ -82,9 +82,28 @@ describe('formatValue', () => {
         expect(formatValue('current', 5.1)).toBe('5.10')
     })
 
+    it('formats power to 2 decimal places', () => {
+        expect(formatValue('powerW', 123.456)).toBe('123.46')
+    })
+
+    it('formats Wh to 2 decimal places', () => {
+        expect(formatValue('powerUsedWh', 123.456)).toBe('123.46')
+    })
+
     it('formats timestamp as time string', () => {
         const timestamp = new Date('2024-01-15T12:30:45').getTime()
         const result = formatValue('timestamp', timestamp)
         expect(result).toContain(':30:45')
+    })
+})
+
+describe('formatClockTime', () => {
+    it('returns 24-hour HH:MM:SS for valid timestamps', () => {
+        const timestamp = new Date(2024, 0, 15, 9, 5, 7).getTime()
+        expect(formatClockTime(timestamp)).toMatch(/09:05:07/)
+    })
+
+    it('returns dash for invalid timestamps', () => {
+        expect(formatClockTime(null)).toBe('-')
     })
 })

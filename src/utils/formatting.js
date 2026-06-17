@@ -5,6 +5,75 @@
  *              based on telemetry data key names.
  */
 
+import { METRIC_PRECISION, roundMetric } from './metricPrecision'
+
+/**
+ * @brief Human-readable label for depth-of-discharge capacity basis.
+ * @param {'peukert_capacity'|'actual_capacity'|'nominal_fallback'|string|null|undefined} basis - DoD denominator basis code
+ * @returns {string} Display label for UI
+ */
+export function formatDodBasisLabel(basis) {
+    if (basis === 'peukert_capacity') return 'Peukert Capacity'
+    if (basis === 'actual_capacity') return 'Ideal Capacity'
+    return 'Nominal fallback'
+}
+
+/**
+ * @brief Depth of discharge percent for a discharge amount and capacity reference.
+ * @param {number|null|undefined} dischargeAh - Window discharge in Ah
+ * @param {number|null|undefined} capacityAh - Capacity denominator in Ah
+ * @returns {number|null} DoD percent or null when inputs are invalid
+ */
+export function computeCapacityDodPercent(dischargeAh, capacityAh) {
+    if (!Number.isFinite(dischargeAh) || dischargeAh < 0) return null
+    if (!Number.isFinite(capacityAh) || capacityAh <= 0) return null
+    return roundMetric((dischargeAh / capacityAh) * 100, 'estimatedPercent')
+}
+
+/**
+ * @brief Format an open-circuit or loaded voltage zone id for display.
+ * @param {string|null|undefined} zone - Voltage zone identifier
+ * @returns {string} Human-readable zone label
+ */
+export function formatVoltageZoneLabel(zone) {
+    if (zone === 'high') return 'High'
+    if (zone === 'medium') return 'Medium'
+    if (zone === 'low') return 'Low'
+    if (zone === 'near_cutoff') return 'Near Cutoff'
+    if (zone === 'deep_discharge') return 'Deep Discharge'
+    if (zone === 'healthy_load') return 'Healthy (loaded)'
+    if (zone === 'warning_load') return 'Warning (loaded)'
+    if (zone === 'near_cutoff_load') return 'Near Cutoff (loaded)'
+    if (zone === 'critical_load') return 'Critical (loaded)'
+    if (zone === 'deep_discharge_load') return 'Deep Discharge (loaded)'
+    return zone || '-'
+}
+
+/**
+ * @brief Format a loaded terminal-voltage zone without the redundant loaded suffix.
+ * @param {string|null|undefined} zone - Loaded zone identifier
+ * @returns {string} Human-readable loaded-zone label
+ */
+export function formatLoadedZoneLabel(zone) {
+    return formatVoltageZoneLabel(zone).replace(/\s*\(loaded\)$/i, '')
+}
+
+/**
+ * @brief Format epoch ms as local clock time (24-hour HH:MM:SS).
+ * @description Matches Laps tab lap timestamp display convention.
+ * @param {number|null|undefined} timestampMs - Timestamp in milliseconds
+ * @returns {string} Clock time or '-' when invalid
+ */
+export function formatClockTime(timestampMs) {
+    if (!Number.isFinite(timestampMs)) return '-'
+    return new Date(timestampMs).toLocaleTimeString([], {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    })
+}
+
 /**
  * @brief Get the display unit for a telemetry data key.
  * @description Infers the appropriate unit string based on the key name.
@@ -15,7 +84,7 @@
  */
 export const getUnit = (key) => {
     const k = key.toLowerCase()
-    if (k.includes('kwh')) return 'kWh'
+    if (k.includes('wh') && k !== 'powerw') return 'Wh'
     if (k === 'powerw' || k.includes('watt') || k === 'power') return 'W'
     if (k.includes('rpm')) return 'RPM'
     if (k.includes('gear')) return ''
@@ -62,9 +131,9 @@ export const formatValue = (key, value) => {
     }
 
     // Power and energy metrics
-    if (k.includes('kwh')) return value.toFixed(3)
-    if (k === 'powerw' || k.includes('watt') || k === 'power') return value.toFixed(1)
+    if (k.includes('wh') && k !== 'powerw') return value.toFixed(METRIC_PRECISION.energyWh)
+    if (k === 'powerw' || k.includes('watt') || k === 'power') return value.toFixed(METRIC_PRECISION.powerW)
 
     // Default 2 decimal places
-    return value.toFixed(2)
+    return value.toFixed(METRIC_PRECISION.voltage)
 }
