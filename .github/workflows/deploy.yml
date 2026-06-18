@@ -37,6 +37,7 @@ jobs:
         run: npm ci
 
       - name: Build
+        # dist/ is gitignored; CI always generates index.html and hashed chunks together.
         run: npm run build
 
       - name: Upload artifact
