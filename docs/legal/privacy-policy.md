@@ -69,7 +69,7 @@ We do not sell or rent personal data. We use the following **sub-processors** to
 
 We may disclose data if required by law or to protect the rights and safety of eChook, users, or others.
 
-**Telemetry visibility:** Telemetry associated with your car ID can be retrieved via public API endpoints without login. Anyone who knows your car ID can access your stored telemetry and location data. See the [Data Management Policy](/#/data-management) for full details and how to opt out of spectator mode.
+**Telemetry visibility:** Telemetry associated with your car ID can be retrieved via public API endpoints without login. Anyone who knows your car ID can access your stored telemetry and location data. See the [Data Management Policy](/#/data-management) for full details.
 
 ## 7. Data retention
 
