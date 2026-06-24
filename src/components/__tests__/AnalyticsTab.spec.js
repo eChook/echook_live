@@ -27,6 +27,29 @@ vi.mock('../analytics/AnalyticsWindowPickerModal.vue', () => ({
     }
 }))
 
+vi.mock('../analytics/OverviewLapTrendChart.vue', () => ({
+    default: {
+        props: ['lapTime', 'lapAh', 'lapEfficiency'],
+        template: '<div data-test="overview-lap-trend-chart" />'
+    }
+}))
+
+vi.mock('../analytics/OverviewHistogramChart.vue', () => ({
+    default: {
+        props: ['histogram', 'channel'],
+        emits: ['update:channel'],
+        template: '<div data-test="overview-histogram-chart" />'
+    }
+}))
+
+vi.mock('../analytics/OverviewSignalsChart.vue', () => ({
+    default: {
+        props: ['series', 'overlays', 'speedUnit'],
+        emits: ['update:overlays'],
+        template: '<div data-test="overview-signals-chart" />'
+    }
+}))
+
 vi.mock('../analytics/BatterySectionPanel.vue', () => ({
     default: {
         props: [
@@ -73,6 +96,7 @@ describe('AnalyticsTab', () => {
             unitSettings: { speedUnit: 'mph' },
             history: [],
             displayHistory: [],
+            displayLiveData: {},
             races: {},
             requestChartZoom: vi.fn(),
             togglePause: vi.fn(),
@@ -139,7 +163,11 @@ describe('AnalyticsTab', () => {
         await historyButton.trigger('click')
 
         expect(wrapper.text()).toContain('Session KPI Summary')
-        expect(wrapper.text()).toContain('LL_Time degradation')
+        expect(wrapper.find('[data-test="overview-lap-trend-chart"]').exists()).toBe(true)
+        expect(wrapper.text()).toContain('Pack Electrical')
+        expect(wrapper.text()).toContain('Pack Voltage')
+        expect(wrapper.text()).toContain('Rolling Avg (60s)')
+        expect(wrapper.find('[data-test="overview-signals-chart"]').exists()).toBe(true)
         expect(wrapper.text()).toContain('Thermal')
 
         await selectAnalyticsSubTab(wrapper, 'Battery')
@@ -149,10 +177,11 @@ describe('AnalyticsTab', () => {
         expect(wrapper.text()).toContain('Estimated Capacity Metrics')
         expect(wrapper.text()).toContain('Performance VS Yuasa REC36-12I datasheet')
         expect(wrapper.text()).toContain('Depth of Discharge (DoD)')
-        expect(wrapper.text()).toContain('Percentage against Peukert Capacity')
-        expect(wrapper.text()).toContain('Percentage against Ideal Capacity')
-        expect(wrapper.text()).toContain('Normalized C/20 discharge')
-        expect(wrapper.text()).toContain('Percentage against Normalized C/20 (ideal)')
+        expect(wrapper.text()).toContain('Peukert-normalized discharge')
+        expect(wrapper.text()).toContain('Normalised Discharge vs Ideal')
+        expect(wrapper.text()).toContain('Raw discharge vs ideal')
+        expect(wrapper.text()).not.toContain('Percentage against Peukert Capacity')
+        expect(wrapper.text()).not.toContain('Percentage against Normalized C/20 (ideal)')
         expect(wrapper.text()).toContain('Estimated State of Health (SoH)')
         expect(wrapper.text()).toContain('Battery State')
         expect(wrapper.text()).toContain('Open Circuit:')
@@ -233,6 +262,43 @@ describe('AnalyticsTab', () => {
         expect(upper.text()).toContain('Detailed Upper Battery Metrics')
         expect(upper.text()).not.toContain('Depth of Discharge (DoD)')
         expect(wrapper.find('[data-test="battery-section-lower-battery"]').text()).toContain('Detailed Lower Battery Metrics')
+    })
+
+    it('hides upper battery section when voltageHigh is below 1 V', async () => {
+        const start = Date.now() - 30_000
+        const samples = Array.from({ length: 10 }, (_, idx) => {
+            const current = 6 + idx
+            return {
+                timestamp: start + (idx * 1000),
+                speed: 12 + idx,
+                current,
+                voltage: 24 - (0.02 * current),
+                voltageLower: 12 - (0.011 * current),
+                voltageHigh: idx === 9 ? 0.2 : 12 - (0.009 * current),
+                temp1: 30,
+                temp2: 31,
+                voltageDiff: 0.05
+            }
+        })
+
+        telemetryState.history = samples
+        telemetryState.displayHistory = samples
+        telemetryState.races = {
+            [start]: {
+                startTimeMs: start,
+                trackName: 'Track A',
+                laps: { 1: { lapNumber: 1, LL_Time: 74, LL_Ah: 0.5, LL_Eff: 6.1 } }
+            }
+        }
+
+        const wrapper = mount(AnalyticsTab)
+        await selectAnalyticsSubTab(wrapper, 'Battery')
+
+        expect(wrapper.find('[data-test="battery-section-battery-pack"]').exists()).toBe(true)
+        expect(wrapper.find('[data-test="battery-section-upper-battery"]').exists()).toBe(false)
+        expect(wrapper.find('[data-test="upper-battery-unavailable"]').exists()).toBe(true)
+        expect(wrapper.text()).toContain('Channel unavailable (voltage below 1 V)')
+        expect(wrapper.find('[data-test="battery-section-lower-battery"]').exists()).toBe(true)
     })
 
     it('opens metric help modal from the battery card', async () => {

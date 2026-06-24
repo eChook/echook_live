@@ -20,7 +20,7 @@
  * - select-day: When a day with data is clicked (payload: YYYY-MM-DD string)
  */
 import { ref, computed } from 'vue'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
+import { ChevronLeftIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
 /**
  * @brief Component props.
@@ -33,6 +33,13 @@ const props = defineProps({
     availableDays: {
         type: Object,
         default: () => new Set()
+    },
+    /**
+     * @brief Whether available days are still loading from the server.
+     */
+    loading: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -159,15 +166,29 @@ const selectDay = (day) => {
 </script>
 
 <template>
-    <div class="calendar w-64 bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 rounded-lg p-4">
+    <div
+        class="calendar relative w-64 bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 rounded-lg p-4"
+        data-test="history-calendar"
+    >
+        <div
+            v-if="loading"
+            class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-white/80 dark:bg-neutral-900/85 backdrop-blur-[1px]"
+            data-test="history-calendar-loading"
+            aria-live="polite"
+            aria-busy="true"
+        >
+            <ArrowPathIcon class="w-6 h-6 text-primary animate-spin" />
+            <span class="text-xs font-medium text-zinc-600 dark:text-gray-300">Loading dates...</span>
+        </div>
+
         <!-- Month Navigation Header -->
         <div class="header flex justify-between items-center mb-4">
-            <button @click="prevMonth" :disabled="!canPrev"
+            <button @click="prevMonth" :disabled="!canPrev || loading"
                 class="p-1 hover:bg-zinc-100 dark:hover:bg-neutral-800 rounded disabled:opacity-30">
                 <ChevronLeftIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400" />
             </button>
             <span class="text-sm font-bold text-zinc-900 dark:text-gray-200">{{ displayMonth }}</span>
-            <button @click="nextMonth" :disabled="!canNext"
+            <button @click="nextMonth" :disabled="!canNext || loading"
                 class="p-1 hover:bg-zinc-100 dark:hover:bg-neutral-800 rounded disabled:opacity-30">
                 <ChevronRightIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400" />
             </button>
@@ -183,13 +204,14 @@ const selectDay = (day) => {
         <!-- Calendar Days Grid -->
         <div class="grid grid-cols-7 gap-1">
             <button v-for="(day, idx) in calendarDays" :key="idx" @click="selectDay(day)"
+                :disabled="loading || day.disabled"
                 class="h-8 w-8 text-xs rounded-full flex items-center justify-center transition-colors" :class="[
                     day.disabled
                         ? 'text-zinc-300 dark:text-neutral-700 cursor-default'
                         : day.hasData
                             ? 'bg-primary text-white hover:bg-primary/80 font-bold shadow-lg shadow-primary/20'
                             : 'text-zinc-500 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800'
-                ]" :disabled="day.disabled">
+                ]">
                 {{ day.day }}
             </button>
         </div>

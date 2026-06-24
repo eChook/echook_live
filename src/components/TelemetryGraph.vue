@@ -291,6 +291,16 @@ watch(() => telemetry.chartZoomRequest, (req) => {
   }
 })
 
+watch(() => props.dataRevision, () => {
+  requestAnimationFrame(() => {
+    if (telemetry.currentZoomWindowMs) return
+    const bounds = getSharedTimeBounds()
+    if (bounds) {
+      applyAbsoluteWindow(bounds)
+    }
+  })
+})
+
 onMounted(() => {
   if (containerRef.value) {
     containerRef.value.addEventListener('wheel', handleWheel, { capture: true, passive: false })

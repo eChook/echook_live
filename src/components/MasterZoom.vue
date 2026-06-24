@@ -167,28 +167,56 @@ const zoomSeriesData = computed(() => {
 })
 
 /**
- * @brief Process absolute zoom requests from the telemetry store.
- * @description Only handles 'absolute' zoom type; ignores 'reset', 'pan', 'scale'.
+ * @brief Apply an absolute window to the master zoom slider and persist it globally.
+ * @param {{start: number, end: number} | null} window - Absolute window in ms
+ * @returns {boolean} True when a zoom dispatch was emitted
+ */
+const applyAbsoluteWindow = (window) => {
+  if (!chartRef.value || !window) return false
+  chartRef.value.dispatchAction({
+    type: 'dataZoom',
+    startValue: window.start,
+    endValue: window.end
+  })
+  telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  return true
+}
+
+/**
+ * @brief When history reloads without a persisted window, show the full loaded span on the slider.
+ */
+const applyFullRangeIfUnlocked = () => {
+  if (telemetry.currentZoomWindowMs) return
+  const bounds = getSharedTimeBounds()
+  if (bounds) {
+    applyAbsoluteWindow(bounds)
+  }
+}
+
+/**
+ * @brief Process zoom requests from the telemetry store.
  */
 const processZoom = () => {
   const req = telemetry.chartZoomRequest
-  if (req && chartRef.value) {
-    if (req.type === 'absolute') {
-      const bounds = getSharedTimeBounds()
-      const target = clampAbsoluteWindow(req.start, req.end, bounds)
-      if (!target) {
-        telemetry.chartZoomRequest = null
-        return
-      }
-      chartRef.value.dispatchAction({
-        type: 'dataZoom',
-        startValue: target.start,
-        endValue: target.end
-      })
-      telemetry.setCurrentZoomWindow?.(target.start, target.end)
-      telemetry.chartZoomRequest = null
-    }
+  if (!req || !chartRef.value) return
+
+  const bounds = getSharedTimeBounds()
+  if (!bounds) {
+    telemetry.chartZoomRequest = null
+    return
   }
+
+  let targetWindow = null
+  if (req.type === 'absolute') {
+    targetWindow = clampAbsoluteWindow(req.start, req.end, bounds)
+  } else if (req.type === 'reset') {
+    targetWindow = bounds
+  }
+
+  if (targetWindow) {
+    applyAbsoluteWindow(targetWindow)
+  }
+  telemetry.chartZoomRequest = null
 }
 
 // Watch for zoom requests
@@ -196,6 +224,12 @@ watch(() => telemetry.chartZoomRequest, (req) => {
   if (req) {
     processZoom()
   }
+})
+
+watch(() => props.dataRevision, () => {
+  requestAnimationFrame(() => {
+    applyFullRangeIfUnlocked()
+  })
 })
 
 onMounted(() => {

@@ -40,15 +40,15 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 
 | Status | Item                                                       | Notes                                                                  |
 | ------ | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [ ]    | Session KPI row: best lap time                             | From `LL_Time` or derived from history                                 |
-| [ ]    | Session KPI row: median lap time                           |                                                                        |
-| [ ]    | Session KPI row: lap consistency (std dev of lap times)    |                                                                        |
-| [ ]    | Session KPI row: total laps in session                     |                                                                        |
-| [ ]    | Session KPI row: trend of last N laps (sparkline or table) | e.g. last 5 laps                                                       |
-| [ ]    | Session KPI row: total Ah consumed (session)               | From `ampH` / lap summaries                                            |
-| [ ]    | Session KPI row: average lap efficiency (`LL_Eff`)         |                                                                        |
-| [ ]    | Session KPI row: max temperature (`temp1` / `temp2`)       |                                                                        |
-| [ ]    | Session KPI row: max voltage imbalance (`voltageDiff`)     |                                                                        |
+| [x]    | Session KPI row: best lap time                             | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: median lap time                           | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: lap consistency (std dev of lap times)    | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: total laps in session                     | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: trend of last N laps (sparkline or table) | Overview eCharts lap trend chart + last-5 table                        |
+| [x]    | Session KPI row: total Ah consumed (session)               | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: average lap efficiency (`LL_Eff`)         | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: max temperature (`temp1` / `temp2`)       | Overview tab Session KPI Summary                                       |
+| [x]    | Session KPI row: max voltage imbalance (`voltageDiff`)     | Overview tab Session KPI Summary                                       |
 | [ ]    | **Stint summary** row per race on Laps tab                 | Best lap, median, consistency, total Ah, avg efficiency, thermal trend |
 
 
@@ -68,7 +68,7 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 | [ ]    | Filter: hide suspect / invalid laps                                       |                                                        |
 | [ ]    | Filter: exclude first lap (out lap)                                       |                                                        |
 | [ ]    | Filter: minimum lap time threshold                                        |                                                        |
-| [ ]    | **Baseline comparison** mode: compare current race vs selected prior race | Same track preferred; best/median/energy deltas        |
+| [x]    | **Baseline comparison** mode: compare current race vs selected prior race | Overview baseline card when enabled                                    |
 | [ ]    | Rolling trends inside lap table (mini sparklines per column)              | Optional; higher UI effort                             |
 
 
@@ -87,7 +87,7 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 | [ ]    | Alert when imbalance exceeds threshold                                  |                                                             |
 | [ ]    | Average / peak power per lap (`P = V × I`)                              |                                                             |
 | [ ]    | Energy proxy per lap (`LL_Ah` × mean V or integrated Wh)                |                                                             |
-| [ ]    | Wh-per-mile efficiency trend                                            |                                                             |
+| [x]    | Wh-per-mile efficiency trend                                            | Overview Energy card (Wh/mi, Wh/km, eff trend)                         |
 | [ ]    | Projected remaining stint quality (simple model from Ah used vs target) | Target to be set in settings - linked to from analytics tab |
 
 
@@ -100,7 +100,7 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 | ------ | ------------------------------------------------------------------- | ----- |
 | [ ]    | `temp1` / `temp2` trend over session (Analytics card or graph link) |       |
 | [ ]    | `tempDiff` asymmetry trend                                          |       |
-| [ ]    | Thermal rise rate per minute or per lap                             |       |
+| [x]    | Thermal rise rate per minute or per lap                             | Overview Thermal card                                                  |
 | [ ]    | Sustained high-temperature dwell time (above threshold)             |       |
 | [ ]    | Warning when rise rate exceeds limit lap-over-lap                   |       |
 
@@ -147,7 +147,7 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 | [ ]    | Channels report by **sector** (if sectors exist)                                                 |                                                                                   |
 | [ ]    | Scatter plot: e.g. % distance in lap vs speed, current, voltage and throttle, current vs voltage |                                                                                   |
 | [ - ]  | Scatter: speed vs distance for line choice                                                       |                                                                                   |
-| [ ]    | Histograms for metrics other than throttle (current, speed, voltage)                             | Histograms to be implemented with eCharts plugin                                  |
+| [x]    | Histograms for metrics other than throttle (current, speed, voltage)                             | Overview eCharts channel histogram (throttle/speed/current)            |
 | [ - ]  | G-G style plot                                                                                   | Only if lat/long accel available — **not in current channels**; skip unless added |
 
 
@@ -178,8 +178,8 @@ These should all be shown in a collapsible menu per race in the laps tab as well
 | [ ]    | “Mark race start” manual override for start metrics   | When auto-detect fails |
 | [ ]    | Copy/export Analytics summary for a session           | Text or CSV            |
 | [ ]    | Link from Analytics metric → Graph zoom preset        |                        |
-| [ ]    | Live mode: auto-collapse start card after first 60s   | Mentioned in design    |
-| [ ]    | History mode: compare two races side-by-side          |                        |
+| [x]    | Live mode: auto-collapse start card after first 60s   | Overview Race Start details                                            |
+| [x]    | History mode: compare two races side-by-side          | Baseline comparison card                                               |
 | [ - ]  | Component tests: admin-only tab visibility            |                        |
 | [ ]    | Component tests: live/history mode switch             |                        |
 | [ ]    | Component tests: disclaimer shown for low-rate timing |                        |

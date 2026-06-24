@@ -656,6 +656,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         displayHistory.value = []
         clearRaces()
         chartZoomComposable.clearCurrentZoomWindow()
+        chartZoomComposable.requestChartUnlock()
     }
 
     /**
@@ -683,6 +684,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         triggerRef(displayHistory)
         rebuildRacesFromHistory(history.value)
         chartZoomComposable.clearCurrentZoomWindow()
+        chartZoomComposable.requestChartUnlock()
     }
 
     /**
@@ -719,6 +721,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     async function loadDay(carId, dateString, startTimeStr = '00:00', endTimeStr = '23:59') {
         wasLoadedFromCalendar.value = true
         await historyComposable.loadDay(carId, dateString, startTimeStr, endTimeStr, clearHistory, isPaused)
+        chartZoomComposable.requestChartUnlock()
+        const earliest = historyComposable.earliestTime.value
+        const latest = historyComposable.latestTime.value
+        if (Number.isFinite(earliest) && Number.isFinite(latest) && latest > earliest) {
+            chartZoomComposable.requestChartZoom(earliest, latest)
+        }
     }
 
     /**
@@ -752,6 +760,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         isPaused.value = false
         wasLoadedFromCalendar.value = false
         chartZoomComposable.clearCurrentZoomWindow()
+        chartZoomComposable.requestChartUnlock()
     }
 
     // ============================================
@@ -787,6 +796,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         isViewingHistoricalDay,
         showDataRibbon,
         availableDays: historyComposable.availableDays,
+        isFetchingAvailableDays: historyComposable.isFetchingAvailableDays,
         earliestTime: historyComposable.earliestTime,
         latestTime: historyComposable.latestTime,
         isHistoryTruncated: historyComposable.isHistoryTruncated,

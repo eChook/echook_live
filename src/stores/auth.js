@@ -264,6 +264,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     /**
+     * @brief Extract a user-facing error string from a failed account API response.
+     * @param {*} error - Axios error object
+     * @param {string} fallback - Default message when the body omits details
+     * @param {{ status404?: string }} [options] - Optional status-specific overrides
+     * @returns {string} Error text for inline UI display
+     */
+    function resolveAccountApiErrorMessage(error, fallback, { status404 } = {}) {
+        const data = error?.response?.data
+        if (typeof data?.message === 'string' && data.message.trim()) return data.message
+        if (typeof data?.error === 'string' && data.error.trim()) return data.error
+        if (error?.response?.status === 404 && status404) return status404
+        return fallback
+    }
+
+    /**
      * @brief Delete all server-stored telemetry for the authenticated user's car.
      * @description Calls POST /account/delete-telemetry with deleteAll. Account remains active.
      * @param {string} code - Email verification code from /account/request-code
@@ -276,6 +291,13 @@ export const useAuthStore = defineStore('auth', () => {
                 deleteAll: true
             }, { withCredentials: true })
             if (response.data?.success) {
+                const deleted = Number(response.data.deleted)
+                if (Number.isFinite(deleted) && deleted === 0) {
+                    return {
+                        success: false,
+                        error: 'No telemetry data was found for your account.'
+                    }
+                }
                 return {
                     success: true,
                     message: response.data.message,
@@ -285,7 +307,14 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: response.data?.message || 'Failed to delete telemetry' }
         } catch (error) {
             console.error('Delete telemetry failed', error)
-            return { success: false, error: error.response?.data?.message || 'Failed to delete telemetry' }
+            return {
+                success: false,
+                error: resolveAccountApiErrorMessage(
+                    error,
+                    'Failed to delete telemetry',
+                    { status404: 'No account was found for this session. Try signing in again.' }
+                )
+            }
         }
     }
 
@@ -305,6 +334,13 @@ export const useAuthStore = defineStore('auth', () => {
                 toDate
             }, { withCredentials: true })
             if (response.data?.success) {
+                const deleted = Number(response.data.deleted)
+                if (Number.isFinite(deleted) && deleted === 0) {
+                    return {
+                        success: false,
+                        error: 'No telemetry data was found for the selected date range.'
+                    }
+                }
                 return {
                     success: true,
                     message: response.data.message,
@@ -314,7 +350,14 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: response.data?.message || 'Failed to delete telemetry' }
         } catch (error) {
             console.error('Delete telemetry range failed', error)
-            return { success: false, error: error.response?.data?.message || 'Failed to delete telemetry' }
+            return {
+                success: false,
+                error: resolveAccountApiErrorMessage(
+                    error,
+                    'Failed to delete telemetry',
+                    { status404: 'No account was found for this session. Try signing in again.' }
+                )
+            }
         }
     }
 
@@ -334,7 +377,14 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: response.data?.message || 'Failed to delete account' }
         } catch (error) {
             console.error('Delete account failed', error)
-            return { success: false, error: error.response?.data?.message || 'Failed to delete account' }
+            return {
+                success: false,
+                error: resolveAccountApiErrorMessage(
+                    error,
+                    'Failed to delete account',
+                    { status404: 'No account was found for this session. It may have already been deleted.' }
+                )
+            }
         }
     }
 

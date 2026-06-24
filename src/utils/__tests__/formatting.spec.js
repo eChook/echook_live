@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getUnit, formatValue, formatClockTime } from '../formatting'
+import { getUnit, formatValue, formatClockTime, formatVoltageZoneLabel, isBatteryChannelAvailable } from '../formatting'
 
 describe('getUnit', () => {
     it('returns RPM for rpm-related keys', () => {
@@ -105,5 +105,22 @@ describe('formatClockTime', () => {
 
     it('returns dash for invalid timestamps', () => {
         expect(formatClockTime(null)).toBe('-')
+    })
+})
+
+describe('formatVoltageZoneLabel', () => {
+    it('labels intermediate loaded zones', () => {
+        expect(formatVoltageZoneLabel('comfortable_load')).toBe('Comfortable (loaded)')
+        expect(formatVoltageZoneLabel('caution_load')).toBe('Caution (loaded)')
+    })
+})
+
+describe('isBatteryChannelAvailable', () => {
+    it('treats channels below 1 V as unavailable', () => {
+        expect(isBatteryChannelAvailable({ latestVoltage: 0.2 })).toBe(false)
+        expect(isBatteryChannelAvailable({ latestVoltage: 1 })).toBe(true)
+        expect(isBatteryChannelAvailable({ latestVoltage: 12.1 })).toBe(true)
+        expect(isBatteryChannelAvailable({ latestVoltage: null })).toBe(false)
+        expect(isBatteryChannelAvailable(null)).toBe(false)
     })
 })

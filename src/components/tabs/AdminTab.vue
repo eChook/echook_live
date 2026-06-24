@@ -214,7 +214,14 @@
         <ConfirmationModal :is-open="showDeleteModal" title="Delete User"
             :message="`Are you sure you want to delete ${userToDelete?.car || 'this user'}? This action cannot be undone.`"
             :confirm-text="'Delete'" :cancel-text="'Cancel'" :confirm-classes="'bg-red-600 hover:bg-red-700 text-white'"
-            @close="showDeleteModal = false" @confirm="handleDeleteUser" />
+            :disabled="deleteUserInProgress"
+            @close="closeDeleteModal" @confirm="handleDeleteUser">
+            <template #body>
+                <p v-if="deleteUserError" class="text-sm text-red-500 dark:text-red-400 font-medium">
+                    {{ deleteUserError }}
+                </p>
+            </template>
+        </ConfirmationModal>
 
     </div>
 </template>
@@ -401,21 +408,40 @@ const handleSaveUser = async (updatedUser) => {
 // Delete Logic
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
+const deleteUserError = ref('')
+const deleteUserInProgress = ref(false)
+
+const closeDeleteModal = () => {
+    showDeleteModal.value = false
+    userToDelete.value = null
+    deleteUserError.value = ''
+    deleteUserInProgress.value = false
+}
 
 const confirmDelete = (user) => {
     userToDelete.value = user
+    deleteUserError.value = ''
     showDeleteModal.value = true
 }
 
 const handleDeleteUser = async () => {
-    if (userToDelete.value) {
-        const id = userToDelete.value.id || userToDelete.value._id
-        if (id) {
-            await adminStore.deleteUser(id)
-            showDeleteModal.value = false
-            userToDelete.value = null
-        }
+    if (!userToDelete.value || deleteUserInProgress.value) return
+
+    const id = userToDelete.value.id || userToDelete.value._id
+    if (!id) return
+
+    deleteUserInProgress.value = true
+    deleteUserError.value = ''
+
+    const result = await adminStore.deleteUser(id)
+    deleteUserInProgress.value = false
+
+    if (result.success) {
+        closeDeleteModal()
+        return
     }
+
+    deleteUserError.value = result.error || 'Delete failed'
 }
 
 // Emails

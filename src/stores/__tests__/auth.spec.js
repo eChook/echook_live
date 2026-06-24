@@ -249,6 +249,31 @@ describe('auth store', () => {
 
             expect(result).toEqual({ success: false, error: 'Invalid or expired verification code' })
         })
+
+        it('returns a clear message when no telemetry rows were deleted', async () => {
+            const auth = useAuthStore()
+            api.post.mockResolvedValue({
+                data: { success: true, message: 'All telemetry data deleted successfully.', deleted: 0 }
+            })
+
+            const result = await auth.deleteTelemetry('123456')
+
+            expect(result).toEqual({
+                success: false,
+                error: 'No telemetry data was found for your account.'
+            })
+        })
+
+        it('returns a clear message when the account is not found', async () => {
+            const auth = useAuthStore()
+            api.post.mockRejectedValue({
+                response: { status: 404, data: { success: false, message: 'User not found' } }
+            })
+
+            const result = await auth.deleteTelemetry('123456')
+
+            expect(result).toEqual({ success: false, error: 'User not found' })
+        })
     })
 
     describe('deleteTelemetryRange', () => {
@@ -307,6 +332,35 @@ describe('auth store', () => {
             const result = await auth.deleteAccount('000000')
 
             expect(result).toEqual({ success: false, error: 'Forbidden' })
+            expect(auth.user).toEqual({ id: 'u1', car: 'TestCar' })
+        })
+
+        it('returns server error message from rejected delete request', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', car: 'TestCar' }
+            api.post.mockRejectedValue({
+                response: { status: 500, data: { success: false, message: 'Server error' } }
+            })
+
+            const result = await auth.deleteAccount('123456')
+
+            expect(result).toEqual({ success: false, error: 'Server error' })
+            expect(auth.user).toEqual({ id: 'u1', car: 'TestCar' })
+        })
+
+        it('returns a clear message when account deletion finds no account', async () => {
+            const auth = useAuthStore()
+            auth.user = { id: 'u1', car: 'TestCar' }
+            api.post.mockRejectedValue({
+                response: { status: 404, data: {} }
+            })
+
+            const result = await auth.deleteAccount('123456')
+
+            expect(result).toEqual({
+                success: false,
+                error: 'No account was found for this session. It may have already been deleted.'
+            })
             expect(auth.user).toEqual({ id: 'u1', car: 'TestCar' })
         })
     })

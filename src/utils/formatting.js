@@ -14,6 +14,7 @@ import { METRIC_PRECISION, roundMetric } from './metricPrecision'
  */
 export function formatDodBasisLabel(basis) {
     if (basis === 'peukert_capacity') return 'Peukert Capacity'
+    if (basis === 'normalized_c20_ideal') return 'Peukert-normalized vs ideal'
     if (basis === 'actual_capacity') return 'Ideal Capacity'
     return 'Nominal fallback'
 }
@@ -31,6 +32,17 @@ export function computeCapacityDodPercent(dischargeAh, capacityAh) {
 }
 
 /**
+ * @brief Whether a per-battery voltage channel has a plausible latest reading.
+ * @param {Object|null|undefined} channelMetrics - Branch channel metrics from battery window metrics
+ * @param {number} [minVoltageV=1] - Minimum latest voltage (V) to treat the channel as connected
+ * @returns {boolean} True when latest voltage is finite and at or above the minimum
+ */
+export function isBatteryChannelAvailable(channelMetrics, minVoltageV = 1) {
+    const latestVoltage = channelMetrics?.latestVoltage
+    return Number.isFinite(latestVoltage) && latestVoltage >= minVoltageV
+}
+
+/**
  * @brief Format an open-circuit or loaded voltage zone id for display.
  * @param {string|null|undefined} zone - Voltage zone identifier
  * @returns {string} Human-readable zone label
@@ -42,6 +54,8 @@ export function formatVoltageZoneLabel(zone) {
     if (zone === 'near_cutoff') return 'Near Cutoff'
     if (zone === 'deep_discharge') return 'Deep Discharge'
     if (zone === 'healthy_load') return 'Healthy (loaded)'
+    if (zone === 'comfortable_load') return 'Comfortable (loaded)'
+    if (zone === 'caution_load') return 'Caution (loaded)'
     if (zone === 'warning_load') return 'Warning (loaded)'
     if (zone === 'near_cutoff_load') return 'Near Cutoff (loaded)'
     if (zone === 'critical_load') return 'Critical (loaded)'

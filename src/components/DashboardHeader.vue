@@ -403,7 +403,11 @@ const downloadAllData = () => {
             <!-- Calendar -->
             <div class="flex-1">
               <h3 class="text-xs font-bold text-zinc-500 dark:text-gray-500 uppercase tracking-wider mb-2">Load History</h3>
-              <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
+              <HistoryCalendar
+                :available-days="telemetry.availableDays"
+                :loading="telemetry.isFetchingAvailableDays"
+                @select-day="handleDayClick"
+              />
             </div>
 
             <!-- Date Selection & Time -->
@@ -436,7 +440,11 @@ const downloadAllData = () => {
             <div class="flex space-x-4">
               <!-- Calendar -->
               <div class="flex flex-col">
-                <HistoryCalendar :available-days="telemetry.availableDays" @select-day="handleDayClick" />
+                <HistoryCalendar
+                  :available-days="telemetry.availableDays"
+                  :loading="telemetry.isFetchingAvailableDays"
+                  @select-day="handleDayClick"
+                />
                 <p class="text-[10px] text-zinc-500 dark:text-gray-500 max-w-[250px] leading-tight mt-2 cursor-help"
                   title="Telemetry is stored at full resolution while kept on our servers. eChook makes no guarantee how long data will remain — export CSV backups if you need a permanent record.">
                   <ExclamationTriangleIcon class="w-3 h-3 inline mr-1" />

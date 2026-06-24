@@ -25,4 +25,10 @@ describe('useChartZoom', () => {
         zoom.setCurrentZoomWindow(Number.NaN, 1000)
         expect(zoom.currentZoomWindowMs.value).toBeNull()
     })
+
+    it('issues reset request on unlock', () => {
+        const zoom = useChartZoom()
+        zoom.requestChartUnlock()
+        expect(zoom.chartZoomRequest.value).toEqual({ type: 'reset' })
+    })
 })

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
     computeThrottleHistogram,
+    computeChannelHistogram,
+    computeBatterySoC,
     computeThrottleBrakeOverlap,
     detectRaceStart,
     computeStartMetrics,
@@ -16,6 +18,9 @@ import {
     computeSessionStintKpis,
     computeLapDegradation,
     computeEnergyThermalSummary,
+    computeVoltageCurrentSummary,
+    computeHeroBandBarMetrics,
+    buildOverviewSignalsTimeline,
     scoreLapConfidence,
     filterLapSummaries,
     computeBaselineComparison,
@@ -40,6 +45,127 @@ describe('analyticsMetrics', () => {
         expect(Math.round(idle.timePct)).toBe(67)
         expect(Math.round(full.timePct)).toBe(33)
         expect(histogram.totalTimeSec).toBe(3)
+        expect(histogram.channel).toBe('throttle')
+    })
+
+    it('computes speed channel histogram in mph bands', () => {
+        const samples = [
+            { timestamp: 1000, speed: 3, voltage: 24, current: 5 },
+            { timestamp: 2000, speed: 3, voltage: 24, current: 5 },
+            { timestamp: 3000, speed: 12, voltage: 24, current: 8 },
+            { timestamp: 4000, speed: 12, voltage: 24, current: 8 }
+        ]
+
+        const histogram = computeChannelHistogram(samples, 'speed', { speedUnit: 'mph' })
+        const low = histogram.bins.find((bin) => bin.id === 'spd_0_5')
+        const mid = histogram.bins.find((bin) => bin.id === 'spd_10_15')
+
+        expect(histogram.channel).toBe('speed')
+        expect(Math.round(low.timePct)).toBe(67)
+        expect(Math.round(mid.timePct)).toBe(33)
+    })
+
+    it('summarises pack voltage and current with session and rolling averages', () => {
+        const samples = [
+            { timestamp: 0, voltage: 24.0, current: 5 },
+            { timestamp: 1000, voltage: 23.8, current: 8 },
+            { timestamp: 2000, voltage: 23.6, current: 10 },
+            { timestamp: 3000, voltage: 23.4, current: 12 },
+            { timestamp: 4000, voltage: 23.2, current: 14 },
+            { timestamp: 5000, voltage: 23.0, current: 16 }
+        ]
+
+        const summary = computeVoltageCurrentSummary(samples, { rollingWindowSec: 3 })
+
+        expect(summary.voltage.latest).toBe(23)
+        expect(summary.voltage.sessionMin).toBe(23)
+        expect(summary.voltage.sessionMax).toBe(24)
+        expect(Number.isFinite(summary.voltage.sessionAvg)).toBe(true)
+        expect(Number.isFinite(summary.voltage.rollingAvg)).toBe(true)
+        expect(summary.current.peak).toBe(16)
+        expect(summary.current.latest).toBe(16)
+        expect(Number.isFinite(summary.current.rollingAvg)).toBe(true)
+    })
+
+    it('computes hero-band bar metrics with padded session range and fixed current max', () => {
+        const samples = [
+            { timestamp: 0, voltage: 24.0, current: 10, speed: 5, powerW: 240 },
+            { timestamp: 1000, voltage: 23.5, current: 20, speed: 15, powerW: 470 },
+            { timestamp: 2000, voltage: 23.0, current: 30, speed: 25, powerW: 690 }
+        ]
+
+        const bars = computeHeroBandBarMetrics(samples, { currentBarMaxA: 35 })
+
+        expect(bars.voltage.barMin).toBeCloseTo(23 * 0.9, 5)
+        expect(bars.voltage.barMax).toBeCloseTo(24 * 1.1, 5)
+        expect(bars.voltage.barPercent).toBeCloseTo(40.35, 1)
+
+        expect(bars.current.barMin).toBeCloseTo(10 * 0.9, 5)
+        expect(bars.current.barMax).toBe(35)
+        expect(bars.current.barPercent).toBeCloseTo(80.77, 1)
+
+        expect(bars.speed.barMin).toBeCloseTo(5 * 0.9, 5)
+        expect(bars.speed.barMax).toBeCloseTo(25 * 1.1, 5)
+        expect(bars.speed.barPercent).toBeCloseTo(89.13, 1)
+
+        expect(bars.power.barMin).toBeCloseTo(240 * 0.9, 5)
+        expect(bars.power.barMax).toBeCloseTo(690 * 1.1, 5)
+        expect(bars.power.barPercent).toBeCloseTo(87.3, 1)
+    })
+
+    it('builds overview signals timeline with optional overlay channels', () => {
+        const samples = [
+            { timestamp: 0, voltage: 24, current: 5, temp1: 30, temp2: 31, speed: 10, throttle: 50 },
+            { timestamp: 1000, voltage: 23.9, current: 6, temp1: 31, temp2: 32, speed: 12, throttle: 60 }
+        ]
+
+        const timeline = buildOverviewSignalsTimeline(samples)
+
+        expect(timeline).toHaveLength(2)
+        expect(timeline[0].voltage).toBe(24)
+        expect(timeline[0].current).toBe(5)
+        expect(timeline[0].temp1).toBe(30)
+        expect(timeline[1].throttle).toBe(60)
+    })
+
+    it('estimates Peukert and C/20 battery SoC for live overview', () => {
+        const samples = Array.from({ length: 8 }, (_, idx) => {
+            const current = 4 + idx
+            return {
+                timestamp: idx * 1000,
+                current,
+                voltage: 24 - (0.02 * current),
+                voltageLower: 12 - (0.011 * current),
+                voltageHigh: 12 - (0.009 * current)
+            }
+        })
+
+        const resistance = computeSupplyResistance(samples, {
+            minSampleCount: 4,
+            minCurrentSpread: 3
+        })
+
+        const peukertSoc = computeBatterySoC(samples, {
+            method: 'peukert',
+            nominalCapacityAh: 36,
+            actualCapacityAh: 36,
+            peukertExponent: 1.16,
+            supplyResistance: resistance.branches.total
+        })
+
+        expect(peukertSoc.method).toBe('peukert')
+        expect(Number.isFinite(peukertSoc.peukertSocPct)).toBe(true)
+        expect(peukertSoc.peukertSocPct).toBeLessThanOrEqual(100)
+
+        const c20Soc = computeBatterySoC(samples, {
+            method: 'c20',
+            nominalCapacityAh: 36,
+            nominalSeriesVoltage: 24,
+            supplyResistance: resistance.branches.total
+        })
+
+        expect(c20Soc.method).toBe('c20')
+        expect(Number.isFinite(c20Soc.c20SocPct)).toBe(true)
     })
 
     it('computes overlap events and durations', () => {
@@ -228,7 +354,8 @@ describe('analyticsMetrics', () => {
 
         expect(metrics.health.dodPct.metricType).toBe('estimated')
         expect(metrics.health.dodPct.value).toBeGreaterThan(0)
-        expect(metrics.health.dodBasis).toBe('peukert_capacity')
+        expect(metrics.health.dodBasis).toBe('normalized_c20_ideal')
+        expect(metrics.health.dodPct.value).toBeCloseTo(metrics.health.normalizedC20DodPct, 5)
         expect(Number.isFinite(metrics.health.soh.value)).toBe(false)
         expect(metrics.health.peukert.descriptor.id).toBe('peukert_expected_capacity')
         expect(metrics.health.soh.id).toBe('sohPct')
@@ -331,7 +458,7 @@ describe('analyticsMetrics', () => {
             minCurrentSpread: 5
         })
 
-        expect(metrics.health.dodBasis).toBe('peukert_capacity')
+        expect(metrics.health.dodBasis).toBe('normalized_c20_ideal')
         expect(metrics.health.dodPct.value).toBeGreaterThan(0)
         expect(metrics.health.soh.value).toBe(null)
         expect(metrics.health.soh.reason).toBeTruthy()
@@ -509,6 +636,33 @@ describe('analyticsMetrics', () => {
         expect(metrics.health.voltageZone.descriptor.assumptions.some((entry) => entry.includes('Vp(t)'))).toBe(true)
     })
 
+    it('classifies finer loaded voltage zones between healthy and warning', () => {
+        const buildSamples = (terminalVoltage) => Array.from({ length: 8 }, (_, idx) => {
+            const current = 6 + idx
+            return {
+                timestamp: idx * 1000,
+                current,
+                voltage: idx === 7 ? terminalVoltage : 24 - (0.02 * current),
+                voltageLower: 12 - (0.01 * current),
+                voltageHigh: 12 - (0.009 * current)
+            }
+        })
+
+        const comfortable = computeBatteryWindowMetrics(buildSamples(23.3), {
+            nominalSeriesVoltage: 24,
+            minSampleCount: 8,
+            minCurrentSpread: 5
+        })
+        const caution = computeBatteryWindowMetrics(buildSamples(22.7), {
+            nominalSeriesVoltage: 24,
+            minSampleCount: 8,
+            minCurrentSpread: 5
+        })
+
+        expect(comfortable.health.voltageZone.loadedZone).toBe('comfortable_load')
+        expect(caution.health.voltageZone.loadedZone).toBe('caution_load')
+    })
+
     it('uses actual capacity when passed via options for DoD basis and ideal capacity display', () => {
         const samples = Array.from({ length: 1000 }, (_, idx) => ({
             timestamp: idx * 1000,
@@ -527,9 +681,8 @@ describe('analyticsMetrics', () => {
             minCurrentSpread: 5
         })
 
-        expect(metrics.health.dodBasis).toBe('peukert_capacity')
-        const expectedDod = (metrics.health.peukert.windowDischargeAh / metrics.health.peukert.expectedCapacityAh) * 100
-        expect(metrics.health.dodPct.value).toBeCloseTo(expectedDod, 1)
+        expect(metrics.health.dodBasis).toBe('normalized_c20_ideal')
+        expect(metrics.health.dodPct.value).toBeCloseTo(metrics.health.normalizedC20DodPct, 5)
         expect(metrics.health.peukert.estimatedActualCapacityAh).toBe(30)
         expect(metrics.health.soh.value).toBe(null)
         expect(metrics.health.soh.reason).toBeTruthy()

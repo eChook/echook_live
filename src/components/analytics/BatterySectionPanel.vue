@@ -720,13 +720,11 @@ function getConfidenceClass(confidence) {
 
             <div>Window Discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryHealth.peukert?.windowDischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
 
-            <div>Normalized C/20 discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryHealth.normalizedC20DischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
+            <div>Peukert-normalized discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryHealth.normalizedC20DischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
 
-            <div>Percentage against Peukert Capacity: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryHealth.peukert?.windowDischargeAh, batteryHealth.peukert?.expectedCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
+            <div>Normalised Discharge vs Ideal: <span class="font-mono text-zinc-900 dark:text-white">{{ Number.isFinite(batteryHealth.dodPct?.value) ? formatMetric(batteryHealth.dodPct.value, METRIC_PRECISION.estimatedPercent) + '%' : '—' }}</span></div>
 
-            <div>Percentage against Ideal Capacity: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryHealth.peukert?.windowDischargeAh, batteryHealth.peukert?.estimatedActualCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
-
-            <div>Percentage against Normalized C/20 (ideal): <span class="font-mono text-zinc-900 dark:text-white">{{ Number.isFinite(batteryHealth.normalizedC20DodPct) ? formatMetric(batteryHealth.normalizedC20DodPct, METRIC_PRECISION.estimatedPercent) + '%' : '—' }}</span></div>
+            <div>Raw discharge vs ideal: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryHealth.peukert?.windowDischargeAh, batteryHealth.peukert?.estimatedActualCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
 
           </div>
 

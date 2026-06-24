@@ -173,7 +173,8 @@ export const useAdminStore = defineStore('admin', () => {
             users.value = users.value.filter(u => u.id !== id && u._id !== id)
             return { success: true }
         } catch (e) {
-            return { success: false, error: e.response?.data?.message || 'Delete failed' }
+            const message = e.response?.data?.error || e.response?.data?.message || 'Delete failed'
+            return { success: false, error: message }
         }
     }
 

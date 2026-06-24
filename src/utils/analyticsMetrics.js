@@ -72,32 +72,80 @@ function defaultThrottleBins() {
 }
 
 /**
- * @brief Find the matching throttle histogram bin.
+ * @brief Find the matching histogram bin for a numeric channel value.
  * @param {Array<{min: number, max: number}>} bins - Histogram bins
- * @param {number} throttle - Throttle value in percent
+ * @param {number} value - Channel value to classify
  * @returns {number} Matched bin index or -1 when no bin matches
  */
-function findThrottleBinIndex(bins, throttle) {
+function findBinIndex(bins, value) {
     for (let i = 0; i < bins.length; i += 1) {
         const bin = bins[i]
-        if (throttle >= bin.min && throttle <= bin.max) return i
+        const max = Number.isFinite(bin.max) ? bin.max : Infinity
+        if (value >= bin.min && value <= max) return i
     }
     return -1
 }
 
 /**
- * @brief Compute throttle usage histogram by time and energy.
+ * @brief Build default speed histogram bins in mph.
+ * @returns {Array<{id: string, label: string, min: number, max: number}>} Speed bins
+ */
+function defaultSpeedBinsMph() {
+    return [
+        { id: 'spd_0_5', label: '0-5 mph', min: 0, max: 5 },
+        { id: 'spd_5_10', label: '5-10 mph', min: 5, max: 10 },
+        { id: 'spd_10_15', label: '10-15 mph', min: 10, max: 15 },
+        { id: 'spd_15_20', label: '15-20 mph', min: 15, max: 20 },
+        { id: 'spd_20_25', label: '20-25 mph', min: 20, max: 25 },
+        { id: 'spd_25p', label: '25+ mph', min: 25, max: Infinity }
+    ]
+}
+
+/**
+ * @brief Build default current histogram bins in amps.
+ * @returns {Array<{id: string, label: string, min: number, max: number}>} Current bins
+ */
+function defaultCurrentBins() {
+    return [
+        { id: 'cur_0_5', label: '0-5 A', min: 0, max: 5 },
+        { id: 'cur_5_10', label: '5-10 A', min: 5, max: 10 },
+        { id: 'cur_10_20', label: '10-20 A', min: 10, max: 20 },
+        { id: 'cur_20_30', label: '20-30 A', min: 20, max: 30 },
+        { id: 'cur_30_40', label: '30-40 A', min: 30, max: 40 },
+        { id: 'cur_40p', label: '40+ A', min: 40, max: Infinity }
+    ]
+}
+
+/**
+ * @brief Resolve default histogram bins for a telemetry channel.
+ * @param {'throttle'|'speed'|'current'} channel - Channel key
+ * @returns {Array<{id: string, label: string, min: number, max: number}>} Bin definitions
+ */
+function resolveDefaultChannelBins(channel) {
+    if (channel === 'speed') return defaultSpeedBinsMph()
+    if (channel === 'current') return defaultCurrentBins()
+    return defaultThrottleBins()
+}
+
+/**
+ * @brief Compute channel usage histogram by time and energy.
  * @param {Array<Object>} samples - Telemetry points sorted by timestamp
+ * @param {'throttle'|'speed'|'current'} channel - Channel key to histogram
  * @param {Object} [options] - Histogram options
  * @param {number} [options.maxDtMs=10000] - Max interval duration to include
  * @param {boolean} [options.includeNegativePower=false] - Include negative power intervals
  * @param {Array<Object>} [options.bins] - Custom bins (`{id,label,min,max}`)
+ * @param {'mph'|'kph'|'ms'} [options.speedUnit='mph'] - Speed unit for speed channel binning
  * @returns {Object} Histogram totals and per-bin percentages
  */
-export function computeThrottleHistogram(samples, options = {}) {
+export function computeChannelHistogram(samples, channel = 'throttle', options = {}) {
     const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
     const includeNegativePower = options.includeNegativePower === true
-    const bins = Array.isArray(options.bins) && options.bins.length > 0 ? options.bins : defaultThrottleBins()
+    const speedUnit = options.speedUnit || 'mph'
+    const resolvedChannel = channel === 'speed' || channel === 'current' ? channel : 'throttle'
+    const bins = Array.isArray(options.bins) && options.bins.length > 0
+        ? options.bins
+        : resolveDefaultChannelBins(resolvedChannel)
 
     const resultBins = bins.map((bin) => ({
         ...bin,
@@ -110,6 +158,7 @@ export function computeThrottleHistogram(samples, options = {}) {
 
     if (!Array.isArray(samples) || samples.length < 2) {
         return {
+            channel: resolvedChannel,
             bins: resultBins,
             totalTimeMs: 0,
             totalTimeSec: 0,
@@ -130,10 +179,21 @@ export function computeThrottleHistogram(samples, options = {}) {
         const dtMs = nextTs - ts
         if (!isValidDuration(dtMs, maxDtMs)) continue
 
-        const throttle = toFiniteNumber(currentPoint.throttle)
-        if (throttle === null) continue
+        let channelValue = null
+        if (resolvedChannel === 'throttle') {
+            channelValue = toFiniteNumber(currentPoint.throttle)
+        } else if (resolvedChannel === 'speed') {
+            const speed = toFiniteNumber(currentPoint.speed)
+            channelValue = speed === null ? null : speedToMph(speed, speedUnit)
+        } else {
+            const current = toFiniteNumber(currentPoint.current)
+            // Histogram magnitude only; regen intervals land in the lowest current bin.
+            channelValue = current === null ? null : Math.abs(current)
+        }
 
-        const binIndex = findThrottleBinIndex(resultBins, throttle)
+        if (channelValue === null) continue
+
+        const binIndex = findBinIndex(resultBins, channelValue)
         if (binIndex < 0) continue
 
         const voltage = toFiniteNumber(currentPoint.voltage)
@@ -153,11 +213,25 @@ export function computeThrottleHistogram(samples, options = {}) {
     })
 
     return {
+        channel: resolvedChannel,
         bins: resultBins,
         totalTimeMs,
         totalTimeSec: totalTimeMs / 1000,
         totalWh
     }
+}
+
+/**
+ * @brief Compute throttle usage histogram by time and energy.
+ * @param {Array<Object>} samples - Telemetry points sorted by timestamp
+ * @param {Object} [options] - Histogram options
+ * @param {number} [options.maxDtMs=10000] - Max interval duration to include
+ * @param {boolean} [options.includeNegativePower=false] - Include negative power intervals
+ * @param {Array<Object>} [options.bins] - Custom bins (`{id,label,min,max}`)
+ * @returns {Object} Histogram totals and per-bin percentages
+ */
+export function computeThrottleHistogram(samples, options = {}) {
+    return computeChannelHistogram(samples, 'throttle', options)
 }
 
 /**
@@ -1066,6 +1140,8 @@ function classifyVoltageZone(estimatedVoc, nominalSeriesVoltage, terminalVoltage
     }
     const loadedThresholds = {
         healthyMin: 11.7 * scale,
+        comfortableMin: 11.5 * scale,
+        cautionMin: 11.3 * scale,
         warningMin: 11.1 * scale,
         cutoffMin: 9.6 * scale,
         criticalMin: 8.0 * scale
@@ -1074,6 +1150,8 @@ function classifyVoltageZone(estimatedVoc, nominalSeriesVoltage, terminalVoltage
     let loadedZone = null
     if (latestVoltage !== null) {
         if (latestVoltage >= loadedThresholds.healthyMin) loadedZone = 'healthy_load'
+        else if (latestVoltage >= loadedThresholds.comfortableMin) loadedZone = 'comfortable_load'
+        else if (latestVoltage >= loadedThresholds.cautionMin) loadedZone = 'caution_load'
         else if (latestVoltage >= loadedThresholds.warningMin) loadedZone = 'warning_load'
         else if (latestVoltage >= loadedThresholds.cutoffMin) loadedZone = 'near_cutoff_load'
         else if (latestVoltage >= loadedThresholds.criticalMin) loadedZone = 'critical_load'
@@ -1262,6 +1340,106 @@ export function estimateC20TerminalVoltage(terminalVoltage, current, options = {
     const polarizationV = Number.isFinite(options.polarizationV) ? options.polarizationV : 0
     const vC20 = voltage + polarizationV + ((currentA - iC20A) * (rMilliOhm / 1000))
     return Number.isFinite(vC20) ? roundMetric(vC20, 'voltage') : null
+}
+
+/**
+ * @brief Estimate remaining battery state-of-charge for live overview display.
+ * @param {Array<Object>} samples - Active window telemetry samples sorted by timestamp
+ * @param {Object} [options] - SoC options
+ * @param {'peukert'|'c20'} [options.method='peukert'] - Selected SoC method
+ * @param {number} [options.maxDtMs=10000] - Max integration interval
+ * @param {number} [options.nominalCapacityAh=36] - Nominal pack Ah
+ * @param {number} [options.actualCapacityAh] - Actual pack Ah (defaults to nominal)
+ * @param {number} [options.peukertExponent=1.16] - Peukert exponent
+ * @param {number} [options.nominalSeriesVoltage=24] - Pack nominal voltage for C/20 lookup
+ * @param {Object|null} [options.supplyResistance] - Pack resistance estimate for V_C/20
+ * @param {number} [options.irCurrentDeadbandA=0.5] - IR deadband for V_oc context
+ * @returns {Object} SoC percent and method-specific metadata
+ */
+export function computeBatterySoC(samples, options = {}) {
+    const method = options.method === 'c20' ? 'c20' : 'peukert'
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const nominalCapacityAh = Number.isFinite(options.nominalCapacityAh) && options.nominalCapacityAh > 0
+        ? options.nominalCapacityAh
+        : 36
+    const actualCapacityAh = Number.isFinite(options.actualCapacityAh) && options.actualCapacityAh > 0
+        ? options.actualCapacityAh
+        : nominalCapacityAh
+    const peukertExponent = Number.isFinite(options.peukertExponent) ? options.peukertExponent : 1.16
+    const nominalSeriesVoltage = Number.isFinite(options.nominalSeriesVoltage) && options.nominalSeriesVoltage > 0
+        ? options.nominalSeriesVoltage
+        : 24
+    const irCurrentDeadbandA = Number.isFinite(options.irCurrentDeadbandA) ? options.irCurrentDeadbandA : 0.5
+
+    const empty = {
+        method,
+        socPct: null,
+        peukertSocPct: null,
+        c20SocPct: null,
+        normalizedNetAh: null,
+        vC20: null,
+        reason: 'insufficient_samples',
+        actualCapacityAh
+    }
+
+    const data = Array.isArray(samples) ? samples : []
+    if (data.length < 1) return empty
+
+    // Peukert SoC: 100% minus normalized net Ah consumed since window start.
+    const peukertIntegration = integratePeukertNormalizedNetAh(data, {
+        maxDtMs,
+        nominalCapacityAh,
+        peukertExponent
+    })
+    let peukertSocPct = null
+    if (actualCapacityAh > 0 && Number.isFinite(peukertIntegration.normalizedNetAh)) {
+        peukertSocPct = 100 - ((peukertIntegration.normalizedNetAh / actualCapacityAh) * 100)
+        peukertSocPct = Math.max(0, Math.min(100, peukertSocPct))
+        peukertSocPct = roundMetric(peukertSocPct, 'estimatedPercent')
+    }
+
+    // C/20 SoC: Yuasa lookup on emulated C/20 voltage at the latest sample.
+    let c20SocPct = null
+    let vC20 = null
+    let c20Reason = null
+    const resistanceBranch = options.supplyResistance || null
+    const latestSample = getLatestBatterySample(data, 'voltage')
+    if (!latestSample || !Number.isFinite(latestSample.timestamp)) {
+        c20Reason = 'missing_sample'
+    } else if (!resistanceBranch?.valid) {
+        c20Reason = 'missing_valid_resistance_fit'
+    } else {
+        const vocContext = buildVocSampleContext(data, 'voltage', resistanceBranch, latestSample.timestamp, { irCurrentDeadbandA })
+        vC20 = estimateC20TerminalVoltage(latestSample.voltage, latestSample.current, {
+            rMilliOhm: vocContext.rMilliOhm,
+            polarizationV: vocContext.polarizationV,
+            nominalCapacityAh,
+            resistanceValid: true
+        })
+        const socFraction = lookupYuasaC20SocFromVoltage(vC20, nominalSeriesVoltage)
+        if (socFraction === null) {
+            c20Reason = 'invalid_soc_lookup'
+        } else {
+            c20SocPct = roundMetric(socFraction * 100, 'estimatedPercent')
+        }
+    }
+
+    const socPct = method === 'c20' ? c20SocPct : peukertSocPct
+    let reason = null
+    if (!Number.isFinite(socPct)) {
+        reason = method === 'c20' ? (c20Reason || 'invalid_soc_lookup') : 'insufficient_peukert_integration'
+    }
+
+    return {
+        method,
+        socPct,
+        peukertSocPct,
+        c20SocPct,
+        normalizedNetAh: roundMetric(peukertIntegration.normalizedNetAh, 'peukertAh'),
+        vC20,
+        reason,
+        actualCapacityAh
+    }
 }
 
 /**
@@ -1728,8 +1906,56 @@ function mergeDischargeCycleIntoHealth(health, cycleMetrics, context) {
         sohAssumptions.push(`Window ΔSoC ${(soh.deltaSoc * 100).toFixed(1)}% is below the 25.0% minimum.`)
     }
 
+    // Primary DoD uses Peukert-normalized window Ah vs ideal capacity (not Peukert-capacity-at-I_avg).
+    const integrationValidIntervals = windowPeukertMetrics?.validIntervals ?? 0
+    const integrationCoverage = windowPeukertMetrics?.coverageRatio ?? 0
+    const deepDischargeRatio = Number.isFinite(health.deepDischargeRatio) ? health.deepDischargeRatio : 0
+    const normalizedDodAssumptionScore = deepDischargeRatio >= 0.5
+        ? 0.85
+        : deepDischargeRatio >= MIN_DOD_RATIO_FOR_SOH
+            ? 0.6
+            : 0.3
+    const normalizedDodConfidence = resolveMetricConfidence({
+        sampleCount: integrationValidIntervals,
+        coverageRatio: integrationCoverage,
+        assumptionScore: normalizedDodAssumptionScore
+    })
+    const normalizedDodExceedsIdeal = Number.isFinite(normalizedC20DodPct)
+        && Number.isFinite(idealCapacityAh)
+        && idealCapacityAh > 0
+        && normalizedC20DodPct > 100
+    const normalizedDodAssumptions = [
+        `DoD% = Peukert-normalized window discharge / ideal capacity for ${scopeLabel}.`,
+        'Ah_norm = ∫ I × (I/I_C20)^(k−1) dt over the active window; I_C20 = C_nominal/20.',
+        'Per-sample weighting accounts for variable discharge current in the window.',
+        'Not derived from V_C/20 voltage or resistance-backed SoC lookup.',
+        Number.isFinite(idealCapacityAh) && idealCapacityAh > 0
+            ? `Ideal capacity for ${scopeLabel} configured at ${idealCapacityAh.toFixed(1)} Ah.`
+            : 'Ideal capacity unavailable for this scope.'
+    ]
+    if (normalizedDodExceedsIdeal) {
+        normalizedDodAssumptions.push('Normalized window discharge exceeds configured ideal capacity.')
+    }
+    let normalizedDodReason = null
+    if (!Number.isFinite(normalizedC20DodPct)) {
+        normalizedDodReason = 'insufficient_discharge_window'
+    } else if (normalizedDodExceedsIdeal) {
+        normalizedDodReason = 'window_exceeds_ideal_capacity'
+    }
+    const primaryDodBasis = Number.isFinite(normalizedC20DodPct) ? 'normalized_c20_ideal' : health.dodBasis
+    const primaryDodPct = buildBatteryMetricDescriptor({
+        id: 'dodPct',
+        metricType: 'estimated',
+        value: Number.isFinite(normalizedC20DodPct) ? normalizedC20DodPct : (health.dodPct?.value ?? null),
+        confidence: Number.isFinite(normalizedC20DodPct) ? normalizedDodConfidence : (health.dodPct?.confidence ?? 'low'),
+        reason: Number.isFinite(normalizedC20DodPct) ? normalizedDodReason : (health.dodPct?.reason ?? normalizedDodReason),
+        assumptions: Number.isFinite(normalizedC20DodPct) ? normalizedDodAssumptions : (health.dodPct?.assumptions ?? normalizedDodAssumptions)
+    })
+
     return {
         ...health,
+        dodBasis: primaryDodBasis,
+        dodPct: primaryDodPct,
         cycleDischargeAh: cycle.cycleDischargeAh ?? null,
         cycleAvgCurrentA: cycle.cycleAvgCurrentA ?? null,
         normalizedC20DischargeAh,
@@ -3699,3 +3925,326 @@ export function computeEnergyThermalSummary(samples, options = {}) {
     }
 }
 
+/**
+ * @brief Build empty voltage/current metric branch for summary payloads.
+ * @returns {Object} Empty metric branch
+ */
+function emptyVoltageCurrentBranch() {
+    return {
+        latest: null,
+        sessionAvg: null,
+        sessionMin: null,
+        sessionMax: null,
+        rollingAvg: null
+    }
+}
+
+/**
+ * @brief Compute time-weighted average of a channel over sample intervals in a window.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {string} key - Sample field key
+ * @param {number} windowStartMs - Inclusive window start timestamp
+ * @param {number} windowEndMs - Inclusive window end timestamp
+ * @param {number} maxDtMs - Max interval duration to trust
+ * @returns {number|null} Time-weighted average or null
+ */
+function timeWeightedChannelAverage(samples, key, windowStartMs, windowEndMs, maxDtMs) {
+    const data = Array.isArray(samples) ? samples : []
+    if (data.length < 2 || !Number.isFinite(windowStartMs) || !Number.isFinite(windowEndMs)) return null
+
+    let weightedSum = 0
+    let totalMs = 0
+
+    for (let i = 0; i < data.length - 1; i += 1) {
+        const sample = data[i] || {}
+        const nextSample = data[i + 1] || {}
+        const ts = toFiniteNumber(sample.timestamp)
+        const nextTs = toFiniteNumber(nextSample.timestamp)
+        if (ts === null || nextTs === null) continue
+
+        const value = toFiniteNumber(sample[key])
+        if (value === null) continue
+
+        const intervalStart = Math.max(ts, windowStartMs)
+        const intervalEnd = Math.min(nextTs, windowEndMs)
+        const dtMs = intervalEnd - intervalStart
+        if (!isValidDuration(dtMs, maxDtMs) || dtMs <= 0) continue
+
+        weightedSum += value * dtMs
+        totalMs += dtMs
+    }
+
+    return totalMs > 0 ? weightedSum / totalMs : null
+}
+
+/**
+ * @brief Summarise pack voltage and current for session and rolling windows.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Summary options
+ * @param {number} [options.rollingWindowSec=60] - Rolling average lookback in seconds
+ * @param {number} [options.maxDtMs=10000] - Max interval duration for rolling weighting
+ * @returns {Object} Session and rolling voltage/current statistics
+ */
+export function computeVoltageCurrentSummary(samples, options = {}) {
+    const rollingWindowSec = Number.isFinite(options.rollingWindowSec) ? Math.max(5, options.rollingWindowSec) : 60
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const data = Array.isArray(samples) ? samples : []
+
+    const empty = {
+        voltage: emptyVoltageCurrentBranch(),
+        current: {
+            ...emptyVoltageCurrentBranch(),
+            peak: null
+        },
+        rollingWindowSec
+    }
+
+    if (data.length === 0) return empty
+
+    const voltageValues = []
+    const currentValues = []
+    let peakCurrent = null
+    let latestVoltage = null
+    let latestCurrent = null
+    let latestTimestamp = null
+
+    for (const sample of data) {
+        const ts = toFiniteNumber(sample?.timestamp)
+        const voltage = toFiniteNumber(sample?.voltage)
+        const current = toFiniteNumber(sample?.current)
+
+        if (voltage !== null) voltageValues.push(voltage)
+        if (current !== null) {
+            currentValues.push(current)
+            peakCurrent = peakCurrent === null ? current : Math.max(peakCurrent, current)
+        }
+
+        if (ts !== null && (latestTimestamp === null || ts >= latestTimestamp)) {
+            latestTimestamp = ts
+            if (voltage !== null) latestVoltage = voltage
+            if (current !== null) latestCurrent = current
+        }
+    }
+
+    const rollingStartMs = Number.isFinite(latestTimestamp)
+        ? latestTimestamp - (rollingWindowSec * 1000)
+        : null
+    const rollingVoltage = rollingStartMs === null
+        ? null
+        : timeWeightedChannelAverage(data, 'voltage', rollingStartMs, latestTimestamp, maxDtMs)
+    const rollingCurrent = rollingStartMs === null
+        ? null
+        : timeWeightedChannelAverage(data, 'current', rollingStartMs, latestTimestamp, maxDtMs)
+
+    const voltageMin = voltageValues.length > 0 ? Math.min(...voltageValues) : null
+    const voltageMax = voltageValues.length > 0 ? Math.max(...voltageValues) : null
+    const currentMin = currentValues.length > 0 ? Math.min(...currentValues) : null
+    const currentMax = currentValues.length > 0 ? Math.max(...currentValues) : null
+
+    return {
+        voltage: {
+            latest: latestVoltage,
+            sessionAvg: average(voltageValues),
+            sessionMin: voltageMin,
+            sessionMax: voltageMax,
+            rollingAvg: rollingVoltage
+        },
+        current: {
+            latest: latestCurrent,
+            sessionAvg: average(currentValues),
+            sessionMin: currentMin,
+            sessionMax: currentMax,
+            rollingAvg: rollingCurrent,
+            peak: peakCurrent
+        },
+        rollingWindowSec
+    }
+}
+
+/**
+ * @brief Empty hero-band bar branch when session range is unavailable.
+ * @returns {Object} Empty bar branch
+ */
+function emptyHeroBarBranch() {
+    return {
+        latest: null,
+        sessionMin: null,
+        sessionMax: null,
+        barMin: null,
+        barMax: null,
+        barPercent: null
+    }
+}
+
+/**
+ * @brief Derive hero band bar bounds from session min/max with optional fixed ceiling.
+ * @param {number|null} sessionMin - Session minimum value
+ * @param {number|null} sessionMax - Session maximum value
+ * @param {Object} [options] - Bar options
+ * @param {number} [options.fixedMax] - Override maximum bar bound
+ * @returns {{ barMin: number|null, barMax: number|null }} Bar axis bounds
+ */
+function heroBarBoundsFromSessionRange(sessionMin, sessionMax, options = {}) {
+    if (!Number.isFinite(sessionMin) || !Number.isFinite(sessionMax)) {
+        return { barMin: null, barMax: null }
+    }
+    // Pad session range by 10% below min and above max for bar headroom.
+    const barMin = sessionMin * 0.9
+    const barMax = Number.isFinite(options.fixedMax) ? options.fixedMax : sessionMax * 1.1
+    return { barMin, barMax }
+}
+
+/**
+ * @brief Calculate clamped bar fill percent for a value within bar min/max.
+ * @param {number|null} value - Latest value to position on the bar
+ * @param {number|null} barMin - Bar minimum bound
+ * @param {number|null} barMax - Bar maximum bound
+ * @returns {number|null} Fill percent 0–100 or null
+ */
+function heroBarPercentForValue(value, barMin, barMax) {
+    if (!Number.isFinite(value) || !Number.isFinite(barMin) || !Number.isFinite(barMax)) return null
+    const span = barMax - barMin
+    if (span <= 0) return null
+    return Math.max(0, Math.min(100, ((value - barMin) / span) * 100))
+}
+
+/**
+ * @brief Build a hero-band bar branch with latest value, bounds, and fill percent.
+ * @param {number|null} latest - Latest observed value
+ * @param {number|null} sessionMin - Session minimum
+ * @param {number|null} sessionMax - Session maximum
+ * @param {Object} [options] - Branch options (e.g. fixedMax)
+ * @returns {Object} Hero bar branch
+ */
+function buildHeroBarBranch(latest, sessionMin, sessionMax, options = {}) {
+    const { barMin, barMax } = heroBarBoundsFromSessionRange(sessionMin, sessionMax, options)
+    return {
+        latest,
+        sessionMin,
+        sessionMax,
+        barMin,
+        barMax,
+        barPercent: heroBarPercentForValue(latest, barMin, barMax)
+    }
+}
+
+/**
+ * @brief Resolve sample instantaneous power in watts.
+ * @param {Object} sample - Telemetry sample
+ * @returns {number|null} Power in watts
+ */
+function samplePowerW(sample) {
+    const direct = toFiniteNumber(sample?.powerW)
+    if (direct !== null) return direct
+    const voltage = toFiniteNumber(sample?.voltage)
+    const current = toFiniteNumber(sample?.current)
+    if (voltage === null || current === null) return null
+    return voltage * current
+}
+
+/**
+ * @brief Compute hero-band progress bar metrics for voltage, current, speed, and power.
+ * @description Bar scale uses session min −10% to session max +10%, except current which
+ *              uses a fixed amp ceiling (default 35 A).
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Bar options
+ * @param {number} [options.currentBarMaxA=35] - Fixed max current for bar scale (A)
+ * @param {Object} [options.latestValues] - Optional live latest overrides by key
+ * @returns {Object} Bar metrics per signal
+ */
+export function computeHeroBandBarMetrics(samples, options = {}) {
+    const currentBarMaxA = Number.isFinite(options.currentBarMaxA) ? options.currentBarMaxA : 35
+    const latestOverrides = options.latestValues || {}
+    const data = Array.isArray(samples) ? samples : []
+
+    const empty = {
+        voltage: emptyHeroBarBranch(),
+        current: emptyHeroBarBranch(),
+        speed: emptyHeroBarBranch(),
+        power: emptyHeroBarBranch()
+    }
+
+    if (data.length === 0) return empty
+
+    const voltageValues = []
+    const currentValues = []
+    const speedValues = []
+    const powerValues = []
+
+    for (const sample of data) {
+        const voltage = toFiniteNumber(sample?.voltage)
+        const current = toFiniteNumber(sample?.current)
+        const speed = toFiniteNumber(sample?.speed)
+        const power = samplePowerW(sample)
+
+        if (voltage !== null) voltageValues.push(voltage)
+        if (current !== null) currentValues.push(current)
+        if (speed !== null) speedValues.push(speed)
+        if (power !== null) powerValues.push(power)
+    }
+
+    const latestSample = data[data.length - 1] || {}
+
+    const resolveLatest = (overrideKey, sampleKey, values) => {
+        const override = toFiniteNumber(latestOverrides[overrideKey])
+        if (override !== null) return override
+        const fromSample = toFiniteNumber(latestSample[sampleKey])
+        if (fromSample !== null) return fromSample
+        return values.length > 0 ? values[values.length - 1] : null
+    }
+
+    const voltageMin = voltageValues.length ? Math.min(...voltageValues) : null
+    const voltageMax = voltageValues.length ? Math.max(...voltageValues) : null
+    const currentMin = currentValues.length ? Math.min(...currentValues) : null
+    const currentMax = currentValues.length ? Math.max(...currentValues) : null
+    const speedMin = speedValues.length ? Math.min(...speedValues) : null
+    const speedMax = speedValues.length ? Math.max(...speedValues) : null
+    const powerMin = powerValues.length ? Math.min(...powerValues) : null
+    const powerMax = powerValues.length ? Math.max(...powerValues) : null
+
+    const latestVoltage = resolveLatest('voltage', 'voltage', voltageValues)
+    const latestCurrent = resolveLatest('current', 'current', currentValues)
+    const latestSpeed = resolveLatest('speed', 'speed', speedValues)
+    const latestPower = toFiniteNumber(latestOverrides.powerW) ?? samplePowerW(latestSample)
+
+    return {
+        voltage: buildHeroBarBranch(latestVoltage, voltageMin, voltageMax),
+        current: buildHeroBarBranch(latestCurrent, currentMin, currentMax, { fixedMax: currentBarMaxA }),
+        speed: buildHeroBarBranch(latestSpeed, speedMin, speedMax),
+        power: buildHeroBarBranch(latestPower, powerMin, powerMax)
+    }
+}
+
+/**
+ * @brief Build overview timeline points for pack voltage, current, and optional overlays.
+ * @param {Array<Object>} samples - Telemetry samples sorted by timestamp
+ * @param {Object} [options] - Timeline options
+ * @param {number} [options.maxDtMs=10000] - Max interval duration for cadence filtering
+ * @returns {Array<Object>} Timeline points for overview signal chart
+ */
+export function buildOverviewSignalsTimeline(samples, options = {}) {
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const data = Array.isArray(samples) ? samples : []
+    const timeline = []
+
+    for (const sample of data) {
+        const timestamp = toFiniteNumber(sample?.timestamp)
+        if (timestamp === null) continue
+
+        timeline.push({
+            timestamp,
+            voltage: toFiniteNumber(sample.voltage),
+            current: toFiniteNumber(sample.current),
+            temp1: toFiniteNumber(sample.temp1),
+            temp2: toFiniteNumber(sample.temp2),
+            speed: toFiniteNumber(sample.speed),
+            throttle: toFiniteNumber(sample.throttle)
+        })
+    }
+
+    return timeline.filter((point, index) => {
+        if (index >= timeline.length - 1) return true
+        const dtMs = timeline[index + 1].timestamp - point.timestamp
+        return isValidDuration(dtMs, maxDtMs)
+    })
+}

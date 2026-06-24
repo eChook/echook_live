@@ -21,6 +21,31 @@ describe('useHistory', () => {
         vi.clearAllMocks()
     })
 
+    it('tracks loading state while fetching available days', async () => {
+        const history = useHistory({
+            historyRef: ref([]),
+            displayHistoryRef: ref([]),
+            maxPointsRef: ref(1000),
+            processPacket: vi.fn((packet) => packet),
+            processLapData: vi.fn(),
+            clearRaces: vi.fn()
+        })
+
+        let resolveRequest
+        api.get.mockImplementationOnce(() => new Promise((resolve) => {
+            resolveRequest = resolve
+        }))
+
+        const fetchPromise = history.fetchAvailableDays('car-1')
+        expect(history.isFetchingAvailableDays.value).toBe(true)
+
+        resolveRequest({ data: ['2026-06-01', '2026-06-02'] })
+        await fetchPromise
+
+        expect(history.isFetchingAvailableDays.value).toBe(false)
+        expect(history.availableDays.value.has('2026-06-01')).toBe(true)
+    })
+
     it('ignores stale overlapping fetch responses', async () => {
         const historyRef = ref([])
         const displayHistoryRef = ref([])

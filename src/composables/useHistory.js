@@ -40,6 +40,12 @@ export function useHistory({
     /** @brief Set of available history days (YYYY-MM-DD format) */
     const availableDays = ref(new Set())
 
+    /** @brief True while the server days list request is in flight */
+    const isFetchingAvailableDays = ref(false)
+
+    /** @brief Monotonic token so stale available-days responses are ignored */
+    let availableDaysFetchToken = 0
+
     /**
      * @brief Earliest timestamp in history.
      * @type {ComputedRef<number|null>}
@@ -76,13 +82,23 @@ export function useHistory({
      */
     async function fetchAvailableDays(carId) {
         if (!carId) return
+
+        const token = ++availableDaysFetchToken
+        isFetchingAvailableDays.value = true
+
         try {
             const response = await api.get(`/api/history/days/${carId}`)
+            if (token !== availableDaysFetchToken) return
             if (Array.isArray(response.data)) {
                 availableDays.value = new Set(response.data)
             }
         } catch (error) {
+            if (token !== availableDaysFetchToken) return
             console.error('Failed to fetch available days:', error)
+        } finally {
+            if (token === availableDaysFetchToken) {
+                isFetchingAvailableDays.value = false
+            }
         }
     }
 
@@ -247,6 +263,7 @@ export function useHistory({
 
     return {
         availableDays,
+        isFetchingAvailableDays,
         earliestTime,
         latestTime,
         isHistoryTruncated,

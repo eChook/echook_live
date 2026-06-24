@@ -11,25 +11,34 @@ import { useTelemetryStore } from '../../stores/telemetry'
 import { useSettingsStore } from '../../stores/settings'
 import BatterySectionPanel from '../analytics/BatterySectionPanel.vue'
 import AnalyticsWindowPickerModal from '../analytics/AnalyticsWindowPickerModal.vue'
+import OverviewLapTrendChart from '../analytics/OverviewLapTrendChart.vue'
+import OverviewHistogramChart from '../analytics/OverviewHistogramChart.vue'
+import OverviewSignalsChart from '../analytics/OverviewSignalsChart.vue'
 import {
-  computeThrottleHistogram,
+  computeChannelHistogram,
   computeThrottleBrakeOverlap,
   computeStartMetrics,
   computeSupplyResistance,
   computeBatteryWindowMetrics,
+  computeBatterySoC,
   computeSessionStintKpis,
   computeEnergyThermalSummary,
+  computeVoltageCurrentSummary,
+  computeHeroBandBarMetrics,
+  buildOverviewSignalsTimeline,
   computeBaselineComparison,
   detectReliabilityEvents,
   buildEventJumpWindow
 } from '../../utils/analyticsMetrics'
 import { exportEventsAsCsv } from '../../utils/csvExport'
 import { METRIC_PRECISION } from '../../utils/metricPrecision'
+import { getMetricColorMap } from '../../constants/chartTheme'
 import {
   formatClockTime,
   computeCapacityDodPercent,
   formatVoltageZoneLabel,
-  formatLoadedZoneLabel
+  formatLoadedZoneLabel,
+  isBatteryChannelAvailable
 } from '../../utils/formatting'
 import {
   filterSamplesByWindow,
@@ -248,12 +257,97 @@ const comparisonLaps = computed(() => {
   return race ? Object.values(race.laps || {}).sort((a, b) => a.lapNumber - b.lapNumber) : []
 })
 
-/** @brief Histogram metrics for current window. */
-const throttleHistogram = computed(() =>
-  computeThrottleHistogram(activeSamples.value, {
+/** @brief Theme-aware metric line colors (matches overview charts). */
+const metricColors = computed(() => getMetricColorMap(settings.resolvedTheme))
+
+/** @brief Selected SoC estimation method for live overview (Peukert vs C/20). */
+const socMethod = ref('peukert')
+
+/** @brief Selected optional overlays on the overview voltage/current chart. */
+const overviewSignalOverlays = ref([])
+
+/** @brief Pack voltage and current session + rolling statistics. */
+const voltageCurrentSummary = computed(() =>
+  computeVoltageCurrentSummary(activeSamples.value, {
+    rollingWindowSec: 60,
     maxDtMs: 10000
   })
 )
+
+/** @brief Hero-band bar fill metrics for voltage, current, speed, and power tiles. */
+const heroBandBars = computed(() =>
+  computeHeroBandBarMetrics(activeSamples.value, {
+    currentBarMaxA: 35,
+    latestValues: mode.value === 'live'
+      ? {
+          voltage: telemetry.displayLiveData?.voltage,
+          current: telemetry.displayLiveData?.current,
+          speed: telemetry.displayLiveData?.speed,
+          powerW: telemetry.displayLiveData?.powerW
+        }
+      : {}
+  })
+)
+
+/** @brief Timeline points for overview pack voltage/current chart. */
+const overviewSignalsTimeline = computed(() =>
+  buildOverviewSignalsTimeline(activeSamples.value, { maxDtMs: 10000 })
+)
+
+/** @brief Selected channel for overview distribution histogram. */
+const histogramChannel = ref('throttle')
+
+/** @brief Live battery SoC estimate for overview hero (live mode only). */
+const batterySoC = computed(() =>
+  computeBatterySoC(activeSamples.value, {
+    method: socMethod.value,
+    maxDtMs: 10000,
+    nominalCapacityAh: batteryPackSettings.value.nominalCapacityAh,
+    actualCapacityAh: batteryPackSettings.value.actualCapacityAh,
+    peukertExponent: batteryPackSettings.value.peukertExponent,
+    nominalSeriesVoltage: batteryPackSettings.value.nominalSeriesVoltage,
+    supplyResistance: resistanceMetrics.value.branches?.total || resistanceMetrics.value,
+    irCurrentDeadbandA: irEstimationOptions.value.irCurrentDeadbandA
+  })
+)
+
+/** @brief Channel histogram metrics for current window. */
+const channelHistogram = computed(() =>
+  computeChannelHistogram(activeSamples.value, histogramChannel.value, {
+    maxDtMs: 10000,
+    speedUnit: telemetry.unitSettings.speedUnit
+  })
+)
+
+/** @brief Elapsed session time in seconds for live overview band. */
+const sessionElapsedSec = computed(() => {
+  const bounds = analyticsWindowBounds.value
+  if (!bounds || !Number.isFinite(bounds.startMs)) return null
+  return Math.max(0, (latestTimestamp.value - bounds.startMs) / 1000)
+})
+
+/** @brief Wh-per-km derived from window energy summary. */
+const whPerKm = computed(() => {
+  const miles = energyThermal.value.distanceMiles
+  if (!Number.isFinite(miles) || miles <= 0) return null
+  const km = miles * 1.609344
+  return energyThermal.value.totalWh / km
+})
+
+/**
+ * @brief Lap efficiency trend: last 3 laps vs prior 3 (positive = improving).
+ * @returns {number|null} Delta in average lap efficiency
+ */
+const lapEfficiencyTrendDelta = computed(() => {
+  const laps = activeLaps.value
+  if (laps.length < 4) return null
+  const recent = laps.slice(-3).map((lap) => Number(lap?.LL_Eff)).filter(Number.isFinite)
+  const prior = laps.slice(-6, -3).map((lap) => Number(lap?.LL_Eff)).filter(Number.isFinite)
+  if (recent.length === 0 || prior.length === 0) return null
+  const recentAvg = recent.reduce((sum, value) => sum + value, 0) / recent.length
+  const priorAvg = prior.reduce((sum, value) => sum + value, 0) / prior.length
+  return recentAvg - priorAvg
+})
 
 /** @brief Overlap metrics for current window. */
 const overlapMetrics = computed(() =>
@@ -337,6 +431,10 @@ const batteryMetrics = computed(() =>
     supplyResistance: resistanceMetrics.value
   })
 )
+
+/** @brief Whether upper/lower per-battery telemetry channels look connected (latest V >= 1 V). */
+const upperBatteryAvailable = computed(() => isBatteryChannelAvailable(batteryMetrics.value.upper))
+const lowerBatteryAvailable = computed(() => isBatteryChannelAvailable(batteryMetrics.value.lower))
 
 /**
  * @brief Battery metric help metadata keyed by metric id.
@@ -437,17 +535,17 @@ const BATTERY_METRIC_HELP = Object.freeze({
   dodPct: {
     title: 'Depth of Discharge (Estimated)',
     metricType: 'estimated',
-    whatItShows: 'Window discharge (Ah), Peukert-normalized C/20 cycle discharge (Ah), and DoD percentages against Peukert capacity, ideal capacity, and normalized C/20 vs ideal.',
-    howToUse: 'Compare window vs normalized C/20 discharge: both cover the full active window, but normalized C/20 applies Peukert weighting per sample so high-rate discharge counts as more equivalent Ah than raw coulomb counting. V_C/20 voltage on charts is separate—it emulates terminal voltage at C/20 current and does not drive normalized Ah.',
+    whatItShows: 'Window discharge (Ah), Peukert-normalized discharge (Ah), primary DoD % vs ideal capacity, and raw coulomb DoD % vs ideal for comparison.',
+    howToUse: 'Use Normalised Discharge vs Ideal as the primary metric: per-sample Peukert weighting handles variable race current better than dividing raw Ah by a single average-rate capacity. Compare with raw discharge vs ideal to see how much Peukert weighting changed the picture.',
     caveats: [
-      'Peukert capacity depends on average discharge current in the active window.',
-      'Normalized C/20 discharge integrates I × (I/I_C20)^(k−1) over the full window; it is not tied to V_C/20 voltage.',
-      'At average current below C/20 (1.8 A for 36 Ah), normalized Ah can be lower than window discharge even though V_C/20 reads higher than terminal voltage.',
-      'Ideal capacity comes from Settings or a near-full discharge inference.',
+      'Primary DoD integrates I × (I/I_C20)^(k−1) over the full window; it is not tied to V_C/20 voltage on SoH charts.',
+      'Peukert capacity (Ah) on the Capacity card is informational — it is not the DoD denominator.',
+      'At average current below C/20 (1.8 A for 36 Ah), normalized Ah can be lower than window discharge.',
+      'Ideal capacity comes from Settings or a near-full discharge inference; inaccurate settings skew DoD %.',
       'Prefers cumulative ampH delta when it aligns with current integration.'
     ],
-    confidenceInterpretation: 'Primary DoD metric uses Peukert capacity when available.',
-    formula: 'Window DoD% = (windowDischargeAh / capacity) × 100; Ah_norm = ∫ I × (I/I_C20)^(k−1) dt over window; normalized DoD% = (Ah_norm / C_ideal) × 100',
+    confidenceInterpretation: 'Confidence follows integration sample count, interval coverage, and discharge depth in the active window.',
+    formula: 'DoD% = (∫ I×(I/I_C20)^(k−1) dt / C_ideal) × 100; I_C20 = C_nominal/20',
     inputs: 'current or ampH, timestamp, Peukert exponent, nominal and ideal capacity',
     updateCadence: 'Updates with active window.'
   },
@@ -491,6 +589,7 @@ const BATTERY_METRIC_HELP = Object.freeze({
     caveats: [
       'Pack section (24 V combined): High >= 25.0 V; Medium 24.0–24.99 V; Low 22.4–23.99 V; near_cutoff 19.2–22.39 V; deep_discharge < 19.2 V.',
       'Per-battery sections use equivalent half-pack baselines: 12.5 V, 12.0 V, 11.2 V, and 9.6 V cutoff.',
+      'Loaded (per 12 V block): Healthy >= 11.7 V; Comfortable >= 11.5 V; Caution >= 11.3 V; Warning >= 11.1 V; then near cutoff / critical / deep discharge.',
       'Loaded voltage has its own classification and should not be merged with OCV zone.',
       'V_oc estimate requires a valid combined V-I resistance fit in the active window.',
       'Tracks the latest battery sample received in the active window.'
@@ -692,26 +791,74 @@ function formatSigned(value, digits = 2) {
 }
 
 /**
- * @brief Create sparkline SVG path from numeric series.
- * @param {number[]} values - Numeric values
- * @param {number} [width=128] - SVG width
- * @param {number} [height=40] - SVG height
- * @returns {string} SVG path string
+ * @brief Format elapsed seconds as mm:ss for live session timer.
+ * @param {number|null} totalSec - Elapsed seconds
+ * @returns {string} mm:ss label or dash
  */
-function buildSparklinePath(values, width = 128, height = 40) {
-  if (!Array.isArray(values) || values.length === 0) return ''
-  const finite = values.filter((value) => Number.isFinite(value))
-  if (finite.length === 0) return ''
-  const min = Math.min(...finite)
-  const max = Math.max(...finite)
-  const range = max - min || 1
-  return values
-    .map((value, index) => {
-      const x = values.length > 1 ? (index / (values.length - 1)) * width : width / 2
-      const y = height - (((value - min) / range) * height)
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`
-    })
-    .join(' ')
+function formatElapsedMmSs(totalSec) {
+  if (!Number.isFinite(totalSec) || totalSec < 0) return '-'
+  const minutes = Math.floor(totalSec / 60)
+  const seconds = Math.floor(totalSec % 60)
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+/**
+ * @brief Resolve SoC tile background utility classes from percent remaining.
+ * @param {number|null} socPct - State of charge percent
+ * @returns {string} Tailwind utility classes
+ */
+function getSocTileClass(socPct) {
+  if (!Number.isFinite(socPct)) {
+    return 'bg-zinc-100 dark:bg-neutral-900 border-zinc-200 dark:border-neutral-700'
+  }
+  if (socPct >= 60) {
+    return 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+  }
+  if (socPct >= 30) {
+    return 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+  }
+  return 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+}
+
+/**
+ * @brief Toggle live SoC estimation method between Peukert and C/20.
+ */
+function toggleSocMethod() {
+  socMethod.value = socMethod.value === 'peukert' ? 'c20' : 'peukert'
+}
+
+/**
+ * @brief Resolve speed unit label for live overview display.
+ * @returns {string} Speed unit suffix
+ */
+function speedUnitLabel() {
+  const unit = telemetry.unitSettings.speedUnit
+  if (unit === 'kph') return 'kph'
+  if (unit === 'ms') return 'm/s'
+  return 'mph'
+}
+
+/**
+ * @brief Clamp hero-band bar fill percent for inline width styling.
+ * @param {number|null} barPercent - Raw fill percent 0–100
+ * @returns {number} Clamped width percent
+ */
+function heroBarWidthPercent(barPercent) {
+  if (!Number.isFinite(barPercent)) return 0
+  return Math.max(0, Math.min(100, barPercent))
+}
+
+/**
+ * @brief Build inline style for a hero-band progress bar fill.
+ * @param {number|null} barPercent - Fill percent 0–100
+ * @param {string} metricKey - Metric key in chart theme color map
+ * @returns {Object} Width and background-color style object
+ */
+function heroBarFillStyle(barPercent, metricKey) {
+  return {
+    width: `${heroBarWidthPercent(barPercent)}%`,
+    backgroundColor: metricColors.value[metricKey] || metricColors.value.voltage
+  }
 }
 
 /**
@@ -960,6 +1107,192 @@ function handleExportEventsCsv() {
 
     <div v-else class="flex-1 overflow-y-auto space-y-4 pr-1 min-h-0">
       <div v-if="activeSubTab === 'overview'" class="space-y-4">
+      <!-- Live mode: at-a-glance status band -->
+      <div
+        v-if="mode === 'live'"
+        class="grid grid-cols-2 md:grid-cols-4 gap-3"
+        data-test="overview-live-band"
+      >
+        <div
+          class="rounded-lg border p-3 col-span-2 md:col-span-1"
+          :class="getSocTileClass(batterySoC.socPct)"
+        >
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-600 dark:text-gray-300">Battery SoC</div>
+            <button
+              type="button"
+              class="px-1.5 py-0.5 rounded text-[10px] font-bold border border-zinc-300 dark:border-neutral-600"
+              data-test="soc-method-toggle"
+              @click="toggleSocMethod"
+            >
+              {{ socMethod === 'peukert' ? 'Peukert' : 'C/20' }}
+            </button>
+          </div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatMetric(batterySoC.socPct, 1) }}%
+          </div>
+          <div class="mt-2 h-2 w-full bg-zinc-200/80 dark:bg-neutral-700 rounded overflow-hidden">
+            <div
+              class="h-full bg-primary rounded transition-all"
+              :style="{ width: `${Math.max(0, Math.min(100, batterySoC.socPct || 0))}%` }"
+            />
+          </div>
+          <div v-if="!Number.isFinite(batterySoC.socPct)" class="mt-1 text-[10px] text-zinc-500 dark:text-gray-400">
+            {{ batterySoC.reason ? batterySoC.reason.replace(/_/g, ' ') : 'Unavailable' }}
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Pack Voltage</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatMetric(voltageCurrentSummary.voltage.latest, METRIC_PRECISION.voltage) }}
+            <span class="text-sm font-sans text-zinc-500 dark:text-gray-400">V</span>
+          </div>
+          <div class="mt-2 h-2 w-full bg-zinc-200/80 dark:bg-neutral-700 rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              data-test="hero-bar-voltage"
+              :style="heroBarFillStyle(heroBandBars.voltage.barPercent, 'voltage')"
+            />
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Pack Current</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatMetric(voltageCurrentSummary.current.latest, METRIC_PRECISION.current) }}
+            <span class="text-sm font-sans text-zinc-500 dark:text-gray-400">A</span>
+          </div>
+          <div class="mt-2 h-2 w-full bg-zinc-200/80 dark:bg-neutral-700 rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              data-test="hero-bar-current"
+              :style="heroBarFillStyle(heroBandBars.current.barPercent, 'current')"
+            />
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Speed</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatMetric(telemetry.displayLiveData?.speed, 1) }}
+            <span class="text-sm font-sans text-zinc-500 dark:text-gray-400">{{ speedUnitLabel() }}</span>
+          </div>
+          <div class="mt-2 h-2 w-full bg-zinc-200/80 dark:bg-neutral-700 rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              data-test="hero-bar-speed"
+              :style="heroBarFillStyle(heroBandBars.speed.barPercent, 'speed')"
+            />
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Power</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatMetric(telemetry.displayLiveData?.powerW, METRIC_PRECISION.powerW) }}
+            <span class="text-sm font-sans text-zinc-500 dark:text-gray-400">W</span>
+          </div>
+          <div class="mt-2 h-2 w-full bg-zinc-200/80 dark:bg-neutral-700 rounded overflow-hidden">
+            <div
+              class="h-full rounded transition-all"
+              data-test="hero-bar-power"
+              :style="heroBarFillStyle(heroBandBars.power.barPercent, 'powerW')"
+            />
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Temperature</div>
+          <div class="text-lg font-mono font-bold text-zinc-900 dark:text-white">
+            T1 {{ formatMetric(telemetry.displayLiveData?.temp1, 1) }}°
+          </div>
+          <div class="text-lg font-mono font-bold text-zinc-900 dark:text-white">
+            T2 {{ formatMetric(telemetry.displayLiveData?.temp2, 1) }}°
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Current Lap</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ Number.isFinite(telemetry.displayLiveData?.currLap) ? telemetry.displayLiveData.currLap : '-' }}
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-3">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Session Elapsed</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">
+            {{ formatElapsedMmSs(sessionElapsedSec) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- History mode: session hero tiles -->
+      <div
+        v-if="mode === 'history'"
+        class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
+        data-test="overview-history-hero"
+      >
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Best Lap</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ formatMetric(sessionKpis.bestLapTimeSec) }} s</div>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Total Laps</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ sessionKpis.totalLaps }}</div>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Total Energy</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.totalWh, METRIC_PRECISION.energyWh) }} Wh</div>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Avg Efficiency</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ formatMetric(sessionKpis.averageEfficiency) }}</div>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Latest Voltage</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.voltage.latest, METRIC_PRECISION.voltage) }} V</div>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+          <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-1">Latest Current</div>
+          <div class="text-2xl font-mono font-bold text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.latest, METRIC_PRECISION.current) }} A</div>
+        </div>
+      </div>
+
+      <div class="space-y-3" data-test="overview-pack-electrical">
+        <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">Pack Electrical</div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+            <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Pack Voltage</div>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-700 dark:text-gray-300">
+              <div>Session Avg: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.voltage.sessionAvg, METRIC_PRECISION.voltage) }} V</span></div>
+              <div>Rolling Avg ({{ voltageCurrentSummary.rollingWindowSec }}s): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.voltage.rollingAvg, METRIC_PRECISION.voltage) }} V</span></div>
+              <div>Session Min: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.voltage.sessionMin, METRIC_PRECISION.voltage) }} V</span></div>
+              <div>Session Max: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.voltage.sessionMax, METRIC_PRECISION.voltage) }} V</span></div>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+            <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-2">Pack Current</div>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-700 dark:text-gray-300">
+              <div>Session Avg: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.sessionAvg, METRIC_PRECISION.current) }} A</span></div>
+              <div>Rolling Avg ({{ voltageCurrentSummary.rollingWindowSec }}s): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.rollingAvg, METRIC_PRECISION.current) }} A</span></div>
+              <div>Session Peak: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.peak, METRIC_PRECISION.current) }} A</span></div>
+              <div>Session Min: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.sessionMin, METRIC_PRECISION.current) }} A</span></div>
+              <div>Session Max: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(voltageCurrentSummary.current.sessionMax, METRIC_PRECISION.current) }} A</span></div>
+            </div>
+          </div>
+        </div>
+
+        <OverviewSignalsChart
+          :series="overviewSignalsTimeline"
+          :overlays="overviewSignalOverlays"
+          :speed-unit="telemetry.unitSettings.speedUnit"
+          @update:overlays="overviewSignalOverlays = $event"
+        />
+      </div>
+
       <details class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4" open>
         <summary class="cursor-pointer text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">
           Session KPI Summary
@@ -979,25 +1312,12 @@ function handleExportEventsCsv() {
             <div class="text-[11px] text-zinc-500 dark:text-gray-400">Slope {{ formatSigned(sessionKpis.lastNTrendSlopeSecPerLap, 3) }} s/lap</div>
           </div>
         </div>
-        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2">
-            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">LL_Time degradation</div>
-            <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
-              <path :d="buildSparklinePath(sessionKpis.degradation.lapTime.sparkline)" fill="none" stroke="currentColor" class="text-primary" stroke-width="2" />
-            </svg>
-          </div>
-          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2">
-            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">LL_Ah degradation</div>
-            <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
-              <path :d="buildSparklinePath(sessionKpis.degradation.lapAh.sparkline)" fill="none" stroke="currentColor" class="text-amber-500" stroke-width="2" />
-            </svg>
-          </div>
-          <div class="rounded border border-zinc-200 dark:border-neutral-700 p-2">
-            <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">LL_Eff degradation</div>
-            <svg class="w-full h-10 mt-2" viewBox="0 0 128 40" preserveAspectRatio="none">
-              <path :d="buildSparklinePath(sessionKpis.degradation.lapEfficiency.sparkline)" fill="none" stroke="currentColor" class="text-emerald-500" stroke-width="2" />
-            </svg>
-          </div>
+        <div class="mt-3">
+          <OverviewLapTrendChart
+            :lap-time="sessionKpis.degradation.lapTime"
+            :lap-ah="sessionKpis.degradation.lapAh"
+            :lap-efficiency="sessionKpis.degradation.lapEfficiency"
+          />
         </div>
       </details>
 
@@ -1023,7 +1343,17 @@ function handleExportEventsCsv() {
           <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
             <div>Total: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.totalWh, METRIC_PRECISION.energyWh) }} Wh</span></div>
             <div>Wh/Mile: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.whPerMile, METRIC_PRECISION.energyWh) }}</span></div>
+            <div>Wh/km: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(whPerKm, METRIC_PRECISION.energyWh) }}</span></div>
             <div>Distance: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(energyThermal.distanceMiles, METRIC_PRECISION.distanceMiles) }} mi</span></div>
+            <div v-if="lapEfficiencyTrendDelta !== null" class="text-[11px]">
+              Eff trend (last 3 vs prior 3):
+              <span
+                class="font-mono font-semibold"
+                :class="lapEfficiencyTrendDelta >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'"
+              >
+                {{ lapEfficiencyTrendDelta >= 0 ? '↑' : '↓' }} {{ formatSigned(lapEfficiencyTrendDelta, 3) }}
+              </span>
+            </div>
           </div>
         </div>
         <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
@@ -1044,51 +1374,38 @@ function handleExportEventsCsv() {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <details class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4" :open="isStartCardOpen">
-          <summary class="cursor-pointer text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Race Start</summary>
-          <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300 mt-3">
-            <div>Peak Current (30s): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.peakCurrentFirst30sA, 1) }} A</span></div>
-            <div>Wh First 30s: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.whFirst30s, METRIC_PRECISION.energyWh) }} Wh</span></div>
-            <div>0-10 mph: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.time0to10mphSec, 2) }} s</span></div>
-            <div>0-20 mph: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.time0to20mphSec, 2) }} s</span></div>
-          </div>
-          <p class="mt-3 text-[11px] text-amber-700 dark:text-amber-400">
-            {{ startMetrics.disclaimer }}
-          </p>
-        </details>
+      <div class="space-y-3" data-test="overview-driver-performance">
+        <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">Driver Performance</div>
 
-        <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
-          <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Throttle + Brake Overlap</div>
-          <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
-            <div>Events: <span class="font-mono text-zinc-900 dark:text-white">{{ overlapMetrics.eventCount }}</span></div>
-            <div>Total Duration: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.totalDurationSec, 2) }} s</span></div>
-            <div>Longest Event: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.maxDurationSec, 2) }} s</span></div>
-            <div>Overlap Energy: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.overlapWh, METRIC_PRECISION.energyWh) }} Wh</span></div>
-          </div>
-        </div>
-      </div>
+        <OverviewHistogramChart
+          :histogram="channelHistogram"
+          :channel="histogramChannel"
+          @update:channel="histogramChannel = $event"
+        />
 
-      <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
-        <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">
-          Throttle Histogram (Time / Energy)
-        </div>
-
-        <div class="space-y-3">
-          <div v-for="bin in throttleHistogram.bins" :key="bin.id" class="space-y-1">
-            <div class="flex items-center justify-between text-xs text-zinc-600 dark:text-gray-400">
-              <span class="font-semibold text-zinc-800 dark:text-gray-200">{{ bin.label }}</span>
-              <span class="font-mono">
-                {{ formatMetric(bin.timePct, 1) }}% time / {{ formatMetric(bin.whPct, 1) }}% Wh
-              </span>
-            </div>
-            <div class="h-2 w-full bg-zinc-200 dark:bg-neutral-700 rounded overflow-hidden">
-              <div class="h-full bg-primary/70 rounded" :style="{ width: `${Math.max(0, Math.min(100, bin.timePct))}%` }"></div>
-            </div>
-            <div class="h-2 w-full bg-zinc-200 dark:bg-neutral-700 rounded overflow-hidden">
-              <div class="h-full bg-emerald-500/70 rounded" :style="{ width: `${Math.max(0, Math.min(100, bin.whPct))}%` }"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4">
+            <div class="text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Throttle + Brake Overlap</div>
+            <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300">
+              <div>Events: <span class="font-mono text-zinc-900 dark:text-white">{{ overlapMetrics.eventCount }}</span></div>
+              <div>Total Duration: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.totalDurationSec, 2) }} s</span></div>
+              <div>Longest Event: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.maxDurationSec, 2) }} s</span></div>
+              <div>Overlap Energy: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(overlapMetrics.overlapWh, METRIC_PRECISION.energyWh) }} Wh</span></div>
             </div>
           </div>
+
+          <details class="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-4" :open="isStartCardOpen">
+            <summary class="cursor-pointer text-xs uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400 mb-3">Race Start</summary>
+            <div class="space-y-1 text-sm text-zinc-700 dark:text-gray-300 mt-3">
+              <div>Peak Current (30s): <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.peakCurrentFirst30sA, 1) }} A</span></div>
+              <div>Wh First 30s: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.whFirst30s, METRIC_PRECISION.energyWh) }} Wh</span></div>
+              <div>0-10 mph: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.time0to10mphSec, 2) }} s</span></div>
+              <div>0-20 mph: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(startMetrics.time0to20mphSec, 2) }} s</span></div>
+            </div>
+            <p class="mt-3 text-[11px] text-amber-700 dark:text-amber-400">
+              {{ startMetrics.disclaimer }}
+            </p>
+          </details>
         </div>
       </div>
       </div>
@@ -1134,34 +1451,40 @@ function handleExportEventsCsv() {
                   <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">Upper Battery</div>
                   <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('battery_pack_summary')">?</button>
                 </div>
-                <div>Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.latestVoltage, METRIC_PRECISION.voltage) }} V</span></div>
-                <div>Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.minVoltage, METRIC_PRECISION.voltage) }} V</span></div>
-                <div>Resistance: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.branches?.upper?.valid ? `${formatMetric(resistanceMetrics.branches.upper.rMilliOhm, METRIC_PRECISION.resistanceMilliOhm)} mΩ` : '-' }}</span></div>
-                <div class="mt-1 pt-1 border-t border-zinc-200/80 dark:border-neutral-600/80 space-y-0.5">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-semibold">Battery State</span>
-                    <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('voltage_zone')">?</button>
+                <template v-if="upperBatteryAvailable">
+                  <div>Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.latestVoltage, METRIC_PRECISION.voltage) }} V</span></div>
+                  <div>Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.upper.minVoltage, METRIC_PRECISION.voltage) }} V</span></div>
+                  <div>Resistance: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.branches?.upper?.valid ? `${formatMetric(resistanceMetrics.branches.upper.rMilliOhm, METRIC_PRECISION.resistanceMilliOhm)} mΩ` : '-' }}</span></div>
+                  <div class="mt-1 pt-1 border-t border-zinc-200/80 dark:border-neutral-600/80 space-y-0.5">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="font-semibold">Battery State</span>
+                      <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('voltage_zone')">?</button>
+                    </div>
+                    <div>Loaded: <span class="font-mono text-zinc-900 dark:text-white">{{ formatLoadedZoneLabel(batteryMetrics.batteryHealth?.upper?.voltageZone?.loadedZone) }}</span></div>
+                    <div>Open Circuit: <span class="font-mono text-zinc-900 dark:text-white">{{ formatVoltageZoneLabel(batteryMetrics.batteryHealth?.upper?.voltageZone?.zone) }}</span></div>
                   </div>
-                  <div>Loaded: <span class="font-mono text-zinc-900 dark:text-white">{{ formatLoadedZoneLabel(batteryMetrics.batteryHealth?.upper?.voltageZone?.loadedZone) }}</span></div>
-                  <div>Open Circuit: <span class="font-mono text-zinc-900 dark:text-white">{{ formatVoltageZoneLabel(batteryMetrics.batteryHealth?.upper?.voltageZone?.zone) }}</span></div>
-                </div>
+                </template>
+                <div v-else class="text-[11px] text-zinc-500 dark:text-gray-400 italic">Channel unavailable (voltage below 1 V)</div>
               </div>
               <div class="battery-kpi-card rounded border border-zinc-200 dark:border-neutral-700 bg-[color-mix(in_srgb,#fff_95%,#f4f4f5_5%)] dark:bg-[color-mix(in_srgb,#262626_95%,#fff_5%)] p-3 text-xs text-zinc-700 dark:text-gray-300 space-y-1">
                 <div class="flex items-center justify-between gap-2 mb-1">
                   <div class="text-[11px] uppercase font-bold tracking-wider text-zinc-500 dark:text-gray-400">Lower Battery</div>
                   <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('battery_pack_summary')">?</button>
                 </div>
-                <div>Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.latestVoltage, METRIC_PRECISION.voltage) }} V</span></div>
-                <div>Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.minVoltage, METRIC_PRECISION.voltage) }} V</span></div>
-                <div>Resistance: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.branches?.lower?.valid ? `${formatMetric(resistanceMetrics.branches.lower.rMilliOhm, METRIC_PRECISION.resistanceMilliOhm)} mΩ` : '-' }}</span></div>
-                <div class="mt-1 pt-1 border-t border-zinc-200/80 dark:border-neutral-600/80 space-y-0.5">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="font-semibold">Battery State</span>
-                    <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('voltage_zone')">?</button>
+                <template v-if="lowerBatteryAvailable">
+                  <div>Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.latestVoltage, METRIC_PRECISION.voltage) }} V</span></div>
+                  <div>Min Voltage: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.lower.minVoltage, METRIC_PRECISION.voltage) }} V</span></div>
+                  <div>Resistance: <span class="font-mono text-zinc-900 dark:text-white">{{ resistanceMetrics.branches?.lower?.valid ? `${formatMetric(resistanceMetrics.branches.lower.rMilliOhm, METRIC_PRECISION.resistanceMilliOhm)} mΩ` : '-' }}</span></div>
+                  <div class="mt-1 pt-1 border-t border-zinc-200/80 dark:border-neutral-600/80 space-y-0.5">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="font-semibold">Battery State</span>
+                      <button type="button" class="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('voltage_zone')">?</button>
+                    </div>
+                    <div>Loaded: <span class="font-mono text-zinc-900 dark:text-white">{{ formatLoadedZoneLabel(batteryMetrics.batteryHealth?.lower?.voltageZone?.loadedZone) }}</span></div>
+                    <div>Open Circuit: <span class="font-mono text-zinc-900 dark:text-white">{{ formatVoltageZoneLabel(batteryMetrics.batteryHealth?.lower?.voltageZone?.zone) }}</span></div>
                   </div>
-                  <div>Loaded: <span class="font-mono text-zinc-900 dark:text-white">{{ formatLoadedZoneLabel(batteryMetrics.batteryHealth?.lower?.voltageZone?.loadedZone) }}</span></div>
-                  <div>Open Circuit: <span class="font-mono text-zinc-900 dark:text-white">{{ formatVoltageZoneLabel(batteryMetrics.batteryHealth?.lower?.voltageZone?.zone) }}</span></div>
-                </div>
+                </template>
+                <div v-else class="text-[11px] text-zinc-500 dark:text-gray-400 italic">Channel unavailable (voltage below 1 V)</div>
               </div>
             </div>
           </template>
@@ -1179,10 +1502,9 @@ function handleExportEventsCsv() {
                     <button type="button" class="h-5 w-5 rounded-full border border-zinc-300 dark:border-neutral-600 text-[11px] font-bold" @click="openMetricHelp('dodPct')">?</button>
                   </div>
                   <div>Window Discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.health?.peukert?.windowDischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
-                  <div>Normalized C/20 discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.health?.normalizedC20DischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
-                  <div>Percentage against Peukert Capacity: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryMetrics.health?.peukert?.windowDischargeAh, batteryMetrics.health?.peukert?.expectedCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
-                  <div>Percentage against Ideal Capacity: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryMetrics.health?.peukert?.windowDischargeAh, batteryMetrics.health?.peukert?.estimatedActualCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
-                  <div>Percentage against Normalized C/20 (ideal): <span class="font-mono text-zinc-900 dark:text-white">{{ Number.isFinite(batteryMetrics.health?.normalizedC20DodPct) ? formatMetric(batteryMetrics.health.normalizedC20DodPct, METRIC_PRECISION.estimatedPercent) + '%' : '—' }}</span></div>
+                  <div>Peukert-normalized discharge: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(batteryMetrics.health?.normalizedC20DischargeAh, METRIC_PRECISION.peukertAh) }} Ah</span></div>
+                  <div>Normalised Discharge vs Ideal: <span class="font-mono text-zinc-900 dark:text-white">{{ Number.isFinite(batteryMetrics.health?.dodPct?.value) ? formatMetric(batteryMetrics.health.dodPct.value, METRIC_PRECISION.estimatedPercent) + '%' : '—' }}</span></div>
+                  <div>Raw discharge vs ideal: <span class="font-mono text-zinc-900 dark:text-white">{{ formatMetric(computeCapacityDodPercent(batteryMetrics.health?.peukert?.windowDischargeAh, batteryMetrics.health?.peukert?.estimatedActualCapacityAh), METRIC_PRECISION.estimatedPercent) }}%</span></div>
                 </div>
                 <div class="battery-health-card rounded border border-zinc-200 dark:border-neutral-700 bg-[color-mix(in_srgb,#fff_95%,#f4f4f5_5%)] dark:bg-[color-mix(in_srgb,#262626_95%,#fff_5%)] p-2">
                   <div class="flex items-center justify-between gap-2 mb-1">
@@ -1208,7 +1530,11 @@ function handleExportEventsCsv() {
           </template>
         </BatterySectionPanel>
 
+        <p v-if="!upperBatteryAvailable" class="text-xs text-zinc-500 dark:text-gray-400 italic" data-test="upper-battery-unavailable">
+          Upper battery voltage below 1 V — detailed section hidden.
+        </p>
         <BatterySectionPanel
+          v-if="upperBatteryAvailable"
           title="Upper Battery"
           :collapsible="false"
           :battery-health="batteryMetrics.batteryHealth?.upper"
@@ -1225,7 +1551,11 @@ function handleExportEventsCsv() {
           @help="openMetricHelp"
         />
 
+        <p v-if="!lowerBatteryAvailable" class="text-xs text-zinc-500 dark:text-gray-400 italic" data-test="lower-battery-unavailable">
+          Lower battery voltage below 1 V — detailed section hidden.
+        </p>
         <BatterySectionPanel
+          v-if="lowerBatteryAvailable"
           title="Lower Battery"
           :collapsible="false"
           :battery-health="batteryMetrics.batteryHealth?.lower"
