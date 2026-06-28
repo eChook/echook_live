@@ -20,6 +20,8 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSpectatorStore } from '../stores/spectator'
+import { useSettingsStore } from '../stores/settings'
+import { getMapTileUrl } from '../constants/mapTiles'
 import PublicHeader from '../components/PublicHeader.vue'
 import PublicFooter from '../components/PublicFooter.vue'
 import "leaflet/dist/leaflet.css"
@@ -27,6 +29,10 @@ import { LMap, LTileLayer, LCircleMarker, LTooltip } from "@vue-leaflet/vue-leaf
 
 const route = useRoute()
 const spectatorStore = useSpectatorStore()
+const settings = useSettingsStore()
+
+/** @brief Tile layer URL for the active UI theme */
+const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
 
 /** @brief Track name from route params */
 const trackName = computed(() => route.params.trackName)
@@ -103,15 +109,33 @@ watch(() => mapCars.value, (cars) => {
     }
 }, { deep: false })
 
+/**
+ * @brief Whether a car row/card is highlighted (hover or selection).
+ * @param {string} carId - Car identifier
+ * @returns {boolean}
+ */
+function isCarHighlighted(carId) {
+    return spectatorStore.hoveredCarId === carId || spectatorStore.selectedCarId === carId
+}
+
+/**
+ * @brief Toggle map/list selection for a car.
+ * @param {string} carId - Car identifier
+ */
+function toggleCarSelection(carId) {
+    spectatorStore.selectedCarId = spectatorStore.selectedCarId === carId ? null : carId
+}
+
 </script>
 
 <template>
     <div class="h-screen flex flex-col bg-zinc-100 text-zinc-900 dark:bg-neutral-900 dark:text-white overflow-hidden">
         <PublicHeader />
 
-        <div class="flex-1 flex pt-16 overflow-hidden">
-            <!-- Left Panel: Car Table -->
-            <div class="w-1/3 min-w-[350px] border-r border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col z-10 shadow-xl">
+        <div class="flex-1 flex flex-col md:flex-row pt-16 overflow-hidden min-h-0">
+            <!-- Car list panel — stacked above map on small screens -->
+            <div
+                class="w-full max-h-[40vh] shrink-0 md:w-1/3 md:max-h-none md:min-w-[280px] border-b md:border-b-0 border-r border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col z-10 shadow-xl">
 
                 <!-- Header / Controls -->
                 <div class="p-4 border-b border-zinc-200 dark:border-neutral-700 flex justify-between items-center bg-zinc-50 dark:bg-neutral-800">
@@ -132,8 +156,45 @@ watch(() => mapCars.value, (cars) => {
                     </div>
                 </div>
 
-                <!-- Car List Table -->
-                <div class="flex-1 overflow-y-auto">
+                <!-- Mobile car cards -->
+                <div class="md:hidden flex-1 overflow-y-auto p-2 space-y-2">
+                    <article v-for="car in spectatorStore.activeCarList" :key="`card-${car.id}`"
+                        class="rounded-lg border border-zinc-200 dark:border-neutral-700 p-3 cursor-pointer transition"
+                        :class="{
+                            'bg-primary/10 border-l-4 border-l-primary': spectatorStore.selectedCarId === car.id,
+                            'bg-white dark:bg-neutral-800': spectatorStore.selectedCarId !== car.id,
+                            'ring-1 ring-primary/30': isCarHighlighted(car.id) && spectatorStore.selectedCarId !== car.id
+                        }"
+                        @click="toggleCarSelection(car.id)"
+                        @mouseenter="spectatorStore.hoveredCarId = car.id"
+                        @mouseleave="spectatorStore.hoveredCarId = null">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="font-mono text-lg font-bold text-zinc-600 dark:text-gray-300 shrink-0 w-10 text-center">
+                                    {{ car.number || '-' }}
+                                </span>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-zinc-900 dark:text-white truncate">{{ car.name || 'Unknown' }}</div>
+                                    <div class="text-xs text-zinc-500 dark:text-gray-400 truncate">{{ car.team || 'Unknown Team' }}</div>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="text-[10px] uppercase text-zinc-500 dark:text-gray-500 tracking-wide">{{ unit }}</span>
+                                <p class="font-mono text-xl text-primary font-bold">{{ formatSpeed(car.speed) }}</p>
+                            </div>
+                        </div>
+                    </article>
+                    <p v-if="spectatorStore.activeCarList.length === 0"
+                        class="py-8 text-center text-zinc-500 dark:text-gray-500 italic">
+                        Waiting for cars...
+                    </p>
+                    <div class="p-3 text-xs text-zinc-500 dark:text-gray-500 text-center border-t border-zinc-200 dark:border-neutral-700">
+                        Disclaimer: Data is provided by teams and may not be accurate.
+                    </div>
+                </div>
+
+                <!-- Desktop car table -->
+                <div class="hidden md:flex flex-1 flex-col overflow-y-auto min-h-0">
                     <table class="w-full text-left">
                         <thead class="bg-zinc-100 dark:bg-neutral-900 sticky top-0 text-xs text-zinc-500 dark:text-gray-400 uppercase font-medium">
                             <tr>
@@ -145,10 +206,10 @@ watch(() => mapCars.value, (cars) => {
                         <tbody class="divide-y divide-zinc-200 dark:divide-neutral-700">
                             <tr v-for="car in spectatorStore.activeCarList" :key="car.id"
                                 class="hover:bg-zinc-100 dark:hover:bg-neutral-700/50 transition cursor-pointer" :class="{
-                                    'bg-primary/20': spectatorStore.hoveredCarId === car.id || spectatorStore.selectedCarId === car.id,
+                                    'bg-primary/10': isCarHighlighted(car.id),
                                     'border-l-4 border-primary': spectatorStore.selectedCarId === car.id
                                 }"
-                                @click="spectatorStore.selectedCarId = (spectatorStore.selectedCarId === car.id ? null : car.id)"
+                                @click="toggleCarSelection(car.id)"
                                 @mouseenter="spectatorStore.hoveredCarId = car.id"
                                 @mouseleave="spectatorStore.hoveredCarId = null">
 
@@ -179,10 +240,10 @@ watch(() => mapCars.value, (cars) => {
                 </div>
             </div>
 
-            <!-- Right Panel: Map -->
-            <div class="flex-1 relative bg-zinc-200 dark:bg-neutral-900">
+            <!-- Map panel -->
+            <div class="flex-1 min-h-0 min-w-0 relative bg-zinc-200 dark:bg-neutral-900">
                 <l-map ref="map" v-model:zoom="zoom" v-model:center="center" :use-global-leaflet="false">
-                    <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base"
+                    <l-tile-layer :url="mapTileUrl" layer-type="base"
                         name="OpenStreetMap" />
 
                     <!-- Car Markers -->
@@ -192,7 +253,7 @@ watch(() => mapCars.value, (cars) => {
                         :weight="2"
                         :fill-color="(spectatorStore.hoveredCarId === car.id || spectatorStore.selectedCarId === car.id) ? '#cb1557' : '#3b82f6'"
                         :fill-opacity="1"
-                        @click="spectatorStore.selectedCarId = (spectatorStore.selectedCarId === car.id ? null : car.id)"
+                        @click="toggleCarSelection(car.id)"
                         @mouseover="spectatorStore.hoveredCarId = car.id"
                         @mouseout="spectatorStore.hoveredCarId = null">
 
@@ -213,7 +274,7 @@ watch(() => mapCars.value, (cars) => {
                 </div>
             </div>
         </div>
-        <PublicFooter />
+        <PublicFooter class="hidden md:block shrink-0" />
     </div>
 </template>
 
