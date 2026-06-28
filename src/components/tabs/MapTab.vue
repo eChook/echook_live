@@ -21,12 +21,17 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
+import { useSettingsStore } from '../../stores/settings'
+import { getMapTileUrl } from '../../constants/mapTiles'
+import { navTabMetricPickerClass } from '../../utils/navTabClasses'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LCircleMarker, LControl } from "@vue-leaflet/vue-leaflet"
+import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue'
 import { ChevronDownIcon, AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline'
 import GradientPath from '../../components/GradientPath.vue'
 
 const telemetry = useTelemetryStore()
+const settings = useSettingsStore()
 const AUTO_FIT_THROTTLE_MS = 1000
 const MAX_TRAIL_POINTS = 1200
 
@@ -136,12 +141,15 @@ const trailRange = computed(() => {
   return { min, max }
 })
 
+/** @brief Tile layer URL for the active UI theme */
+const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
+
 </script>
 
 <template>
   <div class="h-full w-full relative">
     <l-map ref="map" :use-global-leaflet="false">
-      <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base"
+      <l-tile-layer :url="mapTileUrl" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
       <!-- Gradient Trail -->
@@ -176,15 +184,19 @@ const trailRange = computed(() => {
                 Configuration</h3>
 
               <!-- Auto Fit Toggle -->
-              <div class="mb-6 flex items-center justify-between">
-                <label class="text-xs font-bold text-zinc-700 dark:text-gray-300 uppercase">Auto-Fit Map</label>
-                <div @click="isAutoFitEnabled = !isAutoFitEnabled"
-                  class="w-10 h-5 rounded-full relative cursor-pointer transition-colors duration-300"
+              <SwitchGroup as="div" class="mb-6 flex items-center justify-between">
+                <SwitchLabel class="text-xs font-bold text-zinc-700 dark:text-gray-300 uppercase cursor-pointer">
+                  Auto-Fit Map
+                </SwitchLabel>
+                <Switch v-model="isAutoFitEnabled"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900"
                   :class="isAutoFitEnabled ? 'bg-primary' : 'bg-zinc-300 dark:bg-neutral-700'">
-                  <div class="absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-300"
-                    :style="{ transform: isAutoFitEnabled ? 'translateX(20px)' : 'translateX(0)' }"></div>
-                </div>
-              </div>
+                  <span class="sr-only">Auto-fit map to trail bounds</span>
+                  <span aria-hidden="true"
+                    class="inline-block h-4 w-4 transform rounded-full bg-white transition"
+                    :class="isAutoFitEnabled ? 'translate-x-6' : 'translate-x-1'" />
+                </Switch>
+              </SwitchGroup>
 
               <!-- Trail Length Slider -->
               <div class="mb-6">
@@ -203,7 +215,7 @@ const trailRange = computed(() => {
                 <div class="grid grid-cols-1 gap-1">
                   <button v-for="key in telemetry.availableKeys" :key="key" @click="selectedMetric = key"
                     class="flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all text-xs font-medium"
-                    :class="selectedMetric === key ? 'bg-primary/20 text-primary border border-primary/30' : 'text-zinc-600 dark:text-gray-400 hover:bg-zinc-100 dark:hover:bg-neutral-800 hover:text-zinc-900 dark:hover:text-white border border-transparent'">
+                    :class="['flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all text-xs font-medium', navTabMetricPickerClass(selectedMetric === key)]">
                     <span>{{ telemetry.getDisplayName(key) }}</span>
                     <div v-if="selectedMetric === key"
                       class="w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(203,21,87,0.8)]"></div>

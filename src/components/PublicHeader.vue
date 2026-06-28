@@ -17,6 +17,7 @@
  */
 import { onMounted } from 'vue'
 import { useSpectatorStore } from '../stores/spectator'
+import AppBrand from './AppBrand.vue'
 import {
     UsersIcon,
     BoltIcon,
@@ -33,13 +34,10 @@ onMounted(() => {
 
 <template>
     <header
-        class="h-16 bg-white/90 dark:bg-neutral-900/90 backdrop-blur border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-6 fixed top-0 w-full z-50">
-        <!-- Brand / Left Side -->
-        <div class="flex items-center space-x-4">
-            <router-link to="/login"
-                class="font-bold text-xl text-zinc-900 dark:text-white tracking-tight hover:opacity-80 transition cursor-pointer">
-                <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Live</span>
-            </router-link>
+        class="h-16 bg-white dark:bg-neutral-900 border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-6 fixed top-0 w-full z-50">
+        <!-- Brand — fixed width column so position matches dashboard header -->
+        <div class="shrink-0 w-[9.5rem]">
+            <AppBrand />
         </div>
 
         <!-- Right Side: Server Stats -->

@@ -22,11 +22,15 @@
  */
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAdminStore } from '../../stores/admin'
+import { useSettingsStore } from '../../stores/settings'
+import { getMapTileUrl } from '../../constants/mapTiles'
+import { navTabListRowClass } from '../../utils/navTabClasses'
 import { TrashIcon, PlusIcon, MapIcon } from '@heroicons/vue/24/outline'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LRectangle, LMarker, LTooltip } from "@vue-leaflet/vue-leaflet"
 
 const adminStore = useAdminStore()
+const settings = useSettingsStore()
 const selectedTrackId = ref(null)
 const selectedTrack = ref(null) // Local copy for editing
 const isCreating = ref(false)
@@ -35,6 +39,9 @@ const isCreating = ref(false)
 const map = ref(null)
 const zoom = ref(13)
 const center = ref([52.0786, -1.0169]) // Silverstone default
+
+/** @brief Tile layer URL for the active UI theme */
+const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
 
 onMounted(() => {
     adminStore.fetchTracks()
@@ -138,9 +145,10 @@ const deleteTrack = async (id) => {
 </script>
 
 <template>
-    <div class="h-full flex overflow-hidden">
-        <!-- Sidebar List -->
-        <div class="w-1/3 min-w-[300px] border-r border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col">
+    <div class="h-full flex flex-col md:flex-row overflow-hidden min-h-0">
+        <!-- Track list + editor — stacked above map on small screens -->
+        <div
+            class="w-full max-h-[45vh] shrink-0 md:max-h-none md:w-1/3 md:min-w-[280px] border-b md:border-b-0 border-r border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 flex flex-col min-h-0">
             <div class="p-4 border-b border-zinc-200 dark:border-neutral-700 flex justify-between items-center bg-zinc-50 dark:bg-neutral-900">
                 <h3 class="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                     <MapIcon class="w-5 h-5 text-primary" /> Maps
@@ -153,7 +161,7 @@ const deleteTrack = async (id) => {
             <div class="flex-1 overflow-y-auto p-2 space-y-2">
                 <div v-for="track in adminStore.tracks" :key="track._id" @click="selectedTrackId = track._id"
                     class="p-3 rounded-lg border cursor-pointer transition flex justify-between items-center group"
-                    :class="selectedTrackId === track._id ? 'bg-primary/20 border-primary' : 'bg-zinc-50 dark:bg-neutral-900 border-zinc-200 dark:border-neutral-700 hover:border-zinc-400 dark:hover:border-gray-500'">
+                    :class="['p-3 rounded-lg border cursor-pointer transition flex justify-between items-center group', navTabListRowClass(selectedTrackId === track._id)]">
 
                     <div>
                         <div class="font-bold text-zinc-900 dark:text-white">{{ track.name }}</div>
@@ -193,10 +201,10 @@ const deleteTrack = async (id) => {
             </div>
         </div>
 
-        <!-- Map View -->
-        <div class="flex-1 relative bg-zinc-200 dark:bg-neutral-900">
+        <!-- Map editor view -->
+        <div class="flex-1 min-h-[50vh] md:min-h-0 min-w-0 relative bg-zinc-200 dark:bg-neutral-900">
             <l-map ref="map" v-model:zoom="zoom" v-model:center="center" :use-global-leaflet="false">
-                <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base"
+                <l-tile-layer :url="mapTileUrl" layer-type="base"
                     name="OpenStreetMap" />
 
                 <!-- Editing Rectangle -->

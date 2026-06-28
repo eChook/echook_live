@@ -24,6 +24,7 @@ import { useTelemetryStore } from '../../stores/telemetry'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import ConfirmationModal from '../ui/ConfirmationModal.vue'
+import { navTabButtonClass, NAV_TAB_LEFT_ACCENT_CLASS } from '../../utils/navTabClasses'
 import { Switch, SwitchGroup, SwitchLabel, Menu, MenuButton, MenuItems, MenuItem, Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import {
   ClipboardDocumentCheckIcon,
@@ -214,13 +215,9 @@ const categories = [
  * @returns {string}
  */
 function categoryNavButtonClass(categoryId) {
-  const isActive = activeCategory.value === categoryId
   return [
-    'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition whitespace-nowrap',
-    'md:w-full md:border-l-2',
-    isActive
-      ? 'border-primary bg-primary/10 text-primary md:bg-primary/5'
-      : 'border-transparent text-zinc-600 dark:text-gray-400 hover:bg-zinc-200/80 dark:hover:bg-neutral-800 hover:text-zinc-900 dark:hover:text-white'
+    navTabButtonClass(activeCategory.value === categoryId),
+    'gap-2 rounded-lg px-3 py-2 text-sm font-medium md:w-full'
   ].join(' ')
 }
 
@@ -484,6 +481,8 @@ async function confirmDeleteAccount() {
           <button v-for="category in categories" :key="category.id" type="button"
             :class="categoryNavButtonClass(category.id)"
             :aria-current="activeCategory === category.id ? 'page' : undefined" @click="activeCategory = category.id">
+            <div v-if="activeCategory === category.id"
+              :class="NAV_TAB_LEFT_ACCENT_CLASS"></div>
             <component :is="category.icon" class="h-5 w-5 shrink-0" aria-hidden="true" />
             {{ category.label }}
           </button>

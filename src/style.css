@@ -31,7 +31,7 @@
 
 /* Custom Glassmorphism Utilities if needed, though Tailwind supports backdrop-blur */
 
-/* Autofill Override */
+/* Autofill Override — light theme */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
@@ -39,4 +39,24 @@ input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 30px #f9f9f9 inset !important;
     -webkit-text-fill-color: #000 !important;
     caret-color: #000;
+}
+
+/* Autofill Override — dark theme */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--app-surface) inset !important;
+    -webkit-text-fill-color: var(--app-text) !important;
+    caret-color: var(--app-text);
+}
+
+/* Respect reduced-motion preference for UI animations */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

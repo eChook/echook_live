@@ -142,32 +142,36 @@ onActivated(() => {
       <div class="w-44 p-4 overflow-y-auto h-full">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-zinc-500 dark:text-gray-400 uppercase text-xs font-bold tracking-wider">Visible Metrics</h3>
-          <button @click="toggleMetrics" class="text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition">
+          <button type="button" @click="toggleMetrics" class="text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition"
+            aria-label="Hide metrics" :aria-expanded="true">
             <ChevronLeftIcon class="w-5 h-5" />
           </button>
         </div>
 
         <div class="space-y-2">
-          <div v-for="key in telemetry.graphKeys" :key="key"
-            class="flex items-center space-x-3 cursor-pointer hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition"
+          <button v-for="key in telemetry.graphKeys" :key="key" type="button"
+            class="w-full flex items-center space-x-3 text-left hover:bg-zinc-200 dark:hover:bg-neutral-800 p-2 rounded transition"
+            :aria-pressed="selectedKeys.has(key)"
+            :aria-label="`${selectedKeys.has(key) ? 'Hide' : 'Show'} ${telemetry.getDisplayName(key)}`"
             @click="toggleKey(key)">
-            <div class="w-4 h-4 rounded border flex items-center justify-center transition"
+            <div class="w-4 h-4 rounded border flex items-center justify-center transition shrink-0"
               :class="selectedKeys.has(key) ? 'bg-primary border-primary' : 'border-zinc-300 dark:border-neutral-600'">
               <svg v-if="selectedKeys.has(key)" class="w-3 h-3 text-white" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24">
+                viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
             <span :class="selectedKeys.has(key) ? 'text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-gray-400'">{{ telemetry.getDisplayName(key)
             }}</span>
-          </div>
+          </button>
         </div>
       </div>
     </aside>
 
     <!-- Collapsed Toggle Button -->
     <div v-if="!showMetrics" class="absolute top-[calc(0.75rem)] left-1 z-20">
-      <button @click="toggleMetrics" class="p-1 text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition" title="Show Metrics">
+      <button type="button" @click="toggleMetrics" class="p-1 text-zinc-500 dark:text-gray-500 hover:text-zinc-900 dark:hover:text-white transition" title="Show metrics"
+        aria-label="Show metrics" :aria-expanded="false">
         <ChevronRightIcon class="w-5 h-5" />
       </button>
     </div>

@@ -6,17 +6,19 @@
                Provides CRUD operations for users and car data viewing.
 -->
 <template>
-    <div class="h-full flex overflow-hidden bg-zinc-100 text-zinc-800 dark:bg-neutral-900 dark:text-gray-300">
+    <div class="h-full flex flex-col md:flex-row overflow-hidden bg-zinc-100 text-zinc-800 dark:bg-neutral-900 dark:text-gray-300">
 
-        <!-- Vertical Sidebar for Admin Tabs -->
-        <div class="w-48 bg-white/90 dark:bg-neutral-800/50 border-r border-zinc-200 dark:border-neutral-700 flex flex-col pt-6">
-            <div class="px-4 mb-6">
+        <!-- Admin sub-nav — horizontal scroll on mobile, vertical sidebar on desktop -->
+        <div
+            class="shrink-0 w-full md:w-48 bg-white/90 dark:bg-neutral-800/50 border-b md:border-b-0 border-r border-zinc-200 dark:border-neutral-700 flex flex-col pt-4 md:pt-6">
+            <div class="px-4 mb-3 md:mb-6">
                 <h2 class="text-xl font-bold text-zinc-900 dark:text-white">Admin</h2>
             </div>
-            <nav class="space-y-1 px-2">
-                <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
-                    class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                    :class="currentTab === tab.id ? 'bg-primary/20 text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-gray-400 hover:bg-zinc-200 dark:hover:bg-neutral-700 hover:text-zinc-900 dark:hover:text-white'">
+            <nav class="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible px-2 pb-3 md:pb-0" aria-label="Admin sections">
+                <button v-for="tab in tabs" :key="tab.id" type="button" @click="currentTab = tab.id"
+                    class="shrink-0 flex items-center px-3 py-2 text-sm font-medium rounded-md whitespace-nowrap"
+                    :class="[navTabButtonClass(currentTab === tab.id), currentTab === tab.id ? 'font-medium' : '']"
+                    :aria-current="currentTab === tab.id ? 'page' : undefined">
                     <component :is="tab.icon" class="mr-3 flex-shrink-0 h-5 w-5"
                         :class="currentTab === tab.id ? 'text-primary' : 'text-zinc-400 dark:text-gray-500'" aria-hidden="true" />
                     {{ tab.name }}
@@ -150,16 +152,16 @@
                                 </td>
                                 <td
                                     class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex justify-end space-x-2">
-                                    <button @click="viewCar(user)" class="text-zinc-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-500 transition"
-                                        title="View Telemetry">
+                                    <button type="button" @click="viewCar(user)" class="min-h-11 min-w-11 flex items-center justify-center text-zinc-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-500 transition"
+                                        title="View Telemetry" aria-label="View Telemetry">
                                         <EyeIcon class="w-5 h-5" />
                                     </button>
-                                    <button @click="editUser(user)" class="text-zinc-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
-                                        title="Edit User">
+                                    <button type="button" @click="editUser(user)" class="min-h-11 min-w-11 flex items-center justify-center text-zinc-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
+                                        title="Edit User" aria-label="Edit User">
                                         <PencilSquareIcon class="w-5 h-5" />
                                     </button>
-                                    <button @click="confirmDelete(user)"
-                                        class="text-zinc-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition" title="Delete User">
+                                    <button type="button" @click="confirmDelete(user)"
+                                        class="min-h-11 min-w-11 flex items-center justify-center text-zinc-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition" title="Delete User" aria-label="Delete User">
                                         <TrashIcon class="w-5 h-5" />
                                     </button>
                                 </td>
@@ -173,7 +175,7 @@
             <div v-else-if="currentTab === 'emails'" class="flex-1 overflow-y-auto p-8 space-y-6">
                 <div class="flex justify-between items-center">
                     <h3 class="text-lg font-medium text-zinc-900 dark:text-white">Unique Emails</h3>
-                    <button @click="refreshEmails" class="p-2 bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition">
+                    <button type="button" @click="refreshEmails" class="min-h-11 min-w-11 flex items-center justify-center bg-zinc-200 dark:bg-neutral-800 rounded hover:bg-zinc-300 dark:hover:bg-neutral-700 transition" title="Refresh emails" aria-label="Refresh emails">
                         <ArrowPathIcon class="w-5 h-5 text-zinc-500 dark:text-gray-400"
                             :class="{ 'animate-spin': adminStore.isLoading }" />
                     </button>
@@ -247,6 +249,7 @@ import ConfirmationModal from '../ui/ConfirmationModal.vue'
 import AdminMapsTab from './AdminMapsTab.vue'
 import ServerStatsTab from './ServerStatsTab.vue'
 import AdminBackupTab from './AdminBackupTab.vue'
+import { navTabButtonClass } from '../../utils/navTabClasses'
 
 const adminStore = useAdminStore()
 const telemetry = useTelemetryStore()

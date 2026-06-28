@@ -165,7 +165,7 @@ const handleDemo = async () => {
             </div>
 
             <div class="text-center text-xs text-zinc-500 dark:text-gray-600 mt-3 pt-3 border-t border-zinc-200 dark:border-neutral-700">
-              <button @click="handleDemo" :disabled="isLoading"
+              <button type="button" @click="handleDemo" :disabled="isLoading"
                 class="text-blue-400 hover:text-blue-300 hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
                 Try Demo
               </button>
@@ -175,7 +175,7 @@ const handleDemo = async () => {
 
         <!-- Spectator Panel -->
         <div class="bg-white dark:bg-neutral-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-neutral-700 p-8 flex flex-col">
-          <h2 class="text-3xl font-bold mb-6 text-center text-blue-600 dark:text-blue-400">Spectate</h2>
+          <h2 class="text-3xl font-bold mb-6 text-center text-primary">Spectate</h2>
           <p class="text-zinc-600 dark:text-gray-400 text-center mb-6 text-sm">A Birdseye View.</p>
 
           <div class="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
@@ -186,8 +186,8 @@ const handleDemo = async () => {
 
             <button v-for="track in spectatorStore.activeTracks" :key="track" @click="goToSpectate(track)"
               class="w-full p-4 bg-zinc-100 dark:bg-neutral-900 hover:bg-zinc-200 dark:hover:bg-neutral-700 border border-zinc-200 dark:border-neutral-700 rounded-lg text-left transition flex justify-between items-center group">
-              <span class="font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">{{ track }}</span>
-              <span class="text-xs px-2 py-1 bg-green-200 dark:bg-green-900 text-green-900 dark:text-green-200 rounded-full animate-pulse">LIVE</span>
+              <span class="font-bold text-zinc-900 dark:text-white group-hover:text-primary transition">{{ track }}</span>
+              <span class="text-xs px-2 py-1 bg-green-200 dark:bg-green-900 text-green-900 dark:text-green-200 rounded-full animate-pulse motion-reduce:animate-none">LIVE</span>
             </button>
           </div>
 

@@ -46,9 +46,9 @@ import {
   ServerIcon,
   TruckIcon
 } from '@heroicons/vue/24/outline'
-import logo from '../assets/vue.svg'
 import HistoryCalendar from './HistoryCalendar.vue'
 import ConfirmationModal from './ui/ConfirmationModal.vue'
+import AppBrand from './AppBrand.vue'
 
 
 const auth = useAuthStore()
@@ -76,6 +76,38 @@ const carStatusColor = computed(() => {
   if (diff > 10) return 'bg-red-500'
   if (diff > 5) return 'bg-orange-500'
   return 'bg-green-500 animate-pulse'
+})
+
+/** @brief Shared label for the loaded-history menu trigger. */
+const HISTORY_MENU_LABEL = 'Manage loaded history'
+
+/** @brief Tooltip for the server connection status pill. */
+const serverStatusTooltip = computed(() => {
+  if (telemetry.isSocketReconnecting) {
+    return telemetry.socketStatusMessage || 'Reconnecting to server'
+  }
+  if (telemetry.isConnected) {
+    return 'Connected to server'
+  }
+  return telemetry.socketStatusMessage || telemetry.socketError || 'Disconnected from server'
+})
+
+/** @brief Tooltip for the car telemetry status pill. */
+const carStatusTooltip = computed(() => {
+  if (telemetry.isPaused) {
+    return 'Car telemetry paused'
+  }
+  if (!telemetry.isConnected) {
+    return 'No server connection'
+  }
+  if (!telemetry.lastPacketTime) {
+    return 'No car data received'
+  }
+  const age = lastUpdatedText.value
+  if (!age) {
+    return 'Car telemetry live'
+  }
+  return `Last car data: ${age}`
 })
 
 // -- New History Logic --
@@ -270,28 +302,24 @@ const downloadAllData = () => {
 
 <template>
   <header
-    class="h-14 md:h-16 bg-white dark:bg-neutral-900 border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-3 md:px-6 sticky top-0 z-50">
+    class="h-16 bg-white dark:bg-neutral-900 border-b border-zinc-200 dark:border-neutral-800 flex items-center justify-between px-6 sticky top-0 z-50">
     <!-- Brand / Left Side -->
-    <div class="flex items-center space-x-2 md:space-x-4">
-      <!-- Mobile/Tablet: eC -->
-      <div class="block lg:hidden font-oswald text-2xl font-bold text-primary tracking-tight">
-        eC
+    <div class="flex items-center min-w-0 flex-1 gap-4">
+      <!-- Fixed-width brand column — same footprint as PublicHeader -->
+      <div class="shrink-0 w-[9.5rem]">
+        <AppBrand title="Spectate menu" aria-label="Spectate menu" />
       </div>
-      <!-- Desktop: Full logo -->
-      <router-link to="/login"
-        class="hidden lg:block font-bold text-xl text-zinc-900 dark:text-white tracking-tight hover:opacity-80 transition cursor-pointer">
-        <span class="font-oswald tracking-normal text-2xl">eChook</span><span class="text-primary">Telemetry</span>
-      </router-link>
-      <div class="h-6 w-px bg-zinc-300 dark:bg-neutral-700 hidden lg:block"></div>
+      <div class="h-6 w-px bg-zinc-300 dark:bg-neutral-700 shrink-0 hidden sm:block"></div>
       <!-- Car Info Display - condensed on mobile -->
-      <div v-if="displayedCar" class="flex flex-col">
+      <div v-if="displayedCar" class="flex flex-col min-w-0 flex-1 max-w-[12rem] sm:max-w-none">
         <span
-          class="text-xs md:text-sm text-zinc-900 dark:text-white font-semibold flex items-center truncate max-w-[100px] md:max-w-none">
+          class="text-xs md:text-sm text-zinc-900 dark:text-white font-semibold flex items-center truncate">
           {{ displayedCar.carName }}
           <span v-if="isViewingOther"
-            class="ml-1 md:ml-2 text-[8px] md:text-[10px] text-yellow-500 uppercase tracking-wider">(V)</span>
+            class="ml-1 md:ml-2 text-[10px] text-yellow-600 dark:text-yellow-500 uppercase tracking-wider shrink-0"
+            title="Viewing another car">Viewing</span>
         </span>
-        <span class="text-[10px] md:text-xs text-zinc-500 dark:text-gray-400 truncate max-w-[100px] md:max-w-none">{{ displayedCar.teamName
+        <span class="text-[10px] md:text-xs text-zinc-500 dark:text-gray-400 truncate">{{ displayedCar.teamName
         }} #{{ displayedCar.number || '00' }}</span>
       </div>
     </div>
@@ -300,22 +328,23 @@ const downloadAllData = () => {
     <div class="flex items-center space-x-2 md:space-x-6">
 
       <!-- Loading Indicator -->
-      <div v-if="isLoadingHistory" class="flex items-center space-x-1 md:space-x-2 text-primary animate-pulse">
+      <div v-if="isLoadingHistory" class="flex items-center space-x-1 md:space-x-2 text-primary animate-pulse motion-reduce:animate-none">
         <ArrowPathIcon class="w-4 h-4 animate-spin" />
         <span class="text-xs font-bold uppercase hidden md:inline">Loading...</span>
       </div>
 
       <!-- Mobile/Tablet: History dropdown trigger + Play/Pause -->
       <div class="lg:hidden flex items-center space-x-2">
-        <button @click="toggleHistoryMenu"
-          class="flex items-center justify-center w-8 h-8 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300 hover:bg-zinc-300 dark:hover:bg-neutral-700 transition"
-          :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="History">
+        <button type="button" @click="toggleHistoryMenu"
+          class="flex items-center justify-center min-h-11 min-w-11 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300 hover:bg-zinc-300 dark:hover:bg-neutral-700 transition"
+          :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" :title="HISTORY_MENU_LABEL" :aria-label="HISTORY_MENU_LABEL">
           <ClockIcon class="w-5 h-5" />
         </button>
         <!-- Pause/Resume -->
-        <button @click="handlePlayButton" class="flex items-center justify-center w-8 h-8 rounded border transition"
+        <button type="button" @click="handlePlayButton"
+          class="flex items-center justify-center min-h-11 min-w-11 rounded border transition"
           :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50' : 'bg-zinc-200 dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300'"
-          :title="playButtonTitle">
+          :title="playButtonTitle" :aria-label="playButtonTitle">
           <PlayIcon v-if="telemetry.isPaused" class="w-5 h-5" />
           <PauseIcon v-else class="w-5 h-5" />
         </button>
@@ -331,37 +360,38 @@ const downloadAllData = () => {
             title="Data is truncated">
             <ExclamationTriangleIcon class="w-5 h-5" />
           </div>
-          <div @click="toggleHistoryMenu"
+          <button type="button" @click="toggleHistoryMenu"
             class="h-8 flex items-center text-xs font-mono text-zinc-600 dark:text-gray-400 bg-zinc-200 dark:bg-neutral-800 px-3 rounded border border-zinc-300 dark:border-neutral-700 whitespace-nowrap cursor-pointer hover:bg-zinc-300 dark:hover:bg-neutral-700 hover:text-zinc-900 dark:hover:text-gray-300 transition select-none"
-            :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" title="Manage Loaded History">
+            :class="showHistoryMenu ? 'ring-1 ring-primary border-primary' : ''" :title="HISTORY_MENU_LABEL"
+            :aria-label="HISTORY_MENU_LABEL">
             Loaded Data:
             <span class="text-zinc-900 dark:text-white font-bold ml-2 flex items-center">
               {{ statusText }}
             </span>
-          </div>
+          </button>
         </div>
 
 
         <!-- Pause/Resume/Reset -->
-        <button @click="handlePlayButton"
-          class="flex items-center justify-center w-8 h-8 rounded border transition relative z-10"
+        <button type="button" @click="handlePlayButton"
+          class="flex items-center justify-center min-h-11 min-w-11 rounded border transition relative z-10"
           :class="telemetry.isPaused ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/30' : 'bg-zinc-200 dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 text-zinc-700 dark:text-gray-300 hover:bg-zinc-300 dark:hover:bg-neutral-700'"
-          :title="playButtonTitle">
+          :title="playButtonTitle" :aria-label="playButtonTitle">
           <PlayIcon v-if="telemetry.isPaused" class="w-5 h-5" />
           <PauseIcon v-else class="w-5 h-5" />
         </button>
 
         <!-- Clear Data -->
-        <button @click="telemetry.clearHistory()"
-          class="flex items-center justify-center w-8 h-8 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/50 text-zinc-700 dark:text-gray-300 transition relative z-10"
-          title="Clear All Data">
+        <button type="button" @click="telemetry.clearHistory()"
+          class="flex items-center justify-center min-h-11 min-w-11 rounded bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700 hover:bg-rose-500/20 hover:text-rose-500 hover:border-rose-500/50 text-zinc-700 dark:text-gray-300 transition relative z-10"
+          title="Clear All Data" aria-label="Clear All Data">
           <TrashIcon class="w-5 h-5" />
         </button>
       </div>
 
       <!-- History Dropdown (shared by mobile and desktop triggers) -->
       <div v-if="showHistoryMenu"
-        class="fixed lg:absolute top-14 lg:top-16 right-0 lg:right-6 bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-700 shadow-2xl rounded-lg p-3 lg:p-4 z-[60] flex flex-col w-[calc(100vw-1rem)] max-w-md lg:max-w-none lg:w-auto lg:min-w-[700px] mx-auto lg:mx-0 max-h-[70vh] overflow-y-auto">
+        class="fixed lg:absolute top-16 right-0 lg:right-6 bg-white dark:bg-neutral-900 border border-zinc-300 dark:border-neutral-700 shadow-2xl rounded-lg p-3 lg:p-4 z-[60] flex flex-col w-[calc(100vw-1rem)] max-w-md lg:max-w-none lg:w-auto lg:min-w-[700px] mx-auto lg:mx-0 max-h-[70vh] overflow-y-auto">
 
         <!-- Mobile: Loaded Data Status Header -->
         <div class="lg:hidden flex items-center justify-between pb-3 border-b border-zinc-300 dark:border-neutral-700">
@@ -372,9 +402,9 @@ const downloadAllData = () => {
               <ExclamationTriangleIcon class="w-4 h-4" />
             </div>
           </div>
-          <button @click="telemetry.clearHistory()"
+          <button type="button" @click="telemetry.clearHistory()"
             class="flex items-center space-x-1 text-xs text-zinc-500 dark:text-gray-400 hover:text-rose-500 transition"
-            title="Clear All Data">
+            title="Clear All Data" aria-label="Clear All Data">
             <TrashIcon class="w-4 h-4" />
             <span>Clear</span>
           </button>
@@ -506,8 +536,8 @@ const downloadAllData = () => {
       <div class="flex items-center">
         <div
           class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700"
-          title="Server Status">
-          <div class="w-2 h-2 rounded-full"
+          :title="serverStatusTooltip">
+          <div class="w-2 h-2 rounded-full motion-reduce:animate-none"
             :class="telemetry.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'">
           </div>
           <ServerIcon class="w-4 h-4 text-zinc-500 dark:text-gray-400 lg:hidden" />
@@ -519,8 +549,8 @@ const downloadAllData = () => {
       <div class="flex items-center">
         <div
           class="flex items-center space-x-1 lg:space-x-2 px-2 lg:px-3 py-1 rounded-full bg-zinc-200 dark:bg-neutral-800 border border-zinc-300 dark:border-neutral-700"
-          title="Car Status">
-          <div class="w-2 h-2 rounded-full transition-colors duration-300" :class="carStatusColor"></div>
+          :title="carStatusTooltip">
+          <div class="w-2 h-2 rounded-full transition-colors duration-300 motion-reduce:animate-none" :class="carStatusColor"></div>
           <TruckIcon class="w-4 h-4 text-zinc-500 dark:text-gray-400 lg:hidden" />
           <span class="text-xs font-medium text-zinc-700 dark:text-gray-300 uppercase tracking-wider hidden lg:inline">Car</span>
           <span class="text-[10px] font-bold text-zinc-900 dark:text-white whitespace-nowrap hidden lg:inline">{{ lastUpdatedText
@@ -530,7 +560,7 @@ const downloadAllData = () => {
 
       <!-- Logout: Icon on mobile/tablet, text on desktop -->
       <!-- Logout: Icon always -->
-      <button @click="handleLogout" class="text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer" title="Logout">
+      <button type="button" @click="handleLogout" class="text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer" title="Logout" aria-label="Logout">
         <ArrowRightOnRectangleIcon class="w-5 h-5" />
       </button>
     </div>

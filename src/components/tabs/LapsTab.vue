@@ -385,14 +385,14 @@ const handleDisclaimerConfirm = (doNotShow) => {
               <span v-if="race.trackName" class="text-zinc-900 dark:text-white">{{ race.trackName }} </span>
               <span class="text-primary font-mono text-xs md:text-base pt-0.5">{{ formatDate(race.startTime) }}</span>
             </h2>
-            <button @click="downloadRaceCsv(race)"
-              class="bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white p-1 rounded transition"
-              title="Download Race CSV">
+            <button type="button" @click="downloadRaceCsv(race)"
+              class="min-h-11 min-w-11 flex items-center justify-center bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white rounded transition"
+              title="Download Race CSV" aria-label="Download Race CSV">
               <ArrowDownTrayIcon class="w-4 h-4 md:w-5 md:h-5" />
             </button>
-            <button @click="viewSessionOnGraph(race)"
-              class="bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white p-1 rounded transition"
-              title="View Race on Graph">
+            <button type="button" @click="viewSessionOnGraph(race)"
+              class="min-h-11 min-w-11 flex items-center justify-center bg-zinc-200 dark:bg-neutral-800 hover:bg-zinc-300 dark:hover:bg-neutral-700 text-zinc-600 dark:text-gray-300 hover:text-zinc-900 dark:hover:text-white rounded transition"
+              title="View Race on Graph" aria-label="View Race on Graph">
               <ChartBarIcon class="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
@@ -406,8 +406,66 @@ const handleDisclaimerConfirm = (doNotShow) => {
           </div>
         </div>
 
-        <!-- Lap Table -->
-        <div class="bg-white dark:bg-neutral-800 rounded-lg border border-zinc-200 dark:border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
+        <!-- Mobile lap cards -->
+        <div class="md:hidden space-y-2">
+          <article v-for="lap in race.sortedLaps" :key="`card-${lap.lapNumber}`"
+            class="bg-white dark:bg-neutral-800 rounded-lg border border-zinc-200 dark:border-neutral-700 p-3 shadow-sm">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono text-lg font-bold text-primary">Lap {{ lap.lapNumber ?? '-' }}</span>
+                <span
+                  v-if="(lap.confidenceLabel || 'good') !== 'good'"
+                  class="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold leading-none cursor-help shrink-0"
+                  :class="getConfidenceIconClass(lap.confidenceLabel)"
+                  :title="getConfidenceTooltip(lap)"
+                >
+                  {{ getConfidenceIcon(lap.confidenceLabel) }}
+                </span>
+                <span
+                  v-if="lap.lapSummarySource === 'derived'"
+                  class="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold leading-none cursor-help shrink-0 text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-900/30"
+                  :title="DERIVED_LAP_TOOLTIP"
+                >
+                  D
+                </span>
+              </div>
+              <button type="button" @click="viewLapOnGraph(lap)"
+                class="min-h-11 min-w-11 flex items-center justify-center text-zinc-400 dark:text-gray-500 hover:text-primary transition"
+                title="View Lap on Graph" aria-label="View lap on graph">
+                <ChartBarIcon class="w-4 h-4" />
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Time</span>
+                <p class="font-mono font-bold text-zinc-900 dark:text-white">{{ formatLapDuration(lap.LL_Time) }}</p>
+              </div>
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Speed</span>
+                <p class="font-mono font-bold text-zinc-900 dark:text-white">{{ formatTableValue('LL_Spd', lap.LL_Spd) }}</p>
+              </div>
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Volts</span>
+                <p class="font-mono text-zinc-700 dark:text-gray-300">{{ formatTableValue('LL_V', lap.LL_V) }}</p>
+              </div>
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Amps</span>
+                <p class="font-mono text-zinc-700 dark:text-gray-300">{{ formatTableValue('LL_I', lap.LL_I) }}</p>
+              </div>
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Ah</span>
+                <p class="font-mono text-zinc-700 dark:text-gray-300">{{ formatTableValue('LL_Ah', lap.LL_Ah) }}</p>
+              </div>
+              <div>
+                <span class="text-zinc-500 dark:text-gray-500 uppercase tracking-wide text-[10px]">Eff</span>
+                <p class="font-mono text-zinc-700 dark:text-gray-300">{{ formatTableValue('LL_Eff', lap.LL_Eff) }}</p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Desktop lap table -->
+        <div class="hidden md:block bg-white dark:bg-neutral-800 rounded-lg border border-zinc-200 dark:border-neutral-700 shadow-xl overflow-x-auto custom-scrollbar">
           <table class="w-full min-w-[600px] md:min-w-[1000px] text-left border-collapse">
             <thead class="bg-zinc-50 dark:bg-neutral-900">
               <tr>
@@ -437,9 +495,9 @@ const handleDisclaimerConfirm = (doNotShow) => {
                     >
                       D
                     </span>
-                    <button @click="viewLapOnGraph(lap)"
-                      class="text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
-                      title="View Lap on Graph">
+                    <button type="button" @click="viewLapOnGraph(lap)"
+                      class="min-h-11 min-w-11 flex items-center justify-center text-zinc-400 dark:text-gray-500 hover:text-primary transition opacity-50 hover:opacity-100"
+                      title="View Lap on Graph" aria-label="View lap on graph">
                       <ChartBarIcon class="w-3 h-3 md:w-4 md:h-4" />
                     </button>
                   </div>
