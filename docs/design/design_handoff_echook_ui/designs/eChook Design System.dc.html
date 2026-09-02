@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #fafafa; color: #18181b; -webkit-font-smoothing: antialiased; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #cb1557; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @keyframes echookPulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</helmet>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#171717"></rect><text x="50" y="58" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="700" fill="#ffffff">e</text><text x="64" y="58" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="700" fill="#cb1557">L</text></svg></template>
+
+<div style="min-height:100vh;background:#fafafa;color:#18181b;padding-bottom:96px">
+
+  <header style="height:64px;background:#ffffff;border-bottom:1px solid #e4e4e7;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:50">
+    <div style="display:flex;align-items:flex-end;gap:0;font-weight:700;font-size:20px;letter-spacing:-.01em;white-space:nowrap">
+      <span style="font-family:Oswald, sans-serif;font-size:24px;line-height:1;font-weight:700">eChook</span><span style="color:#cb1557;line-height:1">Live</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#71717a">UI &amp; UX Design System</span>
+      <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;padding:4px 10px;border-radius:9999px;background:#e4e4e7;border:1px solid #d4d4d8;color:#52525b">v1.0</span>
+    </div>
+  </header>
+
+  <div style="max-width:1120px;margin:0 auto;padding:48px 24px 0;display:flex;flex-direction:column;gap:64px">
+
+    <section>
+      <h1 style="font-size:36px;line-height:1.1;font-weight:700;margin:0 0 16px;max-width:20ch;text-wrap:pretty">Race-ready telemetry UI, one family across eChook products.</h1>
+      <p style="font-size:15px;line-height:1.6;color:#52525b;max-width:70ch;margin:0 0 24px;text-wrap:pretty">Zinc/neutral light–dark surfaces, a single magenta accent, Oswald for the wordmark only, monospace for live values, Heroicons outline, bordered panels instead of heavy shadows. Technical, calm under pressure, readable on a pit-lane laptop in bright sun or dark garage light.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:6px">Tone</div>
+          <div style="font-size:14px;color:#18181b">Direct, technical, trustworthy</div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:6px">Density</div>
+          <div style="font-size:14px;color:#18181b">Information-dense, never cramped</div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:6px">Motif</div>
+          <div style="font-size:14px;color:#18181b">Magenta signal on quiet chrome</div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:6px">Avoid</div>
+          <div style="font-size:14px;color:#18181b">Gradients, glow, emoji, glass kitsch</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">01</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Brand mark</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">components/AppBrand.vue</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:32px;display:flex;align-items:center;justify-content:center">
+          <div style="display:flex;align-items:flex-end;font-weight:700;font-size:20px;letter-spacing:-.01em;color:#18181b">
+            <span style="font-family:Oswald, sans-serif;font-size:24px;line-height:1;letter-spacing:normal">eChook</span><span style="color:#cb1557;line-height:1">Live</span>
+          </div>
+        </div>
+        <div style="border:1px solid #404040;background:#171717;border-radius:12px;padding:32px;display:flex;align-items:center;justify-content:center">
+          <div style="display:flex;align-items:flex-end;font-weight:700;font-size:20px;letter-spacing:-.01em;color:#ffffff">
+            <span style="font-family:Oswald, sans-serif;font-size:24px;line-height:1;letter-spacing:normal">eChook</span><span style="color:#cb1557;line-height:1">Live</span>
+          </div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:8px;font-size:13px;color:#52525b;line-height:1.5"><span style="color:#cb1557;font-weight:700">+</span><span><strong>eChook</strong> in Oswald bold, 24px, tight tracking.</span></div>
+          <div style="display:flex;gap:8px;font-size:13px;color:#52525b;line-height:1.5"><span style="color:#cb1557;font-weight:700">+</span><span>Product suffix in primary, default sans, bold.</span></div>
+          <div style="display:flex;gap:8px;font-size:13px;color:#52525b;line-height:1.5"><span style="color:#cb1557;font-weight:700;flex-shrink:0">+</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">Baseline-aligned inline flex, <span style="font-family:ui-monospace,monospace;font-size:12px">hover:opacity-80</span>.</span></div>
+          <div style="display:flex;gap:8px;font-size:13px;color:#52525b;line-height:1.5"><span style="color:#cb1557;font-weight:700;flex-shrink:0">+</span><span style="flex:1;min-width:0">Brand column fixed at 9.5rem in every header so chrome never jumps.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">02</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Color</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">src/style.css · tailwind.config.js</span>
+      </div>
+
+      <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px;margin-bottom:24px;display:flex;flex-wrap:wrap;align-items:center;gap:24px">
+        <div style="width:120px;height:120px;border-radius:12px;background:#cb1557;flex-shrink:0"></div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a">Primary</div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#cb1557;margin:4px 0 8px">#cb1557</div>
+          <div style="font-size:13px;color:#52525b;max-width:52ch;line-height:1.6">Brand accent, CTAs, focus rings, active nav, links, product suffix. Constant across themes — never a lighter pink for dark mode, never a second accent hue.</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:24px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid #e4e4e7;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a">Light — zinc</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f4f4f5"><span style="width:32px;height:32px;border-radius:6px;background:#fafafa;border:1px solid #e4e4e7"></span><span style="font-size:13px;flex:1">App background</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#71717a">#fafafa</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f4f4f5"><span style="width:32px;height:32px;border-radius:6px;background:#ffffff;border:1px solid #e4e4e7"></span><span style="font-size:13px;flex:1">Surface</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#71717a">#ffffff</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f4f4f5"><span style="width:32px;height:32px;border-radius:6px;background:#18181b"></span><span style="font-size:13px;flex:1">Text</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#71717a">#18181b</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f4f4f5"><span style="width:32px;height:32px;border-radius:6px;background:#71717a"></span><span style="font-size:13px;flex:1">Muted</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#71717a">#71717a</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px"><span style="width:32px;height:32px;border-radius:6px;background:#e4e4e7"></span><span style="font-size:13px;flex:1">Border</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#71717a">#e4e4e7</span></div>
+          </div>
+        </div>
+        <div style="border:1px solid #404040;background:#171717;border-radius:12px;overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid #404040;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3">Dark — neutral</div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #262626"><span style="width:32px;height:32px;border-radius:6px;background:#171717;border:1px solid #404040"></span><span style="font-size:13px;flex:1;color:#fafafa">App background</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#a3a3a3">#171717</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #262626"><span style="width:32px;height:32px;border-radius:6px;background:#262626;border:1px solid #404040"></span><span style="font-size:13px;flex:1;color:#fafafa">Surface</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#a3a3a3">#262626</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #262626"><span style="width:32px;height:32px;border-radius:6px;background:#fafafa"></span><span style="font-size:13px;flex:1;color:#fafafa">Text</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#a3a3a3">#fafafa</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #262626"><span style="width:32px;height:32px;border-radius:6px;background:#a3a3a3"></span><span style="font-size:13px;flex:1;color:#fafafa">Muted</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#a3a3a3">#a3a3a3</span></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px"><span style="width:32px;height:32px;border-radius:6px;background:#404040"></span><span style="font-size:13px;flex:1;color:#fafafa">Border</span><span style="font-family:ui-monospace,monospace;font-size:12px;color:#a3a3a3">#404040</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Status &amp; feedback</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#22c55e;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Live / OK</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">green-500 · #22c55e</div></div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#f97316;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Stale / paused</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">orange-500 · #f97316</div></div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#ef4444;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Offline / error</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">red-500 · #ef4444</div></div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#3b82f6;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Info / secondary</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">blue-500 · #3b82f6</div></div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#fbbf24;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Warning threshold</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">amber-400 · #fbbf24</div></div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:8px;padding:12px"><div style="height:8px;width:8px;border-radius:9999px;background:#f43f5e;margin-bottom:10px"></div><div style="font-size:13px;font-weight:600">Destructive hover</div><div style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">rose-500 · #f43f5e</div></div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Primary usage recipes</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px">
+        <span style="background:#cb1557;color:#fff;font-weight:600;font-size:14px;padding:8px 16px;border-radius:8px">Solid CTA</span>
+        <span style="background:rgba(203,21,87,.1);color:#cb1557;font-weight:600;font-size:14px;padding:8px 16px;border-radius:8px">Soft selected · primary/10</span>
+        <span style="background:rgba(203,21,87,.1);border:1px solid rgba(203,21,87,.2);color:#18181b;font-size:14px;padding:8px 16px;border-radius:8px">Soft callout</span>
+        <span style="background:#fff;border:1px solid #cb1557;box-shadow:0 0 0 1px #cb1557;color:#18181b;font-size:14px;padding:8px 16px;border-radius:8px">Focus ring</span>
+        <span style="font-size:14px;padding:8px 4px;color:#cb1557;text-decoration:underline">Text link · light</span>
+        <span style="font-size:14px;padding:8px 12px;color:#f472a0;text-decoration:underline;background:#262626;border-radius:8px">Text link · dark (#f472a0)</span>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">03</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Typography</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto">Oswald · system sans · mono</span>
+      </div>
+      <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;overflow:hidden">
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:24px;font-weight:700;flex:1;min-width:240px">Page title — 24px bold</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-2xl font-bold</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:30px;font-weight:700;color:#cb1557;flex:1;min-width:240px">Auth panel title</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-3xl font-bold text-primary</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:18px;font-weight:600;flex:1;min-width:240px">Section title</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-lg font-semibold + rule</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#71717a;flex:1;min-width:240px">Section eyebrow</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-sm uppercase tracking-wide</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:14px;color:#52525b;flex:1;min-width:240px">Body copy sits at 14px, muted zinc, comfortable line height.</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-sm text-zinc-600</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px;border-bottom:1px solid #f4f4f5">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;flex:1;min-width:240px">Micro label · speed (mph)</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-[10px] uppercase tracking-wider</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:16px;padding:20px 24px">
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;flex:1;min-width:240px">24.8</span>
+          <span style="font-family:ui-monospace,monospace;font-size:11px;color:#71717a">text-2xl font-mono font-bold — every live value</span>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6;max-width:72ch">Oswald is brand-only — never body copy or form labels. Anything that changes live (telemetry, timestamps, IDs, ranges) is monospace bold. Missing values render as <span style="font-family:ui-monospace,monospace">—</span> or <span style="font-family:ui-monospace,monospace">--/--</span>, never blank.</p>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">04</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Space, radius, elevation</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Spacing rhythm</div>
+          <div style="display:flex;align-items:flex-end;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:8px;height:8px;background:#cb1557;border-radius:2px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">2</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:12px;height:12px;background:#cb1557;border-radius:2px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">3</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:16px;height:16px;background:#cb1557;border-radius:2px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">4</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:24px;height:24px;background:#cb1557;border-radius:2px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">6</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:32px;height:32px;background:#cb1557;border-radius:2px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">8</span></div>
+          </div>
+          <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6">Card padding 16px compact / 24–32px public. Major blocks stack at 24px. Form fields at 20px with labels 4–8px above.</p>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Radius</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:56px;height:40px;border:1px solid #d4d4d8;background:#f4f4f5;border-radius:6px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">6 controls</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:56px;height:40px;border:1px solid #d4d4d8;background:#f4f4f5;border-radius:8px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">8 buttons</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:56px;height:40px;border:1px solid #d4d4d8;background:#f4f4f5;border-radius:12px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">12 panels</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:56px;height:40px;border:1px solid #d4d4d8;background:#f4f4f5;border-radius:9999px"></div><span style="font-family:ui-monospace,monospace;font-size:10px;color:#71717a">full pills</span></div>
+          </div>
+          <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6">Full rounding is reserved for status chips and toggles — not everything.</p>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Elevation</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="border:1px solid #e4e4e7;background:#fff;border-radius:8px;padding:10px 12px;font-size:13px">Border only — in-app grouping</div>
+            <div style="border:1px solid #e4e4e7;background:#fff;border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,.05)">shadow-sm — sections</div>
+            <div style="border:1px solid #e4e4e7;background:#fff;border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 10px 15px -3px rgba(203,21,87,.1)">hover data card — primary/10 glow</div>
+            <div style="border:1px solid #e4e4e7;background:#fff;border-radius:12px;padding:10px 12px;font-size:13px;box-shadow:0 25px 50px -12px rgba(0,0,0,.25)">shadow-2xl — public panels, menus</div>
+          </div>
+          <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6">If a border alone communicates grouping, skip the shadow.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">05</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Buttons &amp; controls</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a">Light</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <button type="button" style="background:#cb1557;color:#fff;font-weight:600;font-size:14px;padding:8px 16px;border:0;border-radius:8px;cursor:pointer;transition:opacity .15s" style-hover="opacity:.9" style-active="transform:scale(.95)">Enter Dashboard</button>
+            <button type="button" style="background:#e4e4e7;border:1px solid #d4d4d8;color:#3f3f46;font-weight:600;font-size:14px;padding:8px 16px;border-radius:8px;cursor:pointer;transition:background .15s" style-hover="background:#d4d4d8">Cancel</button>
+            <button type="button" style="background:#cb1557;color:#fff;font-weight:600;font-size:14px;padding:8px 16px;border:0;border-radius:8px;opacity:.5;cursor:not-allowed">Assigning…</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <button type="button" title="Clear all data" aria-label="Clear all data" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#e4e4e7;border:1px solid #d4d4d8;color:#3f3f46;border-radius:6px;cursor:pointer;transition:all .15s" style-hover="background:rgba(244,63,94,.2);color:#f43f5e;border-color:rgba(244,63,94,.5)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"></path></svg>
+            </button>
+            <button type="button" title="Pause" aria-label="Pause" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#e4e4e7;border:1px solid #d4d4d8;color:#3f3f46;border-radius:6px;cursor:pointer" style-hover="background:#d4d4d8">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"></path></svg>
+            </button>
+            <button type="button" title="Resume" aria-label="Resume" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(234,179,8,.2);border:1px solid rgba(234,179,8,.5);color:#eab308;border-radius:6px;cursor:pointer">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"></path></svg>
+            </button>
+            <span style="font-size:12px;color:#71717a">44px minimum on pit-side controls · always <span style="font-family:ui-monospace,monospace">title</span> + <span style="font-family:ui-monospace,monospace">aria-label</span></span>
+          </div>
+        </div>
+        <div style="border:1px solid #404040;background:#171717;border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3">Dark</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <button type="button" style="background:#cb1557;color:#fff;font-weight:600;font-size:14px;padding:8px 16px;border:0;border-radius:8px;cursor:pointer" style-hover="opacity:.9">Enter Dashboard</button>
+            <button type="button" style="background:#262626;border:1px solid #404040;color:#d1d5db;font-weight:600;font-size:14px;padding:8px 16px;border-radius:8px;cursor:pointer" style-hover="background:#404040">Cancel</button>
+            <button type="button" style="background:#7f1d1d;color:#fecaca;font-weight:600;font-size:14px;padding:8px 16px;border:1px solid rgba(239,68,68,.4);border-radius:8px;cursor:pointer">Delete Car</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <button type="button" title="Load history" aria-label="Load history" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#262626;border:1px solid #404040;color:#d1d5db;border-radius:6px;cursor:pointer">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>
+            </button>
+            <button type="button" title="Download CSV" aria-label="Download CSV" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 16px;background:#262626;border:1px solid #404040;color:#d1d5db;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg>
+              Download All Loaded Data
+            </button>
+          </div>
+          <div style="font-size:12px;color:#a3a3a3;line-height:1.6">Destructive actions confirm first; icon buttons shift to rose on hover; danger zones use red-tinted bordered sections.</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Form controls</div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div>
+              <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;color:#52525b">Car Name</label>
+              <input type="text" placeholder="Enter your Car Name" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid #d4d4d8;border-radius:8px;padding:12px;font-size:14px;color:#18181b;outline:none;transition:all .15s" style-focus="border-color:#cb1557;box-shadow:0 0 0 1px #cb1557" />
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a">Start Time</label>
+              <input type="time" value="09:30" style="width:100%;box-sizing:border-box;background:#e4e4e7;border:1px solid #d4d4d8;border-radius:6px;padding:6px 8px;font-size:14px;color:#18181b;outline:none" style-focus="border-color:#cb1557" />
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:44px;height:24px;border-radius:9999px;background:#cb1557;display:inline-flex;align-items:center;padding:2px;box-sizing:border-box"><span style="width:20px;height:20px;border-radius:9999px;background:#fff;margin-left:20px"></span></span>
+              <span style="font-size:14px;color:#52525b">On — <span style="font-family:ui-monospace,monospace;font-size:12px">h-6 w-11</span> track, primary fill</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:44px;height:24px;border-radius:9999px;background:#d4d4d8;display:inline-flex;align-items:center;padding:2px;box-sizing:border-box"><span style="width:20px;height:20px;border-radius:9999px;background:#fff"></span></span>
+              <span style="font-size:14px;color:#52525b">Off</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:16px;height:16px;border-radius:4px;background:#cb1557;display:inline-flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75"></path></svg></span>
+              <span style="font-size:12px;color:#71717a">Don't ask me again</span>
+            </div>
+          </div>
+        </div>
+        <div style="border:1px solid #404040;background:#171717;border-radius:12px;padding:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3;margin-bottom:16px">Form controls — dark</div>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <div>
+              <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;color:#9ca3af">Car Name</label>
+              <input type="text" placeholder="Enter your Car Name" style="width:100%;box-sizing:border-box;background:#171717;border:1px solid #525252;border-radius:8px;padding:12px;font-size:14px;color:#fff;outline:none" style-focus="border-color:#cb1557;box-shadow:0 0 0 1px #cb1557" />
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:8px;font-size:14px;font-weight:500;color:#9ca3af">Password</label>
+              <input type="password" value="password" style="width:100%;box-sizing:border-box;background:#171717;border:1px solid #525252;border-radius:8px;padding:12px;font-size:14px;color:#fff;outline:none" style-focus="border-color:#cb1557;box-shadow:0 0 0 1px #cb1557" />
+            </div>
+            <div style="background:rgba(127,29,29,.5);border:1px solid #ef4444;color:#fecaca;border-radius:6px;padding:12px;font-size:14px;text-align:center">Incorrect car name or password.</div>
+            <div style="font-size:12px;color:#a3a3a3;line-height:1.6">Autofill is restyled for both themes; focus never loses a visible ring.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">06</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Telemetry data cards</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">components/DataCard.vue</span>
+      </div>
+      <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:16px">
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #e4e4e7;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:grab;transition:all .2s" style-hover="border-color:rgba(203,21,87,.5);box-shadow:0 10px 15px -3px rgba(203,21,87,.1);transform:translateY(-2px)">
+          <span style="font-size:12px;text-transform:uppercase;color:#71717a;font-weight:700;letter-spacing:.05em">Speed <span style="color:#a1a1aa;font-weight:400">(mph)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#18181b">24.8</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #fbbf24;background:rgba(254,252,232,.7);box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:12px;text-transform:uppercase;color:#71717a;font-weight:700;letter-spacing:.05em">Motor Temp <span style="color:#a1a1aa;font-weight:400">(°C)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#b45309">71</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #f87171;background:rgba(254,242,242,.7);box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:12px;text-transform:uppercase;color:#71717a;font-weight:700;letter-spacing:.05em">Current <span style="color:#a1a1aa;font-weight:400">(A)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#b91c1c">48.2</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #e4e4e7;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.5;filter:grayscale(1)">
+          <span style="font-size:12px;text-transform:uppercase;color:#71717a;font-weight:700;letter-spacing:.05em">Voltage <span style="color:#a1a1aa;font-weight:400">(V)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#a1a1aa">23.4</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #e4e4e7;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:12px;text-transform:uppercase;color:#71717a;font-weight:700;letter-spacing:.05em">Lap</span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#18181b">—</span>
+        </div>
+      </div>
+      <div style="border:1px solid #404040;background:#171717;border-radius:12px;padding:24px;display:flex;flex-wrap:wrap;gap:16px">
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:grab;transition:all .2s" style-hover="border-color:rgba(203,21,87,.5);box-shadow:0 10px 15px -3px rgba(203,21,87,.1);transform:translateY(-2px)">
+          <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Speed <span style="color:#6b7280;font-weight:400">(mph)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fff">24.8</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #f59e0b;background:rgba(120,53,15,.15);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Motor Temp <span style="color:#6b7280;font-weight:400">(°C)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fcd34d">71</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #ef4444;background:rgba(127,29,29,.15);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Current <span style="color:#6b7280;font-weight:400">(A)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fca5a5">48.2</span>
+        </div>
+        <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.5;filter:grayscale(1)">
+          <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Voltage <span style="color:#6b7280;font-weight:400">(V)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#6b7280">23.4</span>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6;max-width:72ch">Uppercase micro label with a quiet unit in parentheses, then a large mono value. Thresholds tint the whole container, not just the number. Stale data goes 50% opacity and grayscale rather than disappearing.</p>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">07</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Status &amp; navigation</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">utils/navTabClasses.js</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Status chips</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#e4e4e7;border:1px solid #d4d4d8">
+              <span style="width:8px;height:8px;border-radius:9999px;background:#22c55e;animation:echookPulse 2s ease-in-out infinite"></span>
+              <span style="font-size:12px;font-weight:500;color:#3f3f46">SERVER</span>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#e4e4e7;border:1px solid #d4d4d8">
+              <span style="width:8px;height:8px;border-radius:9999px;background:#f97316"></span>
+              <span style="font-size:12px;font-weight:500;color:#3f3f46;text-transform:uppercase;letter-spacing:.06em">Car</span>
+              <span style="font-size:10px;font-weight:700;color:#18181b">12s ago</span>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#e4e4e7;border:1px solid #d4d4d8">
+              <span style="width:8px;height:8px;border-radius:9999px;background:#ef4444"></span>
+              <span style="font-size:12px;font-weight:500;color:#3f3f46">OFFLINE</span>
+            </span>
+            <span style="display:inline-flex;align-items:center;padding:4px 8px;border-radius:9999px;background:#bbf7d0;color:#14532d;font-size:12px;animation:echookPulse 2s ease-in-out infinite">LIVE</span>
+            <span style="display:inline-flex;align-items:center;padding:2px 4px;border-radius:4px;background:#fbbf24;color:#451a03;font-size:9px;font-weight:700;line-height:1">BETA</span>
+          </div>
+          <div style="margin-top:20px;padding:12px 20px;border-radius:9999px;background:rgba(127,29,29,.9);border:1px solid rgba(239,68,68,.5);display:inline-flex;align-items:center;gap:12px">
+            <span style="width:8px;height:8px;border-radius:9999px;background:#ef4444;animation:echookPulse 2s ease-in-out infinite"></span>
+            <span style="font-size:14px;font-weight:700;letter-spacing:.02em;color:#fee2e2">Reconnecting…</span>
+          </div>
+          <p style="font-size:12px;color:#71717a;margin:12px 0 0;line-height:1.6">Floating blurred pills are reserved for critical connectivity — not general tips. Never encode status by color alone.</p>
+        </div>
+
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:0;overflow:hidden;display:flex">
+          <div style="width:64px;background:#f4f4f5;border-right:1px solid #e4e4e7;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:16px">
+            <div style="position:relative;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(203,21,87,.1);color:#cb1557">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"></path></svg>
+              <span style="position:absolute;left:-12px;width:4px;height:24px;background:#cb1557;border-radius:0 9999px 9999px 0"></span>
+            </div>
+            <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#71717a;cursor:pointer;transition:all .2s" style-hover="background:#e4e4e7;color:#27272a">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg>
+            </div>
+            <div style="position:relative;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#71717a;cursor:pointer" style-hover="background:#e4e4e7;color:#27272a">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"></path></svg>
+              <span style="position:absolute;top:-8px;right:0;border-radius:4px;padding:1px 4px;font-size:9px;font-weight:700;line-height:1;background:#fbbf24;color:#451a03">BETA</span>
+            </div>
+            <div style="flex:1"></div>
+            <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#71717a;cursor:pointer" style-hover="background:#e4e4e7;color:#27272a">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0 0 15 0m-15 0a7.5 7.5 0 1 1 15 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077 1.41-.513m14.095-5.13 1.41-.513M5.106 17.785l1.15-.964m11.49-9.642 1.149-.964M7.501 19.795l.75-1.3m7.5-12.99.75-1.3m-6.063 16.658.26-1.477m2.605-14.772.26-1.477m0 17.726-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205 12 12m6.894 5.785-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495"></path></svg>
+            </div>
+          </div>
+          <div style="flex:1;padding:24px">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Icon rail — 64px</div>
+            <p style="font-size:13px;color:#52525b;line-height:1.6;margin:0 0 16px">Active tab: <span style="font-family:ui-monospace,monospace;font-size:12px">primary/10</span> wash, primary icon, and a 4×24px left accent bar. Settings pins to the bottom. Mobile collapses to a 56px bottom bar with a top accent bar instead.</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(203,21,87,.1);color:#cb1557;font-size:14px;font-weight:600;border-left:4px solid #cb1557">Selected list row</div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:#fafafa;border:1px solid #e4e4e7;color:#52525b;font-size:14px;cursor:pointer" style-hover="border-color:#a1a1aa">Inactive row</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">08</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Panels, feedback, empty states</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+        <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,.15);padding:32px">
+          <h3 style="font-size:30px;font-weight:700;text-align:center;color:#cb1557;margin:0 0 24px">Spectate</h3>
+          <p style="font-size:14px;color:#52525b;text-align:center;margin:0 0 24px">A Birdseye View.</p>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <button type="button" style="width:100%;padding:16px;background:#f4f4f5;border:1px solid #e4e4e7;border-radius:8px;text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s" style-hover="background:#e4e4e7">
+              <span style="font-weight:700;color:#18181b">Goodwood Motor Circuit</span>
+              <span style="font-size:12px;padding:4px 8px;background:#bbf7d0;color:#14532d;border-radius:9999px;animation:echookPulse 2s ease-in-out infinite">LIVE</span>
+            </button>
+            <div style="text-align:center;padding:40px 16px;color:#71717a;border:2px dashed #d4d4d8;border-radius:8px;font-size:14px">No races ongoing</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:16px;padding:20px;color:#18181b;background:#fff;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,.15);border:1px solid #e4e4e7">
+            <span style="width:32px;height:32px;border-radius:8px;background:#22c55e;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>
+            </span>
+            <span style="font-size:16px;font-weight:500;flex:1">Batteries assigned to Car 42.</span>
+            <button type="button" style="padding:6px 12px;border-radius:6px;border:1px solid #d4d4d8;background:transparent;font-size:14px;font-weight:600;color:#3f3f46;cursor:pointer" style-hover="background:#f4f4f5">Dismiss</button>
+          </div>
+
+          <div style="background:#171717;border-radius:12px;padding:24px;display:flex;align-items:center;justify-content:center">
+            <div style="width:100%;max-width:384px;background:#171717;border:1px solid #404040;border-radius:8px;box-shadow:0 20px 25px -5px rgba(0,0,0,.5);overflow:hidden">
+              <div style="padding:20px 24px 16px">
+                <h3 style="font-size:18px;font-weight:700;color:#fff;margin:0 0 8px">Load Historic Data?</h3>
+                <p style="font-size:14px;color:#9ca3af;margin:0;line-height:1.5">Loading data for 02/09/26 will remove all currently loaded data.</p>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:16px">
+                  <span style="width:16px;height:16px;border-radius:4px;border:1px solid #525252;background:#262626;display:inline-block"></span>
+                  <span style="font-size:12px;color:#9ca3af">Don't ask me again</span>
+                </div>
+              </div>
+              <div style="padding:12px 24px 20px;display:flex;flex-direction:row-reverse;gap:8px">
+                <button type="button" style="padding:8px 12px;border-radius:6px;border:0;background:#cb1557;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Load Data</button>
+                <button type="button" style="padding:8px 12px;border-radius:6px;background:#262626;color:#d1d5db;font-size:14px;font-weight:600;box-shadow:inset 0 0 0 1px #404040;border:0;cursor:pointer">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;overflow:hidden;margin-top:16px">
+        <div style="padding:16px 20px;border-bottom:1px solid #e4e4e7;display:flex;align-items:baseline;justify-content:space-between">
+          <div>
+            <h3 style="font-size:18px;font-weight:600;margin:0">Lap breakdown</h3>
+            <p style="font-size:13px;color:#71717a;margin:4px 0 0">Title, one-line subtitle, actions top-right.</p>
+          </div>
+          <button type="button" style="padding:6px 12px;border-radius:6px;border:1px solid #d4d4d8;background:#e4e4e7;font-size:13px;font-weight:600;color:#3f3f46;cursor:pointer">Export CSV</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#fafafa">
+                <th style="text-align:left;padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;border-bottom:1px solid #e4e4e7">Lap</th>
+                <th style="text-align:right;padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;border-bottom:1px solid #e4e4e7">Time</th>
+                <th style="text-align:right;padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;border-bottom:1px solid #e4e4e7">Delta</th>
+                <th style="text-align:right;padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;border-bottom:1px solid #e4e4e7">Avg Speed</th>
+                <th style="text-align:right;padding:10px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;border-bottom:1px solid #e4e4e7">Ah Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace">07</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right;font-weight:700">2:14.6</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right;color:#15803d">−0.8</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right">24.1</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right">1.42</td>
+              </tr>
+              <tr style="background:rgba(203,21,87,.06)">
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;color:#cb1557;font-weight:700">08</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right;font-weight:700">2:15.4</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right;color:#b91c1c">+0.8</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right">23.9</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #f4f4f5;font-family:ui-monospace,monospace;text-align:right">1.47</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace">09</td>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace;text-align:right;font-weight:700">2:13.8</td>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace;text-align:right;color:#15803d">−1.6</td>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace;text-align:right">24.3</td>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace;text-align:right">1.39</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <sc-if value="{{ showInSitu }}" hint-placeholder-val="{{ true }}">
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">09</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">App shell, in situ</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">DashboardHeader.vue · DashboardView.vue</span>
+      </div>
+
+      <div style="border:1px solid #404040;border-radius:12px;overflow-x:auto;background:#171717">
+      <div style="min-width:1200px">
+        <div style="height:64px;background:#171717;border-bottom:1px solid #262626;display:flex;align-items:center;justify-content:space-between;padding:0 24px">
+          <div style="display:flex;align-items:center;gap:16px;min-width:0;flex:1">
+            <div style="flex-shrink:0;width:152px">
+              <div style="display:flex;align-items:flex-end;font-weight:700;font-size:20px;color:#fff;letter-spacing:-.01em">
+                <span style="font-family:Oswald, sans-serif;font-size:24px;line-height:1;letter-spacing:normal">eChook</span><span style="color:#cb1557;line-height:1">Live</span>
+              </div>
+            </div>
+            <div style="height:24px;width:1px;background:#404040;flex-shrink:0"></div>
+            <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+              <span style="font-size:14px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kestrel Mk IV</span>
+              <span style="font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ridgeway Racing #42</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="height:32px;display:flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#9ca3af;background:#262626;padding:0 12px;border-radius:6px;border:1px solid #404040;white-space:nowrap">
+              Loaded Data:<span style="color:#fff;font-weight:700;margin-left:8px">02/09/26, 09:12 - Live</span>
+            </div>
+            <button type="button" title="Pause" aria-label="Pause" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#262626;border:1px solid #404040;color:#d1d5db;border-radius:6px;cursor:pointer">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5"></path></svg>
+            </button>
+            <button type="button" title="Clear All Data" aria-label="Clear All Data" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#262626;border:1px solid #404040;color:#d1d5db;border-radius:6px;cursor:pointer" style-hover="background:rgba(244,63,94,.2);color:#f43f5e;border-color:rgba(244,63,94,.5)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"></path></svg>
+            </button>
+            <div style="height:32px;width:1px;background:#262626"></div>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#262626;border:1px solid #404040">
+              <span style="width:8px;height:8px;border-radius:9999px;background:#22c55e;animation:echookPulse 2s ease-in-out infinite"></span>
+              <span style="font-size:12px;font-weight:500;color:#d1d5db">SERVER</span>
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#262626;border:1px solid #404040">
+              <span style="width:8px;height:8px;border-radius:9999px;background:#22c55e;animation:echookPulse 2s ease-in-out infinite"></span>
+              <span style="font-size:12px;font-weight:500;color:#d1d5db;text-transform:uppercase;letter-spacing:.06em">Car</span>
+            </span>
+            <span style="color:#9ca3af;display:inline-flex" title="Logout">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"></path></svg>
+            </span>
+          </div>
+        </div>
+
+        <div style="height:112px;border-bottom:1px solid #262626;background:#171717;display:flex;align-items:center;padding:8px 24px;gap:16px;overflow-x:auto">
+          <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+            <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Speed <span style="color:#6b7280;font-weight:400">(mph)</span></span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fff">24.8</span>
+          </div>
+          <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+            <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Voltage <span style="color:#6b7280;font-weight:400">(V)</span></span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fff">23.4</span>
+          </div>
+          <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #f59e0b;background:rgba(120,53,15,.15);display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+            <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Motor Temp <span style="color:#6b7280;font-weight:400">(°C)</span></span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fcd34d">71</span>
+          </div>
+          <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+            <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Lap</span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fff">08</span>
+          </div>
+          <div style="min-width:128px;padding:12px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+            <span style="font-size:12px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.05em">Ah Used</span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;color:#fff">11.9</span>
+          </div>
+        </div>
+
+        <div style="display:flex;height:280px">
+          <div style="width:64px;background:#171717;border-right:1px solid #262626;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:16px">
+            <div style="position:relative;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(203,21,87,.1);color:#cb1557">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"></path></svg>
+              <span style="position:absolute;left:-12px;width:4px;height:24px;background:#cb1557;border-radius:0 9999px 9999px 0"></span>
+            </div>
+            <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer" style-hover="background:#262626;color:#d1d5db">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg>
+            </div>
+            <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer" style-hover="background:#262626;color:#d1d5db">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"></path></svg>
+            </div>
+            <div style="flex:1"></div>
+            <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6b7280;cursor:pointer" style-hover="background:#262626;color:#d1d5db">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0 0 15 0m-15 0a7.5 7.5 0 1 1 15 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077 1.41-.513m14.095-5.13 1.41-.513M5.106 17.785l1.15-.964m11.49-9.642 1.149-.964M7.501 19.795l.75-1.3m7.5-12.99.75-1.3m-6.063 16.658.26-1.477m2.605-14.772.26-1.477m0 17.726-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205 12 12m6.894 5.785-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495"></path></svg>
+            </div>
+          </div>
+          <div style="flex:1;position:relative;padding:24px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="padding:4px 10px;border-radius:6px;background:rgba(203,21,87,.1);color:#cb1557;font-size:12px;font-weight:600">Speed</span>
+              <span style="padding:4px 10px;border-radius:6px;color:#9ca3af;font-size:12px">Voltage</span>
+              <span style="padding:4px 10px;border-radius:6px;color:#9ca3af;font-size:12px">Current</span>
+              <span style="padding:4px 10px;border-radius:6px;color:#9ca3af;font-size:12px">Motor Temp</span>
+            </div>
+            <div style="flex:1;border:1px solid #262626;border-radius:8px;background:#1c1c1c;display:flex;align-items:flex-end;padding:16px;gap:6px">
+              <div style="flex:1;height:34%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:58%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:72%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:64%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:81%;background:#cb1557;border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:55%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:43%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:67%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:88%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:49%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:61%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+              <div style="flex:1;height:76%;background:rgba(203,21,87,.5);border-radius:2px 2px 0 0"></div>
+            </div>
+            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#6b7280">Chart region is illustrative — real charts render via ECharts with lap highlighting.</div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6;max-width:72ch">Sticky 64px header, optional 80/112px data ribbon, 64px icon rail beside content that scrolls inside the active tab. Public pages swap the rail for a fixed header with live server stats, centred panels at 32px clearance, and a compact legal footer.</p>
+    </section>
+    </sc-if>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">10</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Iconography</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto">Heroicons v2 outline · 24px · stroke 1.5</span>
+      </div>
+      <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:20px;color:#3f3f46">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Signal</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Bolt</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Truck</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 0 0-.12-1.03l-2.268-9.64a3.375 3.375 0 0 0-3.285-2.602H7.923a3.375 3.375 0 0 0-3.285 2.602l-2.268 9.64a4.5 4.5 0 0 0-.12 1.03v.228m19.5 0a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3m19.5 0a3 3 0 0 0-3-3H5.25a3 3 0 0 0-3 3m16.5 0h.008v.008h-.008v-.008Zm-3 0h.008v.008h-.008v-.008Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Server</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Clock</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">ArrowPath</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Warning</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Users</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Eye</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Map</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Flag</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"></path></svg><span style="font-size:10px;color:#71717a;font-family:ui-monospace,monospace">Download</span></div>
+      </div>
+      <p style="font-size:13px;color:#52525b;margin:16px 0 0;line-height:1.6;max-width:72ch">16px inline, 20px controls, 24px nav. Colour inherits from text; only stats and accents take a semantic colour. Custom icons must match the outline weight and 24px optical size.</p>
+    </section>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">11</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Motion, accessibility, dark mode</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Motion</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#52525b;line-height:1.5">
+            <div>Button press — <span style="font-family:ui-monospace,monospace;font-size:12px">active:scale-95</span></div>
+            <div>Data card hover — 200ms, −2px lift</div>
+            <div>Modal / toast — 150–300ms ease</div>
+            <div>Ribbon show/hide — ~300ms height + opacity</div>
+            <div>Live pulse — dots and LIVE chips only</div>
+            <div>Spinner — <span style="font-family:ui-monospace,monospace;font-size:12px">animate-spin</span> on ArrowPath, loading only</div>
+          </div>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e4e4e7;font-size:13px;color:#52525b;line-height:1.6">No continuous background animation, particles, or glowing borders. Every animation pairs with a reduced-motion fallback.</div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Accessibility floor</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#52525b;line-height:1.5">
+            <div>Icon-only controls carry accessible names.</div>
+            <div>Active nav sets <span style="font-family:ui-monospace,monospace;font-size:12px">aria-current="page"</span>.</div>
+            <div>Modals trap focus, close on Escape and backdrop.</div>
+            <div>Toasts use <span style="font-family:ui-monospace,monospace;font-size:12px">role="alert"</span> with manual dismiss.</div>
+            <div>Status pairs a dot with a label — never colour alone.</div>
+            <div>Touch targets ≥ 44px on pit-side phones.</div>
+          </div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:20px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:12px">Dark mode</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#52525b;line-height:1.5">
+            <div>Class strategy: <span style="font-family:ui-monospace,monospace;font-size:12px">.dark</span> on <span style="font-family:ui-monospace,monospace;font-size:12px">&lt;html&gt;</span>, mode light / dark / system.</div>
+            <div>Theme applied before first paint by an inline boot script.</div>
+            <div><span style="font-family:ui-monospace,monospace;font-size:12px">color-scheme</span> set so native controls follow.</div>
+            <div>Light uses zinc, dark uses neutral; muted text in dark leans gray.</div>
+            <div><strong>Link and inline-action text on dark surfaces uses <span style="font-family:ui-monospace,monospace;font-size:12px;color:#cb1557">#f472a0</span></strong>, not raw primary — <span style="font-family:ui-monospace,monospace;font-size:12px">#cb1557</span> on <span style="font-family:ui-monospace,monospace;font-size:12px">#262626</span> is only 2.7:1. Solid magenta buttons and light-theme links are unchanged.</div>
+            <div>Every new surface ships both themes in the same class string.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <sc-if value="{{ showCode }}" hint-placeholder-val="{{ true }}">
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">12</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Class recipes</h2>
+        <span style="font-size:12px;color:#71717a;margin-left:auto">paste into a new eChook project</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px">
+        <div style="background:#171717;border:1px solid #404040;border-radius:12px;padding:20px;overflow-x:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3;margin-bottom:12px">tailwind.config.js</div>
+          <pre style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;color:#e4e4e7">darkMode: 'class',
+theme: { extend: {
+  colors: { primary: '#cb1557' },
+  fontFamily: { oswald: ['Oswald','sans-serif'] },
+}}</pre>
+        </div>
+        <div style="background:#171717;border:1px solid #404040;border-radius:12px;padding:20px;overflow-x:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3;margin-bottom:12px">Semantic variables</div>
+          <pre style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;color:#e4e4e7">:root { --app-bg:#fafafa; --app-surface:#fff;
+  --app-text:#18181b; --app-muted:#71717a;
+  --app-border:#e4e4e7; --app-primary:#cb1557; }
+.dark { --app-bg:#171717; --app-surface:#262626;
+  --app-text:#fafafa; --app-muted:#a3a3a3;
+  --app-border:#404040; --app-primary:#cb1557; }</pre>
+        </div>
+        <div style="background:#171717;border:1px solid #404040;border-radius:12px;padding:20px;overflow-x:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3;margin-bottom:12px">Component cheatsheet</div>
+          <pre style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;color:#e4e4e7">Primary   bg-primary hover:bg-primary/90 text-white
+          font-semibold rounded-lg px-4 py-2 transition
+Secondary bg-zinc-200 dark:bg-neutral-800 border
+          border-zinc-300 dark:border-neutral-700
+Panel     rounded-xl border border-zinc-200
+          dark:border-neutral-700 bg-white
+          dark:bg-neutral-900 p-6
+Input     focus:border-primary focus:ring-1
+          focus:ring-primary outline-none
+Nav       active: bg-primary/10 text-primary
+Metric    font-mono font-bold</pre>
+        </div>
+        <div style="background:#171717;border:1px solid #404040;border-radius:12px;padding:20px;overflow-x:auto">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a3a3a3;margin-bottom:12px">Z-index ladder</div>
+          <pre style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.7;color:#e4e4e7">z-40      content, side nav
+z-50      sticky header, mobile nav, cookie bar
+z-50/60   dropdown overlays
+z-[100]   feature modals
+z-[110]   confirmation modals
+z-[9999]  toasts</pre>
+        </div>
+      </div>
+    </section>
+    </sc-if>
+
+    <section>
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid #e4e4e7;padding-bottom:12px;margin-bottom:24px">
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#cb1557">13</span>
+        <h2 style="font-size:18px;font-weight:600;margin:0">Do / Don't</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#cb1557;margin-bottom:16px">Do</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;color:#3f3f46;line-height:1.5">
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>Use magenta sparingly, as signal.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>Pair every dark style with its light counterpart.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>Live values in mono; the wordmark in Oswald.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>Prefer borders and quiet fills over shadow stacks.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>Confirm destructive or data-lossy actions.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#cb1557;font-weight:700">+</span><span>State retention and privacy next to the action.</span></div>
+          </div>
+        </div>
+        <div style="border:1px solid #e4e4e7;background:#ffffff;border-radius:12px;padding:24px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#71717a;margin-bottom:16px">Don't</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;color:#3f3f46;line-height:1.5">
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Recolour the UI around pink backgrounds.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Add a second brand accent without a semantic reason.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Set Oswald in body copy or form labels.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Animate everything that is merely visible.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Ship light-only screens.</span></div>
+            <div style="display:flex;gap:8px"><span style="color:#a1a1aa;font-weight:700">−</span><span>Wrap every piece of text in a card.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer style="border-top:1px solid #e4e4e7;padding-top:24px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:#71717a">eChook ecosystem design system · derived from the eChook Live source</span>
+      <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#a1a1aa">AGPL-3.0 · Vue 3 · Tailwind · Heroicons v2</span>
+    </footer>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showInSitu&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;},&quot;showCode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sections&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showInSitu: this.props.showInSitu ?? true,
+      showCode: this.props.showCode ?? true
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -4248,3 +4248,157 @@ export function buildOverviewSignalsTimeline(samples, options = {}) {
         return isValidDuration(dtMs, maxDtMs)
     })
 }
+
+/**
+ * @brief Empty lifetime stats bundle used as accumulator seed.
+ * @returns {Object} Zeroed lifetime statistics object
+ */
+export function createEmptyLifetimeBatteryStats() {
+    return {
+        numberOfDischarges: 0,
+        numberOfCharges: 0,
+        lifetimeMaxVoltage: null,
+        lifetimeMinVoltage: null,
+        totalAhDelivered: 0,
+        totalKwhDelivered: 0,
+        numberOfCriticalDischarges: 0,
+        totalDischargeTime: 0,
+        averageDischargeCurrent: null,
+        totalDistanceTravelled: 0
+    }
+}
+
+/**
+ * @brief Resolve the voltage channel key for a battery fitment position.
+ * @param {'upper'|'lower'|null|undefined} position - Fitment position
+ * @returns {string} Telemetry voltage field key
+ */
+export function resolveBatteryVoltageKey(position) {
+    if (position === 'upper') return 'voltageHigh'
+    if (position === 'lower') return 'voltageLower'
+    return 'voltage'
+}
+
+/**
+ * @brief Count charge/discharge segment transitions in telemetry current.
+ * @param {Array<Object>} samples - Sorted telemetry samples
+ * @param {number} deadbandA - Current deadband in amps
+ * @returns {{discharges: number, charges: number}} Segment counts
+ */
+export function countChargeDischargeSegments(samples, deadbandA = 0.5) {
+    const data = Array.isArray(samples) ? samples : []
+    let discharges = 0
+    let charges = 0
+    let previousMode = 'idle'
+
+    for (const sample of data) {
+        const current = toFiniteNumber(sample?.current)
+        if (current === null) continue
+        let mode = 'idle'
+        if (current > deadbandA) mode = 'discharge'
+        else if (current < -deadbandA) mode = 'charge'
+
+        if (mode === 'discharge' && previousMode !== 'discharge') discharges += 1
+        if (mode === 'charge' && previousMode !== 'charge') charges += 1
+        if (mode !== 'idle') previousMode = mode
+    }
+
+    return { discharges, charges }
+}
+
+/**
+ * @brief Compute lifetime battery statistics from a telemetry sample window.
+ * @description Aggregates discharge/charge counts, voltage extrema, energy, distance,
+ *              and critical undervoltage events for one assignment period. Intended
+ *              to be called repeatedly and merged via mergeLifetimeBatteryStats.
+ * @param {Array<Object>} samples - Sorted analytics-ready telemetry samples
+ * @param {Object} [options] - Calculation options
+ * @param {'upper'|'lower'|null} [options.position] - Fitment position for voltage channel
+ * @param {number} [options.eventUndervoltageCriticalV=14] - Critical voltage threshold
+ * @param {number} [options.maxDtMs=10000] - Max trusted sample interval (ms)
+ * @param {'mph'|'kph'|'ms'} [options.speedUnit='mph'] - Speed unit in samples
+ * @returns {Object} Partial lifetime stats for the supplied window
+ */
+export function computeLifetimeBatteryStats(samples, options = {}) {
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const voltageKey = resolveBatteryVoltageKey(options.position)
+    const criticalThreshold = Number.isFinite(options.eventUndervoltageCriticalV)
+        ? options.eventUndervoltageCriticalV
+        : 14
+    const data = Array.isArray(samples) ? samples : []
+
+    const stats = createEmptyLifetimeBatteryStats()
+    if (data.length === 0) return stats
+
+    const energy = computeEnergyThermalSummary(data, {
+        maxDtMs,
+        speedUnit: options.speedUnit || 'mph'
+    })
+    const discharge = integrateDischargeAhFromCurrent(data, maxDtMs)
+    const segments = countChargeDischargeSegments(data, options.irCurrentDeadbandA ?? 0.5)
+
+    stats.numberOfDischarges = segments.discharges
+    stats.numberOfCharges = segments.charges
+    stats.totalAhDelivered = discharge.dischargeAh
+    stats.totalKwhDelivered = energy.totalWh / 1000
+    stats.totalDischargeTime = Math.round(discharge.dischargeDurationHours * 3600000)
+    stats.totalDistanceTravelled = energy.distanceMiles * 1.609344
+
+    if (discharge.dischargeDurationHours > 0) {
+        stats.averageDischargeCurrent = discharge.dischargeAh / discharge.dischargeDurationHours
+    }
+
+    for (const sample of data) {
+        const voltage = toFiniteNumber(sample?.[voltageKey]) ?? toFiniteNumber(sample?.voltage)
+        if (voltage === null) continue
+        stats.lifetimeMaxVoltage = stats.lifetimeMaxVoltage === null
+            ? voltage
+            : Math.max(stats.lifetimeMaxVoltage, voltage)
+        stats.lifetimeMinVoltage = stats.lifetimeMinVoltage === null
+            ? voltage
+            : Math.min(stats.lifetimeMinVoltage, voltage)
+        if (voltage <= criticalThreshold) {
+            stats.numberOfCriticalDischarges += 1
+        }
+    }
+
+    return stats
+}
+
+/**
+ * @brief Merge partial lifetime stats into an accumulator bundle.
+ * @param {Object} accumulator - Running totals
+ * @param {Object} partial - Partial stats from computeLifetimeBatteryStats
+ * @returns {Object} Updated accumulator
+ */
+export function mergeLifetimeBatteryStats(accumulator, partial) {
+    const base = accumulator || createEmptyLifetimeBatteryStats()
+    const next = { ...base }
+
+    next.numberOfDischarges += partial.numberOfDischarges || 0
+    next.numberOfCharges += partial.numberOfCharges || 0
+    next.totalAhDelivered += partial.totalAhDelivered || 0
+    next.totalKwhDelivered += partial.totalKwhDelivered || 0
+    next.numberOfCriticalDischarges += partial.numberOfCriticalDischarges || 0
+    next.totalDischargeTime += partial.totalDischargeTime || 0
+    next.totalDistanceTravelled += partial.totalDistanceTravelled || 0
+
+    if (partial.lifetimeMaxVoltage !== null && partial.lifetimeMaxVoltage !== undefined) {
+        next.lifetimeMaxVoltage = next.lifetimeMaxVoltage === null
+            ? partial.lifetimeMaxVoltage
+            : Math.max(next.lifetimeMaxVoltage, partial.lifetimeMaxVoltage)
+    }
+    if (partial.lifetimeMinVoltage !== null && partial.lifetimeMinVoltage !== undefined) {
+        next.lifetimeMinVoltage = next.lifetimeMinVoltage === null
+            ? partial.lifetimeMinVoltage
+            : Math.min(next.lifetimeMinVoltage, partial.lifetimeMinVoltage)
+    }
+
+    // Recompute weighted average discharge current from merged totals.
+    const totalHours = next.totalDischargeTime / 3600000
+    next.averageDischargeCurrent = totalHours > 0
+        ? next.totalAhDelivered / totalHours
+        : null
+
+    return next
+}

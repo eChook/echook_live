@@ -37,6 +37,14 @@ export default defineConfig(({ mode }) => {
           target: devServerTarget,
           changeOrigin: true
         },
+        '/batteries': {
+          target: devServerTarget,
+          changeOrigin: true
+        },
+        '/cars': {
+          target: devServerTarget,
+          changeOrigin: true
+        },
         '/socket.io': {
           target: devServerTarget,
           changeOrigin: true,

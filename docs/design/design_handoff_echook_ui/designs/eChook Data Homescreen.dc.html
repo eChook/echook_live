@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet" />
+<style>
+  body { margin: 0; background: #0f0f0f; color: #fafafa; -webkit-font-smoothing: antialiased; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #cb1557; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @keyframes echookPulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</helmet>
+
+<div style="height:100vh;overflow:hidden;background:#171717;color:#fafafa;display:flex;flex-direction:column">
+
+  <div style="height:64px;background:#171717;border-bottom:1px solid #262626;display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:16px;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:16px;min-width:0">
+      <div style="display:flex;align-items:flex-end;font-weight:700;font-size:20px;color:#fff;letter-spacing:-.01em;white-space:nowrap">
+        <span style="font-family:Oswald, sans-serif;font-size:24px;line-height:1">eChook</span><span style="color:#cb1557;line-height:1">Live</span>
+      </div>
+      <div style="height:24px;width:1px;background:#404040;flex-shrink:0"></div>
+      <div style="display:flex;flex-direction:column;min-width:0">
+        <span style="font-size:14px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kestrel Mk IV</span>
+        <span style="font-size:12px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ridgeway Racing</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#262626;border:1px solid #404040">
+        <span style="width:8px;height:8px;border-radius:9999px;background:#22c55e;animation:echookPulse 2s ease-in-out infinite"></span>
+        <span style="font-size:12px;font-weight:500;color:#d1d5db">CAR</span>
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:700;color:#fff">0.4s</span>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:#262626;border:1px solid #404040">
+        <span style="width:8px;height:8px;border-radius:9999px;background:#22c55e;animation:echookPulse 2s ease-in-out infinite"></span>
+        <span style="font-size:12px;font-weight:500;color:#d1d5db">SERVER</span>
+      </span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex:1;min-height:0">
+
+    <div style="width:64px;background:#171717;border-right:1px solid #262626;display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:16px;flex-shrink:0">
+      <div style="position:relative;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(203,21,87,.1);color:#cb1557" title="Status">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"></path></svg>
+        <span style="position:absolute;left:-12px;width:4px;height:24px;background:#cb1557;border-radius:0 9999px 9999px 0"></span>
+      </div>
+      <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;cursor:pointer" style-hover="background:#262626;color:#d1d5db" title="Graph">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"></path></svg>
+      </div>
+      <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;cursor:pointer" style-hover="background:#262626;color:#d1d5db" title="Map">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"></path></svg>
+      </div>
+      <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;cursor:pointer" style-hover="background:#262626;color:#d1d5db" title="Laps">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5"></path></svg>
+      </div>
+      <div style="flex:1"></div>
+      <div style="width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;cursor:pointer" style-hover="background:#262626;color:#d1d5db" title="Settings">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 0 1 0 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.943.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.281Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"></path></svg>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;overflow-y:auto;padding:20px 24px 48px">
+
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px">
+        <h1 style="font-size:20px;font-weight:700;margin:0;color:#fff">Car Status</h1>
+        <div style="display:flex;align-items:center;gap:4px;padding:3px;border-radius:8px;background:#262626;border:1px solid #404040">
+          <span style="padding:5px 12px;border-radius:6px;background:rgba(203,21,87,.15);color:#f9a8c4;font-size:12px;font-weight:600">Last 10 min</span>
+          <span style="padding:5px 12px;border-radius:6px;color:#9ca3af;font-size:12px;cursor:pointer" style-hover="color:#fff">30 min</span>
+          <span style="padding:5px 12px;border-radius:6px;color:#9ca3af;font-size:12px;cursor:pointer" style-hover="color:#fff">All loaded</span>
+          <span style="padding:5px 12px;border-radius:6px;color:#9ca3af;font-size:12px;cursor:pointer" style-hover="color:#fff">Custom…</span>
+        </div>
+        <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af">09:31:18 → 09:41:22 · 2,948 samples</span>
+        <span style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:9999px;background:rgba(203,21,87,.12);border:1px solid rgba(203,21,87,.5);margin-left:auto">
+          <span style="width:8px;height:8px;border-radius:9999px;background:#cb1557;animation:echookPulse 2s ease-in-out infinite"></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;letter-spacing:.06em;color:#f9a8c4">FOLLOWING LIVE</span>
+        </span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;background:rgba(120,53,15,.15);border:1px solid #f59e0b;margin-bottom:20px;flex-wrap:wrap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" stroke-width="1.5" aria-hidden="true" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"></path></svg>
+        <span style="font-size:14px;color:#fef3c7;font-weight:600">Motor temp above your warning threshold — 71 °C, rising 2.1 °C/min over the last 3 min</span>
+        <span style="font-size:12px;color:#fcd34d;margin-left:auto;text-decoration:underline;cursor:pointer;white-space:nowrap">Open in Graph</span>
+      </div>
+
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;margin-bottom:10px">Now</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:12px;margin-bottom:24px">
+
+        <div style="padding:16px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.08em">Speed <span style="color:#9ca3af;font-weight:400">(mph)</span></span>
+          </div>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:40px;font-weight:700;color:#fff;line-height:1">24.8</span>
+          <div style="display:flex;align-items:flex-end;gap:2px;height:24px">
+            <div style="flex:1;height:44%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:58%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:51%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:66%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:72%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:63%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:78%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:70%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:84%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:88%;background:#cb1557;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af;padding-top:2px;border-top:1px solid #333">
+            <span>mean 23.1</span><span>max 31.4</span>
+          </div>
+        </div>
+
+        <div style="padding:16px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.08em">Pack Voltage <span style="color:#9ca3af;font-weight:400">(V)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:40px;font-weight:700;color:#fff;line-height:1">23.4</span>
+          <div style="display:flex;align-items:flex-end;gap:2px;height:24px">
+            <div style="flex:1;height:92%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:74%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:88%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:62%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:81%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:70%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:86%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:58%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:77%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:72%;background:#cb1557;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af;padding-top:2px;border-top:1px solid #333">
+            <span>min 21.8</span><span>rest 24.9</span>
+          </div>
+        </div>
+
+        <div style="padding:16px;border-radius:8px;border:1px solid #404040;background:#262626;display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.08em">Current <span style="color:#9ca3af;font-weight:400">(A)</span></span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:40px;font-weight:700;color:#fff;line-height:1">48.2</span>
+          <div style="display:flex;align-items:flex-end;gap:2px;height:24px">
+            <div style="flex:1;height:22%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:64%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:38%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:82%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:30%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:71%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:45%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:96%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:41%;background:#3f3f46;border-radius:1px"></div>
+            <div style="flex:1;height:59%;background:#cb1557;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af;padding-top:2px;border-top:1px solid #333">
+            <span>mean 21.6</span><span>peak 96.4</span>
+          </div>
+        </div>
+
+        <div style="padding:16px;border-radius:8px;border:1px solid #f59e0b;background:rgba(120,53,15,.15);display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:11px;text-transform:uppercase;color:#9ca3af;font-weight:700;letter-spacing:.08em">Motor Temp <span style="color:#9ca3af;font-weight:400">(°C)</span></span>
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#fcd34d;font-weight:700">+2.1/min</span>
+          </div>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:40px;font-weight:700;color:#fcd34d;line-height:1">71</span>
+          <div style="display:flex;align-items:flex-end;gap:2px;height:24px">
+            <div style="flex:1;height:26%;background:#57534e;border-radius:1px"></div>
+            <div style="flex:1;height:32%;background:#57534e;border-radius:1px"></div>
+            <div style="flex:1;height:38%;background:#57534e;border-radius:1px"></div>
+            <div style="flex:1;height:45%;background:#57534e;border-radius:1px"></div>
+            <div style="flex:1;height:52%;background:#57534e;border-radius:1px"></div>
+            <div style="flex:1;height:61%;background:#f59e0b;border-radius:1px"></div>
+            <div style="flex:1;height:70%;background:#f59e0b;border-radius:1px"></div>
+            <div style="flex:1;height:79%;background:#f59e0b;border-radius:1px"></div>
+            <div style="flex:1;height:88%;background:#fcd34d;border-radius:1px"></div>
+            <div style="flex:1;height:96%;background:#fcd34d;border-radius:1px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#a8a29e;padding-top:2px;border-top:1px solid rgba(245,158,11,.3)">
+            <span>your warn 65</span><span>max 71</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:16px">
+
+        <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid #404040;display:flex;align-items:baseline;gap:10px">
+            <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Energy delivered</h2>
+            <span style="font-size:11px;color:#9ca3af">measured at the shunt · this window</span>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;flex-wrap:wrap;gap:24px">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Charge out</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;color:#fff;line-height:1.1">11.94<span style="font-size:14px;color:#9ca3af;font-weight:400"> Ah</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Energy out</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;color:#fff;line-height:1.1">281.6<span style="font-size:14px;color:#9ca3af;font-weight:400"> Wh</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Rate</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;color:#fff;line-height:1.1">0.42<span style="font-size:14px;color:#9ca3af;font-weight:400"> Ah/min</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Peukert-norm.</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;color:#fff;line-height:1.1">13.10<span style="font-size:14px;color:#9ca3af;font-weight:400"> Ah</span></span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:11px;color:#9ca3af">Against <strong style="color:#d1d5db">your</strong> reference: 40.0 Ah</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af">29.9% used</span>
+              </div>
+              <div style="position:relative;height:12px;border-radius:6px;background:#171717;border:1px solid #404040;overflow:hidden">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:29.9%;background:#cb1557"></div>
+              </div>
+              <span style="font-size:11px;color:#9ca3af;line-height:1.5">Reference is the figure your team entered in Settings. eChook does not know your pack's real capacity and makes no estimate of what remains.</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:6px;background:#171717;border:1px dashed #525252">
+              <span style="font-size:12px;color:#9ca3af;line-height:1.5;flex:1">No reference set? The panel shows charge out and rate only — nothing is inferred.</span>
+              <span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer;white-space:nowrap">Set reference</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid #404040;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Battery condition</h2>
+            <span style="display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;background:#fbbf24;color:#451a03;font-size:9px;font-weight:700;line-height:1">ESTIMATE</span>
+            <span style="font-size:11px;color:#9ca3af;margin-left:auto">from voltage &amp; current only</span>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af;width:64px;flex-shrink:0">BATT A</span>
+                <div style="flex:1;position:relative;height:26px;border-radius:6px;background:#171717;border:1px solid #404040;overflow:hidden">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:68%;background:rgba(203,21,87,.55)"></div>
+                  <div style="position:absolute;left:62%;top:0;bottom:0;width:12%;background:rgba(203,21,87,.25)"></div>
+                </div>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;color:#fff;width:76px;text-align:right;flex-shrink:0">68<span style="font-size:11px;color:#9ca3af"> ±6%</span></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#9ca3af;width:64px;flex-shrink:0">BATT B</span>
+                <div style="flex:1;position:relative;height:26px;border-radius:6px;background:#171717;border:1px solid #404040;overflow:hidden">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:71%;background:rgba(203,21,87,.55)"></div>
+                  <div style="position:absolute;left:65%;top:0;bottom:0;width:12%;background:rgba(203,21,87,.25)"></div>
+                </div>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;color:#fff;width:76px;text-align:right;flex-shrink:0">71<span style="font-size:11px;color:#9ca3af"> ±6%</span></span>
+              </div>
+              <span style="font-size:11px;color:#9ca3af;line-height:1.5">State of charge inferred from the Yuasa C20 curve at estimated rest voltage. Confidence <strong style="color:#9ca3af">medium</strong> — shaded band is the uncertainty. Not a fuel gauge; treat as a trend.</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;padding-top:16px;border-top:1px solid #404040">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">IR est. A</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:700;color:#fff">18.4<span style="font-size:11px;color:#9ca3af"> mΩ</span></span>
+                <span style="font-family:ui-monospace,monospace;font-size:10px;color:#9ca3af">n=214 · r²0.94</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">IR est. B</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:700;color:#fcd34d">21.7<span style="font-size:11px;color:#9ca3af"> mΩ</span></span>
+                <span style="font-family:ui-monospace,monospace;font-size:10px;color:#9ca3af">n=209 · r²0.91</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Sag @ peak</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:700;color:#fff">1.62<span style="font-size:11px;color:#9ca3af"> V</span></span>
+                <span style="font-family:ui-monospace,monospace;font-size:10px;color:#9ca3af">at 96.4 A</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">A–B spread</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:700;color:#fff">0.28<span style="font-size:11px;color:#9ca3af"> V</span></span>
+                <span style="font-family:ui-monospace,monospace;font-size:10px;color:#9ca3af">under load</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px">
+
+        <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid #404040">
+            <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Thermal</h2>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Motor</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;color:#fcd34d">71 °C</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Controller</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;color:#fff">38 °C</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Δ Motor − Controller</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;font-weight:700;color:#fff">33 °C</span>
+            </div>
+            <div style="padding-top:14px;border-top:1px solid #404040;display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Time in band · motor</span>
+              <div style="display:flex;height:20px;border-radius:4px;overflow:hidden;border:1px solid #404040">
+                <div style="width:54%;background:#3f3f46"></div>
+                <div style="width:31%;background:#f59e0b"></div>
+                <div style="width:15%;background:#fcd34d"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#9ca3af">
+                <span>&lt;65 · 54%</span><span>65–70 · 31%</span><span>&gt;70 · 15%</span>
+              </div>
+              <span style="font-size:11px;color:#9ca3af;line-height:1.5">Bands come from the thresholds your team set, not from us.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid #404040">
+            <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Driver inputs</h2>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af">Throttle distribution</span>
+              <div style="display:flex;align-items:flex-end;gap:3px;height:64px;margin-top:10px">
+                <div style="flex:1;height:34%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:12%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:8%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:11%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:14%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:18%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:22%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:31%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:48%;background:#3f3f46;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:100%;background:#cb1557;border-radius:2px 2px 0 0"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#9ca3af;margin-top:6px">
+                <span>0%</span><span>throttle</span><span>100%</span>
+              </div>
+            </div>
+            <div style="padding-top:14px;border-top:1px solid #404040;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12px;color:#9ca3af">Time at &gt;90% throttle</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fff">41%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12px;color:#9ca3af">Throttle + brake overlap</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fcd34d">3 events</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12px;color:#9ca3af">Longest overlap</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fff">1.4 s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 20px;border-bottom:1px solid #404040;display:flex;align-items:baseline;gap:10px">
+            <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Data quality</h2>
+            <span style="font-size:11px;color:#9ca3af;margin-left:auto">be suspicious of gaps</span>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Packet rate</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fff">4.9 /s</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Last packet</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fff">0.4 s ago</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Gaps in window</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fcd34d">2 · max 3.1 s</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;color:#9ca3af">Channels reporting</span>
+              <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700;color:#fff">14 / 16</span>
+            </div>
+            <div style="margin-top:4px;padding:12px;border-radius:6px;background:rgba(120,53,15,.15);border:1px solid rgba(245,158,11,.5);display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#fcd34d">Lap detection · low confidence</span>
+              <span style="font-size:12px;color:#fef3c7;line-height:1.5">8 boundaries found, 2 flagged as uncertain. Per-lap figures are hidden on this screen; everything above is time-window based and unaffected.</span>
+              <span style="font-size:12px;color:#fcd34d;text-decoration:underline;cursor:pointer">Show lap figures anyway</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="border:1px solid #404040;background:#262626;border-radius:12px;overflow:hidden">
+        <div style="padding:14px 20px;border-bottom:1px solid #404040;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 style="font-size:15px;font-weight:600;margin:0;color:#fff">Detected events</h2>
+          <span style="font-size:11px;color:#9ca3af">threshold crossings and signal anomalies in this window</span>
+          <span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer;margin-left:auto;white-space:nowrap">Export CSV</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#1f1f1f">
+                <th style="text-align:left;padding:8px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #404040">Time</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #404040">Channel</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #404040">Event</th>
+                <th style="text-align:right;padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #404040">Value</th>
+                <th style="text-align:right;padding:8px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9ca3af;border-bottom:1px solid #404040"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;color:#d1d5db">09:39:04</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#d1d5db">Motor temp</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#fcd34d">Crossed your warning threshold</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;text-align:right;color:#fcd34d;font-weight:700">65 °C</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;text-align:right"><span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer">Jump</span></td>
+              </tr>
+              <tr>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;color:#d1d5db">09:37:51</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#d1d5db">Current</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#d1d5db">Peak draw</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;text-align:right;color:#fff;font-weight:700">96.4 A</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;text-align:right"><span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer">Jump</span></td>
+              </tr>
+              <tr>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;color:#d1d5db">09:36:12</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#d1d5db">Telemetry</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;color:#fcd34d">Signal gap</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #333;font-family:ui-monospace,monospace;text-align:right;color:#fcd34d;font-weight:700">3.1 s</td>
+                <td style="padding:10px 20px;border-bottom:1px solid #333;text-align:right"><span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer">Jump</span></td>
+              </tr>
+              <tr>
+                <td style="padding:10px 20px;font-family:ui-monospace,monospace;color:#d1d5db">09:34:38</td>
+                <td style="padding:10px 12px;color:#d1d5db">Throttle / brake</td>
+                <td style="padding:10px 12px;color:#d1d5db">Overlap</td>
+                <td style="padding:10px 12px;font-family:ui-monospace,monospace;text-align:right;color:#fff;font-weight:700">1.4 s</td>
+                <td style="padding:10px 20px;text-align:right"><span style="font-size:12px;color:#f472a0;text-decoration:underline;cursor:pointer">Jump</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p style="font-size:12px;color:#9ca3af;line-height:1.6;margin:20px 0 0;max-width:88ch">Every figure on this screen is measured or derived from the selected time window and states its basis. Where a number depends on something eChook cannot know — pack capacity, true state of charge, lap boundaries — it is either labelled as an estimate with a confidence, driven by a value your team entered, or withheld. The app reports; the strategy is yours.</p>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1180}}"></script>
+</body>
+</html>

@@ -34,10 +34,12 @@ const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.
 const MapTab = defineAsyncComponent(() => import('../components/tabs/MapTab.vue'))
 const LapsTab = defineAsyncComponent(() => import('../components/tabs/LapsTab.vue'))
 const AnalyticsTab = defineAsyncComponent(() => import('../components/tabs/AnalyticsTab.vue'))
+const BatteriesTab = defineAsyncComponent(() => import('../components/tabs/BatteriesTab.vue'))
 const SettingsTab = defineAsyncComponent(() => import('../components/tabs/SettingsTab.vue'))
 const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.vue'))
 
 // Heroicons for tab navigation
+import CarBatteryIcon from '../components/icons/CarBatteryIcon.vue'
 import { ChartBarIcon, MapIcon, TableCellsIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
@@ -126,6 +128,7 @@ const tabs = computed(() => {
 
   if (auth.isAdmin) {
     baseTabs.push({ id: 'analytics', label: 'Analytics', icon: PresentationChartLineIcon, component: AnalyticsTab })
+    baseTabs.push({ id: 'batteries', label: 'Batteries', icon: CarBatteryIcon, component: BatteriesTab, badge: 'Beta' })
     baseTabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheckIcon, component: AdminTab })
   }
 
@@ -305,8 +308,13 @@ const handleKeydown = (e) => {
         class="hidden md:flex w-16 bg-zinc-100 dark:bg-neutral-900 border-r border-zinc-200 dark:border-neutral-800 flex-col items-center py-4 space-y-4 z-40">
         <button v-for="tab in tabs" :key="tab.id" type="button" @click="activeTabId = tab.id"
           :class="navTabIconButtonClass(activeTabId === tab.id)"
-          :title="tab.label" :aria-label="tab.label" :aria-current="activeTabId === tab.id ? 'page' : undefined">
+          :title="tab.badge ? `${tab.label} (${tab.badge})` : tab.label" :aria-label="tab.label"
+          :aria-current="activeTabId === tab.id ? 'page' : undefined">
           <component :is="tab.icon" class="w-6 h-6" />
+          <span v-if="tab.badge"
+            class="absolute -top-2 right-0 rounded px-1 py-0.5 text-[9px] font-bold leading-none bg-amber-400 text-amber-950 pointer-events-none">
+            {{ tab.badge }}
+          </span>
           <div v-if="activeTabId === tab.id" :class="NAV_TAB_LEFT_ACCENT_CLASS"></div>
         </button>
 
@@ -350,6 +358,10 @@ const handleKeydown = (e) => {
           :class="activeTabId === tab.id ? 'text-primary' : 'text-zinc-500 dark:text-gray-500'"
           :aria-label="tab.label" :aria-current="activeTabId === tab.id ? 'page' : undefined">
           <component :is="tab.icon" class="w-6 h-6" />
+          <span v-if="tab.badge"
+            class="absolute top-1 right-1/4 rounded px-1 py-0.5 text-[8px] font-bold leading-none bg-amber-400 text-amber-950 pointer-events-none">
+            {{ tab.badge }}
+          </span>
           <span class="sr-only">{{ tab.label }}</span>
           <div v-if="activeTabId === tab.id" class="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full"></div>
         </button>
