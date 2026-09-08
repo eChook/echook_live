@@ -1,18 +1,17 @@
 <!--
   @file components/tabs/batteries/BatteryDetailModal.vue
-  @brief Full battery details with optional edit and retire actions.
+  @brief Edit-pack modal — identity and measured capacity, matching Add a battery.
 -->
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { useBatteryStore } from '../../../stores/battery'
 import { useToast } from '../../../composables/useToast'
-import { formatBatteryAge, formatDateStampLabel, formatRelativeTime, formatStatValue, resolveManufactureDateStamp } from '../../../utils/batteryFormatters'
-import ConfirmationModal from '../../ui/ConfirmationModal.vue'
+import { resolveManufactureDateStamp } from '../../../utils/batteryFormatters'
 import BatteryManufactureDateFields from './BatteryManufactureDateFields.vue'
 
 const props = defineProps({
-    /** @brief Battery id to display, or null when closed. */
+    /** @brief Battery id to edit, or null when closed. */
     batteryId: { type: Number, default: null }
 })
 
@@ -23,10 +22,7 @@ const { showToast } = useToast()
 
 const detail = ref(null)
 const loading = ref(false)
-const editMode = ref(false)
 const saving = ref(false)
-/** @brief Pending status confirmation: retire or reactivate (un-retire). */
-const statusConfirmAction = ref(null)
 
 const editLabel = ref('')
 const editSerial = ref('')
@@ -37,43 +33,6 @@ const editPeukert = ref(0)
 
 /** @brief Whether the modal should be visible. */
 const isOpen = computed(() => props.batteryId !== null && props.batteryId !== undefined)
-
-/** @brief Resolve car name for current assignment display. */
-const assignedCarName = computed(() => {
-    const assignment = detail.value?.currentAssignment
-    if (!assignment?.carId) return null
-    const match = battery.authorisedCars.find((car) => car.id === assignment.carId)
-    return match?.car || assignment.carId
-})
-
-/** @brief Whether a status-change confirmation dialog is open. */
-const showStatusConfirm = computed(() => statusConfirmAction.value !== null)
-
-/** @brief Copy for the active status confirmation dialog. */
-const statusConfirmCopy = computed(() => {
-    if (statusConfirmAction.value === 'retire') {
-        return {
-            title: 'Retire Battery',
-            message: 'Retired batteries are hidden from assignment pickers. History is preserved.',
-            confirmText: 'Retire',
-            confirmButtonClass: 'bg-amber-600 hover:bg-amber-700'
-        }
-    }
-    if (statusConfirmAction.value === 'reactivate') {
-        return {
-            title: 'Un-retire Battery',
-            message: 'Return this battery to the active inventory? It will appear in assignment pickers again.',
-            confirmText: 'Un-retire',
-            confirmButtonClass: 'bg-emerald-600 hover:bg-emerald-700'
-        }
-    }
-    return {
-        title: '',
-        message: '',
-        confirmText: 'Confirm',
-        confirmButtonClass: 'bg-primary hover:bg-primary/90'
-    }
-})
 
 /**
  * @brief Load full battery details when opened.
@@ -103,30 +62,8 @@ function seedEditFields() {
 }
 
 watch(() => props.batteryId, () => {
-    editMode.value = false
-    statusConfirmAction.value = null
     loadDetail()
 }, { immediate: true })
-
-/**
- * @brief Handle parent dialog close; keep detail open while a confirm dialog is showing.
- */
-function handleDialogClose() {
-    if (showStatusConfirm.value) return
-    close()
-}
-
-/**
- * @brief Enter edit mode or cancel and restore fields.
- */
-function toggleEditMode() {
-    if (editMode.value) {
-        editMode.value = false
-        seedEditFields()
-        return
-    }
-    editMode.value = true
-}
 
 /**
  * @brief Close the modal.
@@ -156,64 +93,21 @@ async function saveEdits() {
             updated.dateStamp = editDateStamp.value.trim()
         }
         detail.value = updated
-        editMode.value = false
         showToast('Battery updated.', 'success')
         emit('updated')
+        close()
         return
     }
     showToast(battery.error || 'Update failed.', 'error')
 }
 
-/**
- * @brief Apply retire or un-retire after confirmation.
- */
-async function confirmStatusChange() {
-    const id = props.batteryId ?? detail.value?.id
-    const action = statusConfirmAction.value
-    if (!id || !action) {
-        statusConfirmAction.value = null
-        return
-    }
-
-    const nextStatus = action === 'retire' ? 'retired' : 'active'
-    saving.value = true
-    try {
-        const updated = await battery.updateBattery(id, { status: nextStatus })
-        statusConfirmAction.value = null
-
-        if (updated) {
-            detail.value = updated
-            showToast(action === 'retire' ? 'Battery retired.' : 'Battery returned to active inventory.', 'success')
-            emit('updated')
-            if (action === 'retire') {
-                close()
-            }
-            return
-        }
-        showToast(battery.error || 'Status update failed.', 'error')
-    } finally {
-        saving.value = false
-    }
-}
-
-/**
- * @brief Format discharge duration ms as h:m.
- * @param {number|null} ms - Duration in milliseconds
- * @returns {string} Formatted duration
- */
-function formatDuration(ms) {
-    if (!Number.isFinite(ms) || ms <= 0) return '0m'
-    const totalMinutes = Math.floor(ms / 60000)
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    if (hours === 0) return `${minutes}m`
-    return `${hours}h ${minutes}m`
-}
+const inputClass =
+    'w-full box-border rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-[color:var(--app-bg)] px-3 py-2.5 text-sm text-zinc-900 dark:text-white outline-none focus:border-primary focus:ring-1 focus:ring-primary'
 </script>
 
 <template>
     <TransitionRoot as="template" :show="isOpen">
-        <Dialog as="div" class="relative z-[100]" @close="handleDialogClose">
+        <Dialog as="div" class="relative z-[100]" @close="close">
             <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0"
                 enter-to="opacity-100" leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
                 <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" />
@@ -227,120 +121,90 @@ function formatDuration(ms) {
                         leave-from="opacity-100 translate-y-0 sm:scale-100"
                         leave-to="opacity-0 translate-y-4 sm:scale-95">
                         <DialogPanel
-                            class="w-full max-w-2xl rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                            <div class="flex items-start justify-between gap-4 mb-4">
-                                <DialogTitle class="text-lg font-bold text-zinc-900 dark:text-white">
-                                    {{ detail?.label || 'Battery Details' }}
+                            class="w-full max-w-lg overflow-hidden rounded-xl border border-zinc-200 dark:border-[color:var(--app-border)] bg-white dark:bg-[color:var(--app-surface)] shadow-xl">
+                            <div class="border-b border-zinc-200 dark:border-[color:var(--app-border)] px-5 py-3.5">
+                                <DialogTitle class="m-0 text-sm font-semibold text-zinc-900 dark:text-white">
+                                    Edit {{ detail?.label || 'battery' }}
                                 </DialogTitle>
-                                <div v-if="detail && !loading" class="flex flex-wrap items-center gap-2 shrink-0">
-                                    <button v-if="detail.status === 'active' && !editMode" type="button"
-                                        class="rounded-lg px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50"
-                                        :disabled="saving" @click="statusConfirmAction = 'retire'">
-                                        Retire
-                                    </button>
-                                    <button v-if="detail.status === 'retired' && !editMode" type="button"
-                                        class="rounded-lg px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition disabled:opacity-50"
-                                        :disabled="saving" @click="statusConfirmAction = 'reactivate'">
-                                        Un-retire
-                                    </button>
-                                    <button type="button"
-                                        class="rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50"
-                                        :class="editMode
-                                            ? 'border border-zinc-300 dark:border-neutral-600 text-zinc-700 dark:text-gray-300 hover:bg-zinc-100 dark:hover:bg-neutral-800'
-                                            : 'border border-primary text-primary hover:bg-primary/10'"
-                                        :disabled="saving" @click="toggleEditMode">
-                                        {{ editMode ? 'Cancel' : 'Edit' }}
-                                    </button>
-                                </div>
+                                <p class="mt-1 text-[11px] text-zinc-500 dark:text-[color:var(--app-muted)]">
+                                    Name, serial, manufacture date, and the capacity figures your team entered
+                                </p>
                             </div>
 
-                            <div v-if="loading" class="py-12 text-center text-zinc-500">Loading…</div>
+                            <div v-if="loading" class="px-5 py-12 text-center text-sm text-zinc-500">Loading…</div>
 
-                            <template v-else-if="detail">
-                                <div v-if="!editMode" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                                    <div><span class="text-zinc-500">Serial</span><p class="font-medium">{{ detail.serial || '—' }}</p></div>
-                                    <div><span class="text-zinc-500">Manufacture Date</span><p class="font-medium">{{ formatDateStampLabel(detail.dateStamp) }}</p></div>
-                                    <div><span class="text-zinc-500">Age</span><p class="font-medium">{{ formatBatteryAge(detail.manufactureDate, detail.dateStamp) }}</p></div>
-                                    <div><span class="text-zinc-500">Status</span><p class="font-medium capitalize">{{ detail.status }}</p></div>
-                                    <div><span class="text-zinc-500">Original Capacity</span><p class="font-medium">{{ detail.originalCapacity }} Ah</p></div>
-                                    <div><span class="text-zinc-500">Actual Capacity</span><p class="font-medium">{{ detail.actualCapacity }} Ah</p></div>
-                                    <div><span class="text-zinc-500">Peukert Constant</span><p class="font-medium">{{ detail.peukertConstant }}</p></div>
-                                    <div><span class="text-zinc-500">Stats Updated</span><p class="font-medium">{{ formatRelativeTime(detail.statsUpdatedAt) }}</p></div>
-                                    <div><span class="text-zinc-500">Backfill</span><p class="font-medium capitalize">{{ detail.statsBackfillStatus || 'idle' }}</p></div>
-
-                                    <div class="col-span-2 mt-2 pt-3 border-t border-zinc-200 dark:border-neutral-700">
-                                        <h4 class="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Lifetime Statistics</h4>
+                            <div v-else-if="detail" class="flex flex-col gap-[18px] p-5">
+                                <div class="flex flex-wrap gap-3">
+                                    <div class="min-w-0 flex-[1_1_160px]">
+                                        <label class="mb-1.5 block text-xs font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">
+                                            Name
+                                        </label>
+                                        <input v-model="editLabel" type="text" maxlength="64" :class="inputClass" />
                                     </div>
-                                    <div><span class="text-zinc-500">Discharges</span><p class="font-medium">{{ detail.numberOfDischarges ?? 0 }}</p></div>
-                                    <div><span class="text-zinc-500">Charges</span><p class="font-medium">{{ detail.numberOfCharges ?? 0 }}</p></div>
-                                    <div><span class="text-zinc-500">Max Voltage</span><p class="font-medium">{{ formatStatValue(detail.lifetimeMaxVoltage, 2) }} V</p></div>
-                                    <div><span class="text-zinc-500">Min Voltage</span><p class="font-medium">{{ formatStatValue(detail.lifetimeMinVoltage, 2) }} V</p></div>
-                                    <div><span class="text-zinc-500">Total Ah Delivered</span><p class="font-medium">{{ formatStatValue(detail.totalAhDelivered, 2) }} Ah</p></div>
-                                    <div><span class="text-zinc-500">Total kWh Delivered</span><p class="font-medium">{{ formatStatValue(detail.totalKwhDelivered, 3) }} kWh</p></div>
-                                    <div><span class="text-zinc-500">Critical Discharges</span><p class="font-medium">{{ detail.numberOfCriticalDischarges ?? 0 }}</p></div>
-                                    <div><span class="text-zinc-500">Discharge Time</span><p class="font-medium">{{ formatDuration(detail.totalDischargeTime) }}</p></div>
-                                    <div><span class="text-zinc-500">Avg Discharge Current</span><p class="font-medium">{{ formatStatValue(detail.averageDischargeCurrent, 1) }} A</p></div>
-                                    <div><span class="text-zinc-500">Distance Travelled</span><p class="font-medium">{{ formatStatValue(detail.totalDistanceTravelled, 1) }} km</p></div>
-
-                                    <div v-if="detail.currentAssignment" class="col-span-2 mt-2 pt-3 border-t border-zinc-200 dark:border-neutral-700">
-                                        <span class="text-zinc-500">Current Assignment</span>
-                                        <p class="font-medium">
-                                            {{ assignedCarName }} — {{ detail.currentAssignment.position }}
-                                            (since {{ new Date(detail.currentAssignment.assignedAt).toLocaleString() }})
-                                        </p>
-                                    </div>
-                                    <div v-else class="col-span-2 mt-2 pt-3 border-t border-zinc-200 dark:border-neutral-700">
-                                        <span class="text-zinc-500">Current Assignment</span>
-                                        <p class="font-medium">Not currently assigned</p>
+                                    <div class="min-w-0 flex-[1_1_120px]">
+                                        <label class="mb-1.5 block text-xs font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">
+                                            Serial
+                                            <span class="font-normal text-zinc-500 dark:text-[color:var(--app-muted)]">· 10 max</span>
+                                        </label>
+                                        <input v-model="editSerial" type="text" maxlength="10"
+                                            :class="[inputClass, 'font-mono']" />
                                     </div>
                                 </div>
 
-                                <div v-else class="space-y-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Name</label>
-                                        <input v-model="editLabel" type="text" maxlength="64"
-                                            class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white" />
-                                    </div>
+                                <div>
+                                    <label class="mb-1.5 block text-xs font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">
+                                        Manufactured
+                                    </label>
+                                    <BatteryManufactureDateFields v-model="editDateStamp" :show-label="false" />
+                                </div>
 
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Serial</label>
-                                            <input v-model="editSerial" type="text" maxlength="10" placeholder="SN001"
-                                                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white" />
-                                        </div>
-                                        <BatteryManufactureDateFields v-model="editDateStamp" />
+                                <div class="border-t border-zinc-200 dark:border-[color:var(--app-border)] pt-4">
+                                    <div class="mb-2.5 flex items-baseline gap-2">
+                                        <span class="text-xs font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">
+                                            Measured capacity
+                                        </span>
                                     </div>
-
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Original (Ah)</label>
+                                    <div class="flex flex-wrap gap-3">
+                                        <div class="min-w-0 flex-[1_1_100px]">
+                                            <label class="mb-1.5 block text-[11px] text-zinc-500 dark:text-[color:var(--app-muted)]">
+                                                Nominal (Ah)
+                                            </label>
                                             <input v-model.number="editOriginalCapacity" type="number" step="0.1" min="0"
-                                                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white" />
+                                                :class="[inputClass, 'font-mono']" />
                                         </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Actual (Ah)</label>
+                                        <div class="min-w-0 flex-[1_1_100px]">
+                                            <label class="mb-1.5 block text-[11px] text-zinc-500 dark:text-[color:var(--app-muted)]">
+                                                Measured (Ah)
+                                            </label>
                                             <input v-model.number="editActualCapacity" type="number" step="0.1" min="0"
-                                                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white" />
+                                                :class="[inputClass, 'font-mono']" />
                                         </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Peukert</label>
+                                        <div class="min-w-0 flex-[1_1_100px]">
+                                            <label class="mb-1.5 block text-[11px] text-zinc-500 dark:text-[color:var(--app-muted)]">
+                                                Peukert
+                                            </label>
                                             <input v-model.number="editPeukert" type="number" step="0.01" min="0"
-                                                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white" />
+                                                :class="[inputClass, 'font-mono']" />
                                         </div>
                                     </div>
+                                    <p class="mt-2.5 text-[11px] leading-relaxed text-zinc-500 dark:text-[color:var(--app-muted)]">
+                                        Measured is the figure <strong class="font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">your team</strong>
+                                        entered — eChook doesn't test packs.
+                                    </p>
+                                </div>
 
+                                <div class="flex flex-row-reverse gap-2">
                                     <button type="button"
-                                        class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+                                        class="h-10 rounded-lg bg-primary px-4 text-[13px] font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
                                         :disabled="saving" @click="saveEdits">
-                                        {{ saving ? 'Saving…' : 'Save Changes' }}
+                                        {{ saving ? 'Saving…' : 'Save changes' }}
+                                    </button>
+                                    <button type="button"
+                                        class="h-10 rounded-lg border border-zinc-300 dark:border-[color:var(--app-border)] px-4 text-[13px] font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]"
+                                        @click="close">
+                                        Cancel
                                     </button>
                                 </div>
-                            </template>
-
-                            <div class="mt-6 flex justify-end">
-                                <button type="button"
-                                    class="rounded-lg px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-gray-300 hover:bg-zinc-100 dark:hover:bg-neutral-800"
-                                    @click="close">Close</button>
                             </div>
                         </DialogPanel>
                     </TransitionChild>
@@ -348,9 +212,4 @@ function formatDuration(ms) {
             </div>
         </Dialog>
     </TransitionRoot>
-
-    <ConfirmationModal :is-open="showStatusConfirm" :title="statusConfirmCopy.title"
-        :message="statusConfirmCopy.message" :confirm-text="statusConfirmCopy.confirmText"
-        :confirm-button-class="statusConfirmCopy.confirmButtonClass" :disabled="saving"
-        @close="statusConfirmAction = null" @confirm="confirmStatusChange" />
 </template>

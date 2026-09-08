@@ -59,10 +59,87 @@ export const useBatteryStore = defineStore('battery', () => {
     /** @brief Last error message from a failed operation. */
     const error = ref(null)
 
+    /** @brief Store-wide fitment map: batteryId -> { carId, carName, position } */
+    const storeWideFitment = ref({})
+
+    /** @brief Inventory filter: all | available | fitted | retired */
+    const inventoryFilter = ref('all')
+
+    /** @brief Expanded inventory row id for inline details */
+    const expandedBatteryId = ref(null)
+
+    /** @brief Fit picker target position when choosing a pack */
+    const fitPickerPosition = ref(null)
+
+    /** @brief Cached stats backfill status for freshness bar */
+    const statsBackfillStatus = ref(null)
+
     /** @brief Active batteries suitable for assignment pickers. */
     const activeBatteries = computed(() =>
         batteries.value.filter((battery) => battery.status === 'active')
     )
+
+    /**
+     * @brief Resolve where label/chip for a battery row.
+     * @param {Object} row - Battery list item
+     * @param {string|null} currentCarId - Authenticated car id
+     * @returns {{kind: string, label: string}}
+     */
+    function resolveWhereChip(row, currentCarId) {
+        if (row.status === 'retired') {
+            const retiredLabel = row.retiredAt
+                ? `Retired ${new Date(row.retiredAt).toLocaleDateString(undefined, { month: '2-digit', year: 'numeric' })}`
+                : 'Retired'
+            return { kind: 'retired', label: retiredLabel }
+        }
+
+        const fitment = storeWideFitment.value[row.id]
+        if (!fitment) return { kind: 'available', label: 'Available' }
+
+        if (fitment.carId === currentCarId) {
+            return { kind: 'this-car', label: `This car · ${fitment.position}` }
+        }
+
+        return { kind: 'other-car', label: `${fitment.carName || 'Other car'} · ${fitment.position}` }
+    }
+
+    /** @brief Batteries offerable in the fit picker (active and not fitted elsewhere). */
+    const batteriesAvailableForFit = computed(() =>
+        activeBatteries.value.filter((row) => !storeWideFitment.value[row.id])
+    )
+
+    /**
+     * @brief Build store-wide fitment from authorised cars and current fitment.
+     * @param {string} currentCarId - Active car id
+     */
+    async function refreshStoreWideFitment(currentCarId) {
+        const map = {}
+        const cars = authorisedCars.value.length > 0
+            ? authorisedCars.value
+            : (currentCarId ? [{ id: currentCarId, car: storeInfo.value?.team || 'This car' }] : [])
+
+        await Promise.all(cars.map(async (car) => {
+            if (!car?.id) return
+            try {
+                const response = await batteryApi.get(`/cars/${car.id}/batteries/current`)
+                const fitment = response.data || {}
+                for (const position of ['upper', 'lower']) {
+                    const summary = fitment[position]
+                    if (summary?.id) {
+                        map[summary.id] = {
+                            carId: car.id,
+                            carName: car.car || car.id,
+                            position
+                        }
+                    }
+                }
+            } catch {
+                // Ignore per-car fitment failures — partial map is still useful
+            }
+        }))
+
+        storeWideFitment.value = map
+    }
 
     /**
      * @brief Fetch store membership status for the authenticated car.
@@ -229,6 +306,7 @@ export const useBatteryStore = defineStore('battery', () => {
         try {
             await batteryApi.post('/batteries/assign', payload)
             await fetchCurrentFitment(payload.carId)
+            await refreshStoreWideFitment(payload.carId)
             return true
         } catch (err) {
             error.value = extractErrorMessage(err, 'Failed to assign batteries')
@@ -246,6 +324,7 @@ export const useBatteryStore = defineStore('battery', () => {
         try {
             await batteryApi.post('/batteries/unassign', payload)
             await fetchCurrentFitment(payload.carId)
+            await refreshStoreWideFitment(payload.carId)
             return true
         } catch (err) {
             error.value = extractErrorMessage(err, 'Failed to unassign battery')
@@ -374,6 +453,8 @@ export const useBatteryStore = defineStore('battery', () => {
                     fetchAuthorisedCars(),
                     fetchCurrentFitment(carId)
                 ])
+                await refreshStoreWideFitment(carId)
+                statsBackfillStatus.value = await fetchStatsBackfillStatus()
             }
         } finally {
             loading.value = false
@@ -388,7 +469,14 @@ export const useBatteryStore = defineStore('battery', () => {
         authorisedCars,
         loading,
         error,
+        storeWideFitment,
+        inventoryFilter,
+        expandedBatteryId,
+        fitPickerPosition,
+        statsBackfillStatus,
         activeBatteries,
+        batteriesAvailableForFit,
+        resolveWhereChip,
         fetchStore,
         createStore,
         fetchBatteries,
@@ -396,6 +484,7 @@ export const useBatteryStore = defineStore('battery', () => {
         updateBattery,
         fetchBattery,
         fetchCurrentFitment,
+        refreshStoreWideFitment,
         assignBatteries,
         unassignBattery,
         fetchAuthorisedCars,

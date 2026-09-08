@@ -13,6 +13,11 @@ import {
     parseDateStamp
 } from '../../../utils/batteryFormatters'
 
+defineProps({
+    /** @brief When false, the parent supplies the Manufactured label. */
+    showLabel: { type: Boolean, default: true }
+})
+
 /** @brief Stored date stamp in YY-MM format (v-model). */
 const dateStamp = defineModel({ type: String, default: '' })
 
@@ -48,24 +53,31 @@ onMounted(() => {
         dateStamp.value = defaultManufactureDateStamp()
     }
 })
+
+/** @brief Shared select chrome matching Battery Store forms. */
+const selectClass =
+    'box-border rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-[color:var(--app-bg)] px-3 py-2.5 text-sm text-zinc-900 dark:text-white outline-none focus:border-primary focus:ring-1 focus:ring-primary'
 </script>
 
 <template>
     <div>
-        <label class="block text-sm font-medium text-zinc-700 dark:text-gray-300 mb-1">Manufacture Date</label>
-        <div class="grid grid-cols-2 gap-2">
-            <select v-model="selectedMonth"
-                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white">
+        <label v-if="showLabel" class="block mb-1.5 text-xs font-semibold text-zinc-700 dark:text-[color:var(--app-secondary)]">
+            Manufactured
+        </label>
+        <div class="flex gap-2">
+            <select v-model="selectedMonth" :class="[selectClass, 'flex-1 min-w-0']">
                 <option disabled value="">Month</option>
                 <option v-for="month in BATTERY_MANUFACTURE_MONTHS" :key="month.value" :value="month.value">
                     {{ month.label }}
                 </option>
             </select>
-            <select v-model="selectedYear"
-                class="w-full rounded-lg border border-zinc-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white">
+            <select v-model="selectedYear" :class="[selectClass, 'w-[104px] shrink-0 font-mono']">
                 <option disabled value="">Year</option>
                 <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
             </select>
         </div>
+        <p class="mt-2 text-[11px] leading-relaxed text-zinc-500 dark:text-[color:var(--app-muted)]">
+            Month and year only — it's what's stamped on the case.
+        </p>
     </div>
 </template>
