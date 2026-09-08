@@ -21,6 +21,7 @@ import { decodeMsgpack } from '../utils/msgpack'
 import { scalePacket } from '../utils/unitConversions'
 import { roundMetric } from '../utils/metricPrecision'
 import { extractRegularTelemetryPacket, normalizeTelemetryPacket } from '../utils/telemetryPacket'
+import { generateDemoPacket, resetDemoState } from '../utils/demoDataSimulator'
 
 // Extracted modules
 import { useSocket } from '../composables/useSocket'
@@ -29,6 +30,7 @@ import { useChartZoom } from '../composables/useChartZoom'
 import {
     REGULAR_KEYS,
     KEY_ORDER,
+    RANGE_CARD_KEYS,
     getDisplayName,
     getDescription,
     getDerivedKeysForPacket
@@ -72,6 +74,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      */
     const displayHistory = shallowRef([])
 
+    /**
+     * @brief Running session min/max per headline range-card channel, in display units.
+     * @description Updated incrementally as packets arrive (not re-scanned from history),
+     *              reset alongside history on `clearHistory()` / new session start.
+     * @type {Ref<Object.<string, {min: number, max: number}>>}
+     */
+    const sessionRanges = ref({})
+
     /** @brief Sequential array of lap data for backup/legacy consumers */
     const lapHistory = ref([])
 
@@ -100,6 +110,11 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @description { id, carName, teamName, number, isOwn }
      */
     const viewingCar = ref(null)
+
+    /** @brief True while local demo data simulation is running (admin tool, no server involved). */
+    const isDemoMode = ref(false)
+    /** @brief Interval handle for the demo data generator. */
+    let demoIntervalId = null
 
     // ============================================
     // Settings Proxy (from Settings Store)
@@ -141,7 +156,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @type {ComputedRef<boolean>}
      */
     const isDataStale = computed(() => {
-        if (!socketComposable.isConnected.value) return true
+        if (!isDemoMode.value && !socketComposable.isConnected.value) return true
         if (lastPacketTime.value === 0) return true
         return (now.value - lastPacketTime.value) > 5000
     })
@@ -165,7 +180,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
      * @type {ComputedRef<boolean>}
      */
     const showDataRibbon = computed(() => {
-        if (!socketComposable.isConnected.value) return false
+        if (!isDemoMode.value && !socketComposable.isConnected.value) return false
         if (isViewingHistoricalDay.value) return false
 
         // Socket may be up while the car is offline — require at least one live packet.
@@ -453,6 +468,38 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     /**
+     * @brief Extend the running session min/max for headline range-card channels.
+     * @description Cheap running reduction over a single display-scaled packet — not a
+     *              re-scan of history. Only tracks channels in `RANGE_CARD_KEYS`.
+     * @param {Object} displayPacket - A single display-unit-scaled telemetry packet
+     */
+    function updateSessionRanges(displayPacket) {
+        if (!displayPacket) return
+        const ranges = sessionRanges.value
+        let changed = false
+
+        RANGE_CARD_KEYS.forEach((key) => {
+            const raw = displayPacket[key]
+            const value = Number(raw)
+            if (!Number.isFinite(value)) return
+
+            const existing = ranges[key]
+            if (!existing) {
+                ranges[key] = { min: value, max: value }
+                changed = true
+            } else if (value < existing.min || value > existing.max) {
+                ranges[key] = {
+                    min: Math.min(existing.min, value),
+                    max: Math.max(existing.max, value)
+                }
+                changed = true
+            }
+        })
+
+        if (changed) sessionRanges.value = { ...ranges }
+    }
+
+    /**
      * @brief Clear race tracking data.
      */
     function clearRaces() {
@@ -462,15 +509,12 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     /**
-     * @brief Handle incoming data from WebSocket.
-     * @param {ArrayBuffer} rawData - MessagePack encoded data
+     * @brief Ingest an already-decoded, normalized telemetry packet.
+     * @description Shared by the live socket path and the local demo data
+     *              simulator so both go through identical lap/history handling.
+     * @param {Object} packet - Normalized telemetry packet
      */
-    function handleIncomingData(rawData) {
-        if (isPaused.value) return
-
-        // Decode MessagePack buffer
-        const decoded = decodeMsgpack(rawData)
-        const packet = normalizeTelemetryPacket(decoded)
+    function ingestPacket(packet) {
         if (!packet) return
 
         const timestamp = packet.timestamp || Date.now()
@@ -490,8 +534,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
             lastPacketTime.value = timestamp
 
             // Add to history
+            const displayPacket = scalePacketWithUnits(enrichedPacket)
             history.value.push(enrichedPacket)
-            displayHistory.value.push(scalePacketWithUnits(enrichedPacket))
+            displayHistory.value.push(displayPacket)
+            updateSessionRanges(displayPacket)
 
             // Limit history size
             if (history.value.length > maxHistoryPoints.value) {
@@ -514,6 +560,21 @@ export const useTelemetryStore = defineStore('telemetry', () => {
                 rebuildRacesFromHistory(history.value, { preserveExisting: true })
             }
         }
+    }
+
+    /**
+     * @brief Handle incoming data from WebSocket.
+     * @param {ArrayBuffer} rawData - MessagePack encoded data
+     */
+    function handleIncomingData(rawData) {
+        if (isPaused.value) return
+
+        // Decode MessagePack buffer
+        const decoded = decodeMsgpack(rawData)
+        const packet = normalizeTelemetryPacket(decoded)
+        if (!packet) return
+
+        ingestPacket(packet)
     }
 
     // ============================================
@@ -654,6 +715,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     function clearHistory() {
         history.value = []
         displayHistory.value = []
+        sessionRanges.value = {}
         clearRaces()
         chartZoomComposable.clearCurrentZoomWindow()
         chartZoomComposable.requestChartUnlock()
@@ -744,13 +806,63 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     }
 
     /**
+     * @brief Start generating fake local telemetry so the dashboard looks live.
+     * @description Admin-only demo tool. Disconnects any real socket/room, then
+     *              ticks a synthetic packet into the same ingestion path as live
+     *              data (lap detection, history, unit scaling) on a fixed interval.
+     *              Nothing is sent to or requested from the server.
+     */
+    function startDemoMode() {
+        if (isDemoMode.value) return
+
+        disconnect()
+        clearHistory()
+        resetDemoState()
+
+        isDemoMode.value = true
+        isPaused.value = false
+        wasLoadedFromCalendar.value = false
+        socketStatusMessage.value = ''
+        viewingCar.value = {
+            id: 'demo-car',
+            carName: 'Demo Car',
+            teamName: 'eChook Demo',
+            number: '00',
+            isOwn: false
+        }
+
+        demoIntervalId = setInterval(() => {
+            ingestPacket(generateDemoPacket())
+        }, 500)
+    }
+
+    /**
+     * @brief Stop the local demo data simulator and clear its generated data.
+     */
+    function stopDemoMode() {
+        if (!isDemoMode.value) return
+
+        if (demoIntervalId) {
+            clearInterval(demoIntervalId)
+            demoIntervalId = null
+        }
+
+        isDemoMode.value = false
+        viewingCar.value = null
+        lastPacketTime.value = 0
+        clearHistory()
+    }
+
+    /**
      * @brief Full state reset (disconnect and clear all data).
      */
     function resetState() {
+        stopDemoMode()
         disconnect()
         liveData.value = {}
         history.value = []
         displayHistory.value = []
+        sessionRanges.value = {}
         lapHistory.value = []
         races.value = {}
         lastPacketTime.value = 0
@@ -770,7 +882,10 @@ export const useTelemetryStore = defineStore('telemetry', () => {
     return {
         // Connection State
         socket: socketComposable.socket,
-        isConnected: socketComposable.isConnected,
+        isConnected: computed({
+            get: () => isDemoMode.value || socketComposable.isConnected.value,
+            set: (val) => { socketComposable.isConnected.value = val }
+        }),
         socketError: socketComposable.lastError,
         socketConnectionState: socketComposable.connectionState,
         isSocketReconnecting: socketComposable.isReconnecting,
@@ -784,6 +899,7 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         liveData,
         history,
         displayHistory,
+        sessionRanges,
         lapHistory,
         races,
         viewingCar,
@@ -832,11 +948,14 @@ export const useTelemetryStore = defineStore('telemetry', () => {
         // Chart Control
         chartZoomRequest: chartZoomComposable.chartZoomRequest,
         currentZoomWindowMs: chartZoomComposable.currentZoomWindowMs,
+        chartZoomLockLabel: chartZoomComposable.chartZoomLockLabel,
+        isChartZoomLocked: chartZoomComposable.isChartZoomLocked,
         requestChartZoom: chartZoomComposable.requestChartZoom,
         requestChartUnlock: chartZoomComposable.requestChartUnlock,
         requestChartPan: chartZoomComposable.requestChartPan,
         requestChartScale: chartZoomComposable.requestChartScale,
         setCurrentZoomWindow: chartZoomComposable.setCurrentZoomWindow,
-        clearCurrentZoomWindow: chartZoomComposable.clearCurrentZoomWindow
+        clearCurrentZoomWindow: chartZoomComposable.clearCurrentZoomWindow,
+        setChartZoomLockLabel: chartZoomComposable.setChartZoomLockLabel
     }
 })

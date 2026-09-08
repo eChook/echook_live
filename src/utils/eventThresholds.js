@@ -10,7 +10,8 @@ export const EVENT_THRESHOLD_DEFAULTS = Object.freeze({
     eventOverTempWarningC: 55,
     eventOverTempCriticalC: 65,
     eventCurrentSpikeWarningA: 40,
-    eventCurrentSpikeCriticalA: 120
+    eventCurrentSpikeCriticalA: 120,
+    eventRpmWarningRpm: 4600
 })
 
 /** @brief Dashboard card key to threshold-channel map. */
@@ -18,7 +19,8 @@ export const CARD_THRESHOLD_KEYS = Object.freeze({
     voltage: 'voltage',
     current: 'current',
     temp1: 'temp1',
-    temp2: 'temp2'
+    temp2: 'temp2',
+    rpm: 'rpm'
 })
 
 /**
@@ -70,11 +72,13 @@ export function evaluateChannelThresholds(packet, settings = {}) {
     const overTempCritical = Number(config.eventOverTempCriticalC)
     const currentWarning = Number(config.eventCurrentSpikeWarningA)
     const currentCritical = Number(config.eventCurrentSpikeCriticalA)
+    const rpmWarning = Number(config.eventRpmWarningRpm)
 
     const voltage = toFiniteNumber(data.voltage)
     const temp1 = toFiniteNumber(data.temp1)
     const temp2 = toFiniteNumber(data.temp2)
     const current = toFiniteNumber(data.current)
+    const rpm = toFiniteNumber(data.rpm)
     const absCurrent = current === null ? null : Math.abs(current)
     const maxTemp = Math.max(temp1 === null ? -Infinity : temp1, temp2 === null ? -Infinity : temp2)
 
@@ -118,6 +122,14 @@ export function evaluateChannelThresholds(packet, settings = {}) {
             criticalThreshold: overTempCritical,
             unit: 'C',
             severity: resolveThresholdSeverity(maxTemp, overTempWarning, overTempCritical, true)
+        },
+        rpm: {
+            title: 'High RPM',
+            value: rpm,
+            warningThreshold: rpmWarning,
+            criticalThreshold: null,
+            unit: 'RPM',
+            severity: resolveThresholdSeverity(rpm, rpmWarning, null, true)
         }
     }
 }

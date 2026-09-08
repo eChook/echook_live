@@ -36,6 +36,7 @@ export const DEFAULT_EVENT_THRESHOLD_SETTINGS = Object.freeze({
     eventOverTempCriticalC: 65,
     eventCurrentSpikeWarningA: 40,
     eventCurrentSpikeCriticalA: 120,
+    eventRpmWarningRpm: 4600,
     eventDropoutWarningSec: 10,
     eventOverlapWarningSec: 2
 })
@@ -59,6 +60,8 @@ function createDefaultAnalyticsSettings() {
         manualStartOffsetSec: null,
         autoCollapseStartCardSec: 60,
         enableSideBySideHistoryCompare: false,
+        /** @brief Team-entered energy reference (Ah) for Status homescreen — not inferred capacity */
+        energyReferenceAh: null,
         ...DEFAULT_BATTERY_PACK_SETTINGS,
         ...DEFAULT_IR_ESTIMATION_SETTINGS,
         ...DEFAULT_EVENT_THRESHOLD_SETTINGS
@@ -134,8 +137,8 @@ export const useSettingsStore = defineStore('settings', () => {
     // Dashboard Persistence
     // ============================================
 
-    /** @brief Currently active tab ID (graph, map, laps, etc.) */
-    const activeTabId = ref('graph')
+    /** @brief Currently active tab ID (status, graph, map, laps, etc.) */
+    const activeTabId = ref('status')
 
     /** @brief List of data keys shown in dashboard cards */
     const selectedDashboardKeys = ref(['voltage', 'current', 'speed', 'rpm'])
@@ -300,7 +303,7 @@ export const useSettingsStore = defineStore('settings', () => {
             showGrid: true,
             graphHeight: 320
         }
-        activeTabId.value = 'graph'
+        activeTabId.value = 'status'
         selectedDashboardKeys.value = ['voltage', 'current', 'speed', 'rpm']
         showDashboardMetrics.value = true
         hideLapsDisclaimer.value = false
@@ -703,6 +706,17 @@ export const useSettingsStore = defineStore('settings', () => {
                         )
                     } else {
                         errors.push('analyticsSettings.eventCurrentSpikeCriticalA must be a valid number.')
+                    }
+                }
+                if (newData.analyticsSettings.eventRpmWarningRpm !== undefined) {
+                    if (Number.isFinite(newData.analyticsSettings.eventRpmWarningRpm)) {
+                        nextAnalyticsSettings.eventRpmWarningRpm = clampNumber(
+                            Number(newData.analyticsSettings.eventRpmWarningRpm),
+                            0,
+                            20000
+                        )
+                    } else {
+                        errors.push('analyticsSettings.eventRpmWarningRpm must be a valid number.')
                     }
                 }
                 if (newData.analyticsSettings.eventDropoutWarningSec !== undefined) {

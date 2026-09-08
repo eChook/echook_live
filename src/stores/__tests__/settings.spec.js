@@ -15,7 +15,7 @@ describe('settings store', () => {
         expect(settings.unitSettings.tempUnit).toBe('c')
         expect(settings.graphSettings.showLapHighlights).toBe(true)
         expect(settings.graphSettings.showAnimations).toBe(false)
-        expect(settings.activeTabId).toBe('graph')
+        expect(settings.activeTabId).toBe('status')
         expect(settings.themeMode).toBe('system')
         expect(settings.resolvedTheme).toBe('light')
         expect(settings.analyticsSettings.liveWindowMinutes).toBe(10)

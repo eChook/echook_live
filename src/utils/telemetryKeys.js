@@ -19,6 +19,16 @@ export const REGULAR_KEYS = new Set([
 ])
 
 /**
+ * @brief Telemetry keys that render as a "headline" data ribbon card with a
+ *        session min/max range strip, rather than a compact label+value row.
+ * @description Deliberately separate from `eventThresholds.js`'s
+ *              `CARD_THRESHOLD_KEYS` — speed and rpm get a range strip without
+ *              (or with only a partial) configured threshold.
+ * @type {Set<string>}
+ */
+export const RANGE_CARD_KEYS = new Set(['voltage', 'current', 'temp1', 'temp2', 'speed', 'rpm'])
+
+/**
  * @brief Set of lap summary data keys.
  * @description These keys are sent once per lap with aggregated statistics.
  * @type {Set<string>}
