@@ -12,11 +12,17 @@ import { useAuthStore } from '../stores/auth'
 /**
  * @brief Vue Router instance with route definitions.
  * @description Routes:
- *              - `/` - Dashboard (requires authentication)
+ *              - `/` - Redirects to `/dashboard`
+ *              - `/dashboard/:tab?/:subtab?` - Dashboard (requires authentication).
+ *                `tab` selects the main tab (status, graph, map, laps, analytics,
+ *                batteries, admin, settings); `subtab` selects a sub-panel within
+ *                a tab that has one (e.g. Settings categories, Admin sections).
+ *                Both segments are kept in sync with dashboard UI state so every
+ *                tab/subtab combination has a shareable, bookmarkable URL.
  *              - `/login` - Login page
  *              - `/register` - Registration page
  *              - `/spectate/:trackName` - Public spectator view
- * 
+ *
  *              All view components are lazy-loaded for code splitting.
  */
 const router = createRouter({
@@ -24,6 +30,10 @@ const router = createRouter({
     routes: [
         {
             path: '/',
+            redirect: { name: 'dashboard' }
+        },
+        {
+            path: '/dashboard/:tab?/:subtab?',
             name: 'dashboard',
             component: () => import('../views/DashboardView.vue'),
             meta: { requiresAuth: true }
