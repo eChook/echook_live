@@ -20,8 +20,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSpectatorStore } from '../stores/spectator'
-import { useSettingsStore } from '../stores/settings'
-import { getMapTileUrl } from '../constants/mapTiles'
+import { MAP_TILE_URL } from '../constants/mapTiles'
 import PublicHeader from '../components/PublicHeader.vue'
 import PublicFooter from '../components/PublicFooter.vue'
 import "leaflet/dist/leaflet.css"
@@ -29,10 +28,6 @@ import { LMap, LTileLayer, LCircleMarker, LTooltip } from "@vue-leaflet/vue-leaf
 
 const route = useRoute()
 const spectatorStore = useSpectatorStore()
-const settings = useSettingsStore()
-
-/** @brief Tile layer URL for the active UI theme */
-const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
 
 /** @brief Track name from route params */
 const trackName = computed(() => route.params.trackName)
@@ -188,8 +183,8 @@ function toggleCarSelection(carId) {
                         class="py-8 text-center text-zinc-500 dark:text-gray-500 italic">
                         Waiting for cars...
                     </p>
-                    <div class="p-3 text-xs text-zinc-500 dark:text-gray-500 text-center border-t border-zinc-200 dark:border-neutral-700">
-                        Disclaimer: Data is provided by teams and may not be accurate.
+                    <div class="p-3 text-xs text-zinc-500 dark:text-[color:var(--app-muted)] text-center border-t border-zinc-200 dark:border-neutral-700">
+                        unofficial · telemetry from participating cars only
                     </div>
                 </div>
 
@@ -234,8 +229,8 @@ function toggleCarSelection(carId) {
                     </table>
 
                     <!-- Disclaimer -->
-                    <div class="p-4 text-xs text-zinc-500 dark:text-gray-500 text-center border-t border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/50">
-                        Disclaimer: Data is provided by teams and may not be accurate.
+                    <div class="p-4 text-xs text-zinc-500 dark:text-[color:var(--app-muted)] text-center border-t border-zinc-200 dark:border-neutral-700 bg-zinc-50/80 dark:bg-neutral-900/50">
+                        unofficial · telemetry from participating cars only
                     </div>
                 </div>
             </div>
@@ -243,7 +238,7 @@ function toggleCarSelection(carId) {
             <!-- Map panel -->
             <div class="flex-1 min-h-0 min-w-0 relative bg-zinc-200 dark:bg-neutral-900">
                 <l-map ref="map" v-model:zoom="zoom" v-model:center="center" :use-global-leaflet="false">
-                    <l-tile-layer :url="mapTileUrl" layer-type="base"
+                    <l-tile-layer :url="MAP_TILE_URL" layer-type="base"
                         name="OpenStreetMap" />
 
                     <!-- Car Markers -->

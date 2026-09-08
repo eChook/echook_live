@@ -71,4 +71,36 @@ describe('DataCard', () => {
 
         expect(wrapper.classes()).toContain('cursor-grab')
     })
+
+    describe('range strip', () => {
+        const stripSelector = '.rounded-\\[3px\\].bg-zinc-100'
+
+        it('renders the strip when rangeMin/rangeMax are provided', () => {
+            const wrapper = mountCard({ value: 23, rangeMin: 20, rangeMax: 26 })
+
+            expect(wrapper.find(stripSelector).exists()).toBe(true)
+        })
+
+        it('omits the strip when range data is missing', () => {
+            const wrapper = mountCard()
+
+            expect(wrapper.find(stripSelector).exists()).toBe(false)
+        })
+
+        it('does not render a strip for compact cards even with range data', () => {
+            const wrapper = mountCard({ compact: true, rangeMin: 20, rangeMax: 26 })
+
+            expect(wrapper.find(stripSelector).exists()).toBe(false)
+        })
+    })
+
+    describe('compact variant', () => {
+        it('renders a row layout without a range strip', () => {
+            const wrapper = mountCard({ compact: true, label: 'Throttle', value: 62 })
+
+            expect(wrapper.classes()).toContain('justify-between')
+            expect(wrapper.text()).toContain('Throttle')
+            expect(wrapper.text()).toContain('62')
+        })
+    })
 })

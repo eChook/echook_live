@@ -9,6 +9,8 @@ export default {
         extend: {
             colors: {
                 primary: '#cb1557',
+                'app-inset': 'var(--app-inset)',
+                'app-hairline': 'var(--app-hairline)',
             },
             fontFamily: {
                 oswald: ['Oswald', 'sans-serif'],

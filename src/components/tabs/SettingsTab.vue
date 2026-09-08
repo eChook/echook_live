@@ -25,6 +25,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
 import ConfirmationModal from '../ui/ConfirmationModal.vue'
 import { navTabButtonClass, NAV_TAB_LEFT_ACCENT_CLASS } from '../../utils/navTabClasses'
+import { useRouteSubtab } from '../../composables/useRouteSubtab'
 import { Switch, SwitchGroup, SwitchLabel, Menu, MenuButton, MenuItems, MenuItem, Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import {
   ClipboardDocumentCheckIcon,
@@ -40,7 +41,8 @@ import {
   UserCircleIcon,
   PaintBrushIcon,
   ChartBarIcon,
-  CodeBracketIcon
+  CodeBracketIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
@@ -198,9 +200,6 @@ const themeOptions = [
   { value: 'system', label: 'Auto' }
 ]
 
-/** @brief Currently selected settings category panel. */
-const activeCategory = ref('account')
-
 /** @brief Sidebar category definitions for grouped settings navigation. */
 const categories = [
   { id: 'account', label: 'Account', icon: UserCircleIcon },
@@ -208,6 +207,9 @@ const categories = [
   { id: 'analytics', label: 'Analytics', icon: ChartBarIcon },
   { id: 'api', label: 'API', icon: CodeBracketIcon }
 ]
+
+/** @brief Currently selected settings category panel (synced with the `subtab` route param). */
+const activeCategory = useRouteSubtab('settings', categories.map(c => c.id), 'account')
 
 /**
  * @brief Shared classes for a category nav button.
@@ -401,6 +403,43 @@ async function openDeleteAccountModal() {
 /**
  * @brief Permanently delete account and associated server data.
  */
+/** @brief Feedback modal state. */
+const isFeedbackModalOpen = ref(false)
+const feedbackText = ref('')
+const feedbackError = ref('')
+const isSubmittingFeedback = ref(false)
+
+/**
+ * @brief Open the send feedback modal.
+ */
+function openFeedbackModal() {
+  feedbackText.value = ''
+  feedbackError.value = ''
+  isFeedbackModalOpen.value = true
+}
+
+/**
+ * @brief Submit freeform feedback for the current car account.
+ */
+async function submitFeedback() {
+  if (!feedbackText.value.trim()) {
+    feedbackError.value = 'Please enter some feedback before sending.'
+    return
+  }
+
+  isSubmittingFeedback.value = true
+  const result = await auth.submitFeedback(feedbackText.value.trim())
+  isSubmittingFeedback.value = false
+
+  if (result.success) {
+    isFeedbackModalOpen.value = false
+    showMessage('Thanks!', 'Your feedback has been sent to the eChook team.', 'success')
+    return
+  }
+
+  feedbackError.value = result.error
+}
+
 async function confirmDeleteAccount() {
   if (!isValidVerificationCode(deleteAccountCode.value)) {
     deleteAccountError.value = 'Please enter the 6-digit verification code from your email.'
@@ -429,8 +468,15 @@ async function confirmDeleteAccount() {
     <div class="max-w-4xl mx-auto space-y-8">
 
       <!-- Header -->
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-3">
         <h2 class="text-2xl font-bold text-zinc-900 dark:text-white">Settings</h2>
+
+        <div class="flex items-center gap-2">
+          <button type="button" @click="openFeedbackModal"
+            class="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg transition text-sm font-bold flex items-center shadow-sm">
+            <ChatBubbleLeftRightIcon class="w-5 h-5 mr-2" />
+            Send Feedback
+          </button>
 
         <Menu as="div" class="relative">
           <MenuButton
@@ -467,6 +513,7 @@ async function confirmDeleteAccount() {
             </MenuItems>
           </Transition>
         </Menu>
+        </div>
 
         <!-- Hidden File Input -->
         <input type="file" ref="fileInput" class="hidden" accept=".echook_settings,application/json"
@@ -1005,6 +1052,13 @@ async function confirmDeleteAccount() {
                     nominal.
                   </p>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="text-xs text-zinc-600 dark:text-gray-400 md:col-span-2">
+                      Energy reference (Ah) — Status homescreen
+                      <input v-model.number="settings.analyticsSettings.energyReferenceAh" type="number" min="0"
+                        step="0.5" placeholder="Optional team reference"
+                        class="mt-1 w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                      <span class="block mt-1 text-[11px] text-zinc-500 dark:text-gray-500">Your team's allowance figure for comparing charge out — not inferred pack capacity.</span>
+                    </label>
                     <label class="text-xs text-zinc-600 dark:text-gray-400">
                       Pack nominal capacity (Ah)
                       <input v-model.number="settings.analyticsSettings.packNominalCapacityAh" type="number" min="1"
@@ -1328,6 +1382,25 @@ async function confirmDeleteAccount() {
         </div>
       </Dialog>
     </TransitionRoot>
+
+    <ConfirmationModal :is-open="isFeedbackModalOpen" title="Send Feedback"
+      message="Tell us what's working, what isn't, or what you'd like to see. This is sent to the eChook team along with your car account."
+      confirm-text="Send" cancel-text="Cancel"
+      panel-class="sm:max-w-lg"
+      :disabled="isSubmittingFeedback"
+      @close="isFeedbackModalOpen = false" @confirm="submitFeedback">
+      <template #body>
+        <label class="block text-xs font-bold uppercase text-zinc-500 dark:text-gray-500 mb-1">
+          Feedback
+        </label>
+        <textarea v-model="feedbackText" rows="10" maxlength="2000"
+          class="w-full bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white px-3 py-2 rounded border border-zinc-300 dark:border-neutral-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+          :disabled="isSubmittingFeedback"></textarea>
+        <p v-if="feedbackError" class="mt-2 text-sm text-red-400 font-medium">
+          {{ feedbackError }}
+        </p>
+      </template>
+    </ConfirmationModal>
 
     <ConfirmationModal :is-open="isDeleteAllTelemetryModalOpen" title="Delete All Telemetry"
       message="A 6-digit verification code has been sent to your email. Enter it below to permanently remove all telemetry stored on eChook Server for your car. Your account will remain active."

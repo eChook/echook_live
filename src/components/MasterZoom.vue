@@ -130,10 +130,19 @@ const resolveAxisAbsoluteWindow = (axis, bounds) => {
 }
 
 /**
+ * @brief True while a programmatic (non-locking) dataZoom dispatch is in flight.
+ * @description Suppresses the 'datazoom' chart event handler so that live-follow
+ *              updates don't get mistaken for a user-initiated lock.
+ */
+const suppressZoomSync = ref(false)
+
+/**
  * @brief Persist the current slider window as the shared absolute zoom window.
+ * @description Only called in response to a genuine 'datazoom' chart event
+ *              (user drag), never for programmatic live-follow updates.
  */
 const syncWindowFromChart = () => {
-  if (!chartRef.value) return
+  if (!chartRef.value || suppressZoomSync.value) return
   const bounds = getSharedTimeBounds()
   if (!bounds) return
   const axis = chartRef.value.getOption()?.dataZoom?.[0]
@@ -167,18 +176,25 @@ const zoomSeriesData = computed(() => {
 })
 
 /**
- * @brief Apply an absolute window to the master zoom slider and persist it globally.
+ * @brief Apply an absolute window to the master zoom slider, optionally persisting it globally.
  * @param {{start: number, end: number} | null} window - Absolute window in ms
+ * @param {{persist?: boolean}} [options] - When persist is false, the window is
+ *        shown on the slider but not saved as a locked zoom (used for live-follow).
  * @returns {boolean} True when a zoom dispatch was emitted
  */
-const applyAbsoluteWindow = (window) => {
+const applyAbsoluteWindow = (window, { persist = true } = {}) => {
   if (!chartRef.value || !window) return false
+  if (!persist) suppressZoomSync.value = true
   chartRef.value.dispatchAction({
     type: 'dataZoom',
     startValue: window.start,
     endValue: window.end
   })
-  telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  if (persist) {
+    telemetry.setCurrentZoomWindow?.(window.start, window.end)
+  } else {
+    requestAnimationFrame(() => { suppressZoomSync.value = false })
+  }
   return true
 }
 
@@ -189,7 +205,7 @@ const applyFullRangeIfUnlocked = () => {
   if (telemetry.currentZoomWindowMs) return
   const bounds = getSharedTimeBounds()
   if (bounds) {
-    applyAbsoluteWindow(bounds)
+    applyAbsoluteWindow(bounds, { persist: false })
   }
 }
 
@@ -214,7 +230,13 @@ const processZoom = () => {
   }
 
   if (targetWindow) {
-    applyAbsoluteWindow(targetWindow)
+    if (req.type === 'reset') {
+      // Unlock: show the live-edge window without persisting it as a lock.
+      applyAbsoluteWindow(targetWindow, { persist: false })
+      telemetry.clearCurrentZoomWindow?.()
+    } else {
+      applyAbsoluteWindow(targetWindow)
+    }
   }
   telemetry.chartZoomRequest = null
 }
@@ -249,8 +271,14 @@ onMounted(() => {
       })
       telemetry.setCurrentZoomWindow?.(persisted.start, persisted.end)
     }
-    processZoom()
-    syncWindowFromChart()
+    if (telemetry.chartZoomRequest) {
+      processZoom()
+      return
+    }
+    // No lock and no pending request: show the live bounds without locking.
+    if (!persisted && bounds) {
+      applyAbsoluteWindow(bounds, { persist: false })
+    }
   })
 })
 

@@ -235,6 +235,100 @@ export function computeThrottleHistogram(samples, options = {}) {
 }
 
 /**
+ * @brief Compute a time-weighted distribution of a sample-derived value across equal-width bins.
+ * @description Auto-ranges over the observed values (unless a domain is given) and buckets
+ *              the time each interval spends in each bin, so bar height reflects dwell time
+ *              rather than sample count. Used to render "where has the car spent its time"
+ *              histograms for arbitrary channels (including derived values like efficiency).
+ * @param {Array<Object>} samples - Telemetry points sorted by timestamp
+ * @param {Object} options - Distribution options
+ * @param {(sample: Object) => (number|null)} options.getValue - Value accessor per sample
+ * @param {number} [options.binCount=12] - Number of equal-width bins
+ * @param {number} [options.maxDtMs=10000] - Max interval duration to include
+ * @param {{min: number, max: number}} [options.domain] - Explicit value domain, else auto-ranged
+ * @returns {{bins: Array<{min: number, max: number, timeMs: number, timePct: number}>, min: number|null, max: number|null, totalTimeMs: number}}
+ */
+export function computeValueDistribution(samples, options = {}) {
+    const getValue = typeof options.getValue === 'function' ? options.getValue : () => null
+    const binCount = Number.isFinite(options.binCount) && options.binCount > 0 ? Math.floor(options.binCount) : 12
+    const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
+    const list = Array.isArray(samples) ? samples : []
+
+    let domainMin = toFiniteNumber(options.domain?.min)
+    let domainMax = toFiniteNumber(options.domain?.max)
+    if (domainMin === null || domainMax === null) {
+        for (const sample of list) {
+            const value = toFiniteNumber(getValue(sample))
+            if (value === null) continue
+            domainMin = domainMin === null ? value : Math.min(domainMin, value)
+            domainMax = domainMax === null ? value : Math.max(domainMax, value)
+        }
+    }
+
+    if (domainMin === null || domainMax === null) {
+        return { bins: [], min: null, max: null, totalTimeMs: 0 }
+    }
+    if (domainMin === domainMax) {
+        const pad = Math.abs(domainMin) * 0.05 || 1
+        domainMin -= pad
+        domainMax += pad
+    }
+
+    const binWidth = (domainMax - domainMin) / binCount
+    const bins = Array.from({ length: binCount }, (_, i) => ({
+        min: domainMin + i * binWidth,
+        max: i === binCount - 1 ? domainMax : domainMin + (i + 1) * binWidth,
+        timeMs: 0,
+        timePct: 0
+    }))
+
+    let totalTimeMs = 0
+    for (let i = 0; i < list.length - 1; i += 1) {
+        const currentPoint = list[i] || {}
+        const nextPoint = list[i + 1] || {}
+        const ts = toFiniteNumber(currentPoint.timestamp)
+        const nextTs = toFiniteNumber(nextPoint.timestamp)
+        if (ts === null || nextTs === null) continue
+
+        const dtMs = nextTs - ts
+        if (!isValidDuration(dtMs, maxDtMs)) continue
+
+        const value = toFiniteNumber(getValue(currentPoint))
+        if (value === null) continue
+
+        const binIndex = findValueBinIndex(bins, value)
+        if (binIndex < 0) continue
+
+        bins[binIndex].timeMs += dtMs
+        totalTimeMs += dtMs
+    }
+
+    bins.forEach((bin) => {
+        bin.timePct = totalTimeMs > 0 ? (bin.timeMs / totalTimeMs) * 100 : 0
+    })
+
+    return { bins, min: domainMin, max: domainMax, totalTimeMs }
+}
+
+/**
+ * @brief Find the bin index containing a value, from bins produced by computeValueDistribution.
+ * @param {Array<{min: number, max: number}>} bins - Equal-width bins in ascending order
+ * @param {number} value - Value to locate
+ * @returns {number} Matched bin index, or -1 when the value falls outside every bin
+ */
+export function findValueBinIndex(bins, value) {
+    if (!Array.isArray(bins) || bins.length === 0 || !Number.isFinite(value)) return -1
+    for (let i = 0; i < bins.length; i += 1) {
+        const bin = bins[i]
+        const isLast = i === bins.length - 1
+        if (value >= bin.min && (isLast ? value <= bin.max : value < bin.max)) return i
+    }
+    if (value < bins[0].min) return 0
+    if (value > bins[bins.length - 1].max) return bins.length - 1
+    return -1
+}
+
+/**
  * @brief Compute throttle+brake overlap events and durations.
  * @param {Array<Object>} samples - Telemetry points sorted by timestamp
  * @param {Object} [options] - Overlap options
@@ -1354,10 +1448,12 @@ export function estimateC20TerminalVoltage(terminalVoltage, current, options = {
  * @param {number} [options.nominalSeriesVoltage=24] - Pack nominal voltage for C/20 lookup
  * @param {Object|null} [options.supplyResistance] - Pack resistance estimate for V_C/20
  * @param {number} [options.irCurrentDeadbandA=0.5] - IR deadband for V_oc context
+ * @param {string} [options.voltageKey='voltage'] - Voltage channel to read (branch SoC uses 'voltageLower'/'voltageHigh')
  * @returns {Object} SoC percent and method-specific metadata
  */
 export function computeBatterySoC(samples, options = {}) {
     const method = options.method === 'c20' ? 'c20' : 'peukert'
+    const voltageKey = typeof options.voltageKey === 'string' ? options.voltageKey : 'voltage'
     const maxDtMs = Number.isFinite(options.maxDtMs) ? options.maxDtMs : 10000
     const nominalCapacityAh = Number.isFinite(options.nominalCapacityAh) && options.nominalCapacityAh > 0
         ? options.nominalCapacityAh
@@ -1403,13 +1499,13 @@ export function computeBatterySoC(samples, options = {}) {
     let vC20 = null
     let c20Reason = null
     const resistanceBranch = options.supplyResistance || null
-    const latestSample = getLatestBatterySample(data, 'voltage')
+    const latestSample = getLatestBatterySample(data, voltageKey)
     if (!latestSample || !Number.isFinite(latestSample.timestamp)) {
         c20Reason = 'missing_sample'
     } else if (!resistanceBranch?.valid) {
         c20Reason = 'missing_valid_resistance_fit'
     } else {
-        const vocContext = buildVocSampleContext(data, 'voltage', resistanceBranch, latestSample.timestamp, { irCurrentDeadbandA })
+        const vocContext = buildVocSampleContext(data, voltageKey, resistanceBranch, latestSample.timestamp, { irCurrentDeadbandA })
         vC20 = estimateC20TerminalVoltage(latestSample.voltage, latestSample.current, {
             rMilliOhm: vocContext.rMilliOhm,
             polarizationV: vocContext.polarizationV,

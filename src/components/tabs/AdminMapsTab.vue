@@ -22,15 +22,13 @@
  */
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAdminStore } from '../../stores/admin'
-import { useSettingsStore } from '../../stores/settings'
-import { getMapTileUrl } from '../../constants/mapTiles'
+import { MAP_TILE_URL } from '../../constants/mapTiles'
 import { navTabListRowClass } from '../../utils/navTabClasses'
 import { TrashIcon, PlusIcon, MapIcon } from '@heroicons/vue/24/outline'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LRectangle, LMarker, LTooltip } from "@vue-leaflet/vue-leaflet"
 
 const adminStore = useAdminStore()
-const settings = useSettingsStore()
 const selectedTrackId = ref(null)
 const selectedTrack = ref(null) // Local copy for editing
 const isCreating = ref(false)
@@ -39,9 +37,6 @@ const isCreating = ref(false)
 const map = ref(null)
 const zoom = ref(13)
 const center = ref([52.0786, -1.0169]) // Silverstone default
-
-/** @brief Tile layer URL for the active UI theme */
-const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
 
 onMounted(() => {
     adminStore.fetchTracks()
@@ -204,7 +199,7 @@ const deleteTrack = async (id) => {
         <!-- Map editor view -->
         <div class="flex-1 min-h-[50vh] md:min-h-0 min-w-0 relative bg-zinc-200 dark:bg-neutral-900">
             <l-map ref="map" v-model:zoom="zoom" v-model:center="center" :use-global-leaflet="false">
-                <l-tile-layer :url="mapTileUrl" layer-type="base"
+                <l-tile-layer :url="MAP_TILE_URL" layer-type="base"
                     name="OpenStreetMap" />
 
                 <!-- Editing Rectangle -->

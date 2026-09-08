@@ -17,7 +17,8 @@
  * - Keyboard shortcuts for navigation and chart control
  * - Responsive layout (mobile bottom tabs, desktop side tabs)
  */
-import { onMounted, onUnmounted, ref, computed, shallowRef, defineAsyncComponent } from 'vue'
+import { onMounted, onUnmounted, ref, computed, watch, shallowRef, defineAsyncComponent } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTelemetryStore } from '../stores/telemetry'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
@@ -26,11 +27,14 @@ import DataCard from '../components/DataCard.vue'
 import GraphHelpModal from '../components/GraphHelpModal.vue'
 import draggable from 'vuedraggable'
 import { CARD_THRESHOLD_KEYS, evaluateChannelThresholds } from '../utils/eventThresholds'
+import { RANGE_CARD_KEYS } from '../utils/telemetryKeys'
+import { convertTemp } from '../utils/unitConversions'
 import { useCriticalEventAlerts } from '../composables/useCriticalEventAlerts'
 import { navTabIconButtonClass, NAV_TAB_LEFT_ACCENT_CLASS } from '../utils/navTabClasses'
 
 // Lazy-loaded tab components for code splitting
 const GraphTab = defineAsyncComponent(() => import('../components/tabs/GraphTab.vue'))
+const StatusTab = defineAsyncComponent(() => import('../components/tabs/StatusTab.vue'))
 const MapTab = defineAsyncComponent(() => import('../components/tabs/MapTab.vue'))
 const LapsTab = defineAsyncComponent(() => import('../components/tabs/LapsTab.vue'))
 const AnalyticsTab = defineAsyncComponent(() => import('../components/tabs/AnalyticsTab.vue'))
@@ -40,11 +44,13 @@ const AdminTab = defineAsyncComponent(() => import('../components/tabs/AdminTab.
 
 // Heroicons for tab navigation
 import CarBatteryIcon from '../components/icons/CarBatteryIcon.vue'
-import { ChartBarIcon, MapIcon, TableCellsIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, ChartBarSquareIcon, MapIcon, TableCellsIcon, CogIcon, ShieldCheckIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 
 const telemetry = useTelemetryStore()
 const auth = useAuthStore()
 const settings = useSettingsStore()
+const route = useRoute()
+const router = useRouter()
 
 useCriticalEventAlerts({
   telemetry,
@@ -65,6 +71,9 @@ const getDisplayUnit = (key) => {
   return undefined
 }
 
+/** @brief Telemetry keys that never get a ribbon card (shown elsewhere, e.g. the map). */
+const RIBBON_EXCLUDED_KEYS = new Set(['lat', 'lon', 'track'])
+
 /**
  * @brief Computed property for ordered data card keys.
  * @description Merges user's saved order with available telemetry keys.
@@ -72,9 +81,10 @@ const getDisplayUnit = (key) => {
  */
 const orderedKeys = computed({
   get: () => {
-    const available = new Set(telemetry.availableKeys)
+    const ribbonKeys = telemetry.availableKeys.filter(k => !RIBBON_EXCLUDED_KEYS.has(k))
+    const available = new Set(ribbonKeys)
     const userOrder = settings.dataCardOrder.filter(k => available.has(k))
-    const newKeys = telemetry.availableKeys.filter(k => !settings.dataCardOrder.includes(k))
+    const newKeys = ribbonKeys.filter(k => !settings.dataCardOrder.includes(k))
     return [...userOrder, ...newKeys]
   },
   set: (newOrder) => {
@@ -103,17 +113,56 @@ const getCardThresholdStatus = (key) => {
   return severity === 'warning' || severity === 'critical' ? severity : 'normal'
 }
 
+/**
+ * @brief Resolve warn/critical hairline positions for a range-card key, in display units.
+ * @description Threshold settings are stored in raw units (Celsius for temps); convert
+ *              to the user's display unit so hairlines line up with the strip/tick.
+ * @param {string} key - Telemetry key displayed by the card
+ * @returns {{warn: number|null, critical: number|null}} Display-unit thresholds
+ */
+const getRangeStripThresholds = (key) => {
+  const channelKey = CARD_THRESHOLD_KEYS[key]
+  const channel = channelKey ? liveThresholdStatus.value?.[channelKey] : null
+  if (!channel) return { warn: null, critical: null }
+
+  const isTemp = key === 'temp1' || key === 'temp2'
+  const toDisplay = (raw) => {
+    if (!Number.isFinite(raw)) return null
+    return isTemp ? convertTemp(raw, telemetry.unitSettings.tempUnit) : raw
+  }
+
+  return {
+    warn: toDisplay(channel.warningThreshold),
+    critical: toDisplay(channel.criticalThreshold)
+  }
+}
+
+/** @brief Seconds since last live packet (for stale age on ribbon cards). */
+const staleAgeSec = computed(() => {
+  if (!telemetry.lastPacketTime) return null
+  return Math.max(0, Math.floor((Date.now() - telemetry.lastPacketTime) / 1000))
+})
+
 // ============================================
 // Tab Configuration
 // ============================================
 
 /**
- * @brief Currently active tab ID (persisted to settings).
+ * @brief Currently active tab ID.
+ * @description Backed by the `tab` route param so every tab has a shareable
+ *              URL, and mirrored to `settings.activeTabId` for persistence
+ *              across sessions and for other components that switch tabs
+ *              directly (e.g. `settings.activeTabId = 'graph'`).
  */
 const activeTabId = computed({
-  get: () => settings.activeTabId,
+  get: () => route.params.tab || settings.activeTabId,
+  // Only touch the store here; the watcher below pushes the route change,
+  // so every caller that flips tabs (this view, or `settings.activeTabId =
+  // 'graph'` elsewhere) goes through a single navigation path.
   set: (val) => { settings.activeTabId = val }
 })
+
+const showDataRibbon = computed(() => telemetry.showDataRibbon)
 
 /**
  * @brief Tab definitions with conditional admin tab.
@@ -121,6 +170,7 @@ const activeTabId = computed({
  */
 const tabs = computed(() => {
   const baseTabs = [
+    { id: 'status', label: 'Status', icon: ChartBarSquareIcon, component: StatusTab },
     { id: 'graph', label: 'Graph', icon: ChartBarIcon, component: GraphTab },
     { id: 'map', label: 'Map', icon: MapIcon, component: MapTab },
     { id: 'laps', label: 'Laps', icon: TableCellsIcon, component: LapsTab },
@@ -142,7 +192,7 @@ const tabs = computed(() => {
 const activeComponent = computed(() => {
   if (activeTabId.value === 'settings') return SettingsTab
   const tab = tabs.value.find(t => t.id === activeTabId.value)
-  return tab ? tab.component : GraphTab
+  return tab ? tab.component : StatusTab
 })
 
 /**
@@ -153,6 +203,46 @@ const tabCycleIds = computed(() => [
   ...tabs.value.map((t) => t.id),
   'settings'
 ])
+
+/**
+ * @brief Keep the `tab` route param normalized and mirrored into settings.
+ * @description Fires only on actual route-param changes (browser back/forward,
+ *              a typed/bookmarked URL, or our own navigations below) — never
+ *              on a `settings.activeTabId` write, which is handled by the
+ *              separate watcher underneath. Keeping the two one-directional
+ *              avoids a feedback loop between "route drives store" and
+ *              "store drives route".
+ */
+watch(
+  () => route.params.tab,
+  (routeTab) => {
+    if (route.name !== 'dashboard') return
+
+    const validIds = tabCycleIds.value
+    if (!routeTab || !validIds.includes(routeTab)) {
+      const fallback = validIds.includes(settings.activeTabId) ? settings.activeTabId : validIds[0]
+      router.replace({ name: 'dashboard', params: { tab: fallback, subtab: route.params.subtab } })
+      return
+    }
+
+    if (settings.activeTabId !== routeTab) {
+      settings.activeTabId = routeTab
+    }
+  },
+  { immediate: true }
+)
+
+/**
+ * @brief Push a route change whenever `settings.activeTabId` is written.
+ * @description Covers both this view's `activeTabId` setter and the other
+ *              components that flip tabs directly (e.g. `settings.activeTabId
+ *              = 'graph'` in StatusTab/LapsTab/AnalyticsTab).
+ */
+watch(() => settings.activeTabId, (val) => {
+  if (route.name === 'dashboard' && val !== route.params.tab) {
+    router.push({ name: 'dashboard', params: { tab: val } })
+  }
+})
 
 /**
  * @brief True when the event target is a form control that should keep native keyboard behavior.
@@ -232,7 +322,7 @@ const handleKeydown = (e) => {
     if (races.length > 0) {
       const race = races[0]
       const end = telemetry.latestTime || Date.now()
-      telemetry.requestChartZoom(race.startTimeMs, end)
+      telemetry.requestChartZoom(race.startTimeMs, end, 'FULL RACE')
     }
   }
 
@@ -249,7 +339,7 @@ const handleKeydown = (e) => {
 
         if (!end || end < start) end = telemetry.latestTime || Date.now()
 
-        telemetry.requestChartZoom(start, end)
+        telemetry.requestChartZoom(start, end, `LAST ${n} LAPS`)
       }
     }
   }
@@ -279,6 +369,22 @@ const handleKeydown = (e) => {
 <template>
   <div class="h-screen overflow-hidden bg-[color:var(--app-bg)] flex flex-col">
     <DashboardHeader />
+
+    <!-- Pause bar — page-level when live ingestion is paused -->
+    <Transition enter-active-class="transition-all duration-200 ease-out" enter-from-class="opacity-0 -translate-y-1"
+      enter-to-class="opacity-100 translate-y-0" leave-active-class="transition-all duration-150 ease-in"
+      leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="telemetry.isPaused"
+        class="shrink-0 flex items-center justify-center gap-3 px-4 py-2 border-b border-amber-500/50 bg-amber-900/90 text-amber-100 z-30">
+        <span class="text-sm font-semibold">Car telemetry paused</span>
+        <button type="button"
+          class="rounded-full border border-amber-400/60 px-3 py-1 text-xs font-bold uppercase tracking-wide hover:bg-amber-800 transition"
+          @click="telemetry.togglePause()">
+          Resume (Space)
+        </button>
+      </div>
+    </Transition>
+
     <GraphHelpModal :isOpen="settings.showShortcutsModal" @close="settings.showShortcutsModal = false" />
 
     <!-- Data Ribbon - hidden when disconnected or viewing a previous day's historic data -->
@@ -286,12 +392,20 @@ const handleKeydown = (e) => {
       enter-from-class="opacity-0 max-h-0 border-b-0" enter-to-class="opacity-100 max-h-32 border-b"
       leave-active-class="transition-all duration-300 ease-in overflow-hidden"
       leave-from-class="opacity-100 max-h-32 border-b" leave-to-class="opacity-0 max-h-0 border-b-0">
-      <div v-if="telemetry.showDataRibbon"
-        class="h-20 md:h-28 shrink-0 border-b border-zinc-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2">
-        <draggable v-model="orderedKeys" item-key="key" class="flex flex-nowrap gap-2 md:gap-4" :animation="200">
+      <div v-if="showDataRibbon"
+        class="h-24 md:h-32 shrink-0 border-b border-zinc-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center px-3 md:px-6 overflow-x-auto no-scrollbar py-2 transition-opacity duration-200"
+        :class="telemetry.isPaused ? 'opacity-40' : 'opacity-100'">
+        <draggable v-model="orderedKeys" item-key="key" class="flex flex-col flex-wrap content-start items-stretch gap-1.5 h-full"
+          :animation="200">
           <template #item="{ element: key }">
             <DataCard :label="telemetry.getDisplayName(key)" :value="telemetry.displayLiveData[key]"
               :data-key="key" :unit="getDisplayUnit(key)" :stale="telemetry.isDataStale"
+              :stale-age-sec="staleAgeSec" :compact="!RANGE_CARD_KEYS.has(key)"
+              :range-min="telemetry.sessionRanges[key]?.min ?? null"
+              :range-max="telemetry.sessionRanges[key]?.max ?? null"
+              :warn-threshold="getRangeStripThresholds(key).warn"
+              :critical-threshold="getRangeStripThresholds(key).critical"
+              :higher-is-worse="key !== 'voltage'"
               :threshold-status="getCardThresholdStatus(key)" :tooltip="telemetry.getDescription(key)" />
           </template>
         </draggable>

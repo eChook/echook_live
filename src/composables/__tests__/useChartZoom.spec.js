@@ -26,6 +26,21 @@ describe('useChartZoom', () => {
         expect(zoom.currentZoomWindowMs.value).toBeNull()
     })
 
+    it('tracks zoom lock label and locked state', () => {
+        const zoom = useChartZoom()
+        expect(zoom.isChartZoomLocked.value).toBe(false)
+
+        zoom.requestChartZoom(1000, 2000, 'LAST 3 LAPS')
+        zoom.setCurrentZoomWindow(1000, 2000)
+        expect(zoom.isChartZoomLocked.value).toBe(true)
+        expect(zoom.chartZoomLockLabel.value).toBe('LAST 3 LAPS')
+
+        zoom.requestChartUnlock()
+        zoom.clearCurrentZoomWindow()
+        expect(zoom.isChartZoomLocked.value).toBe(false)
+        expect(zoom.chartZoomLockLabel.value).toBe('')
+    })
+
     it('issues reset request on unlock', () => {
         const zoom = useChartZoom()
         zoom.requestChartUnlock()

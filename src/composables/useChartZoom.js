@@ -5,7 +5,7 @@
  *              chart zoom levels across all synchronized graphs.
  */
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 /**
  * @brief Composable for managing chart zoom requests.
@@ -34,13 +34,21 @@ export function useChartZoom() {
      */
     const currentZoomWindowMs = ref(null)
 
+    /** @brief Human-readable label for the active zoom lock (shown on Status/Graph). */
+    const chartZoomLockLabel = ref('')
+
+    /** @brief True when charts are locked to an absolute window instead of live scroll. */
+    const isChartZoomLocked = computed(() => currentZoomWindowMs.value !== null)
+
     /**
      * @brief Request absolute chart zoom to specific time range.
      * @param {number} start - Start timestamp in milliseconds
      * @param {number} end - End timestamp in milliseconds
+     * @param {string} [label='CUSTOM'] - Lock label for UI chip
      */
-    function requestChartZoom(start, end) {
+    function requestChartZoom(start, end, label = 'CUSTOM') {
         chartZoomRequest.value = { type: 'absolute', start, end }
+        chartZoomLockLabel.value = label
     }
 
     /**
@@ -48,6 +56,7 @@ export function useChartZoom() {
      */
     function requestChartUnlock() {
         chartZoomRequest.value = { type: 'reset' }
+        chartZoomLockLabel.value = ''
     }
 
     /**
@@ -84,16 +93,28 @@ export function useChartZoom() {
      */
     function clearCurrentZoomWindow() {
         currentZoomWindowMs.value = null
+        chartZoomLockLabel.value = ''
+    }
+
+    /**
+     * @brief Set the lock label without issuing a zoom request.
+     * @param {string} label - Display label
+     */
+    function setChartZoomLockLabel(label) {
+        chartZoomLockLabel.value = label || ''
     }
 
     return {
         chartZoomRequest,
         currentZoomWindowMs,
+        chartZoomLockLabel,
+        isChartZoomLocked,
         requestChartZoom,
         requestChartUnlock,
         requestChartPan,
         requestChartScale,
         setCurrentZoomWindow,
-        clearCurrentZoomWindow
+        clearCurrentZoomWindow,
+        setChartZoomLockLabel
     }
 }

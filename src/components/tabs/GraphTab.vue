@@ -179,7 +179,23 @@ onActivated(() => {
     <!-- Graphs Area -->
     <main class="flex-1 flex flex-col overflow-hidden bg-zinc-100 dark:bg-neutral-900">
       <!-- Master Zoom Timeline -->
-      <div class="flex-shrink-0 z-10 bg-zinc-100 dark:bg-neutral-900">
+      <div class="flex-shrink-0 z-10 bg-zinc-100 dark:bg-neutral-900 relative">
+        <div class="flex items-center justify-between px-2 pt-1 gap-2">
+          <button v-if="telemetry.isChartZoomLocked" type="button"
+            class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/50 bg-amber-900/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300 hover:bg-amber-900/40 transition"
+            @click="telemetry.requestChartUnlock()">
+            LOCKED · {{ telemetry.chartZoomLockLabel || 'CUSTOM' }} · L
+          </button>
+          <span v-else class="text-[10px] text-zinc-500 dark:text-[color:var(--app-muted)] font-mono hidden sm:inline">
+            R race · 1–9 laps · L live
+          </span>
+          <button type="button"
+            class="ml-auto rounded-md border border-zinc-300 dark:border-neutral-700 px-2 py-0.5 text-xs font-bold text-zinc-600 dark:text-[color:var(--app-muted)] hover:text-primary dark:hover:text-[color:var(--app-link)] transition"
+            title="Controls & shortcuts" aria-label="Controls and shortcuts"
+            @click="settings.showShortcutsModal = true">
+            ?
+          </button>
+        </div>
         <MasterZoom
           v-if="telemetry.history.length > 0"
           :data="telemetry.displayHistory"

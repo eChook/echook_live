@@ -21,8 +21,7 @@
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useTelemetryStore } from '../../stores/telemetry'
-import { useSettingsStore } from '../../stores/settings'
-import { getMapTileUrl } from '../../constants/mapTiles'
+import { MAP_TILE_URL } from '../../constants/mapTiles'
 import { navTabMetricPickerClass } from '../../utils/navTabClasses'
 import "leaflet/dist/leaflet.css"
 import { LMap, LTileLayer, LCircleMarker, LControl } from "@vue-leaflet/vue-leaflet"
@@ -31,7 +30,6 @@ import { ChevronDownIcon, AdjustmentsHorizontalIcon } from '@heroicons/vue/24/ou
 import GradientPath from '../../components/GradientPath.vue'
 
 const telemetry = useTelemetryStore()
-const settings = useSettingsStore()
 const AUTO_FIT_THROTTLE_MS = 1000
 const MAX_TRAIL_POINTS = 1200
 
@@ -141,15 +139,12 @@ const trailRange = computed(() => {
   return { min, max }
 })
 
-/** @brief Tile layer URL for the active UI theme */
-const mapTileUrl = computed(() => getMapTileUrl(settings.resolvedTheme))
-
 </script>
 
 <template>
   <div class="h-full w-full relative">
     <l-map ref="map" :use-global-leaflet="false">
-      <l-tile-layer :url="mapTileUrl" layer-type="base"
+      <l-tile-layer :url="MAP_TILE_URL" layer-type="base"
         name="OpenStreetMap"></l-tile-layer>
 
       <!-- Gradient Trail -->

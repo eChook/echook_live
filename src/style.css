@@ -12,24 +12,44 @@
         color-scheme: light;
         --app-bg: #fafafa;
         --app-surface: #ffffff;
+        --app-inset: #fafafa;
         --app-text: #18181b;
+        --app-secondary: #3f3f46;
         --app-muted: #71717a;
         --app-border: #e4e4e7;
+        --app-hairline: #f4f4f5;
         --app-primary: #cb1557;
+        --app-link: #cb1557;
     }
 
     .dark {
         color-scheme: dark;
         --app-bg: #171717;
         --app-surface: #262626;
+        --app-inset: #1f1f1f;
         --app-text: #fafafa;
-        --app-muted: #a3a3a3;
+        --app-secondary: #d1d5db;
+        --app-muted: #9ca3af;
         --app-border: #404040;
+        --app-hairline: #333333;
         --app-primary: #cb1557;
+        /* Raw primary fails AA on #262626 — use for interactive text on dark surfaces */
+        --app-link: #f472a0;
     }
 }
 
 /* Custom Glassmorphism Utilities if needed, though Tailwind supports backdrop-blur */
+
+/**
+ * @brief Dark-mode map tiles via CSS filter, not a second tile source.
+ * @description CARTO's free "dark_all" basemap tiles now require an API
+ *              key, so instead of a second Leaflet tile layer we invert the
+ *              OSM tile pane's colors. Markers/controls live in separate
+ *              Leaflet panes and are unaffected.
+ */
+.dark .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
 
 /* Autofill Override — light theme */
 input:-webkit-autofill,
@@ -51,6 +71,16 @@ input:-webkit-autofill:active {
     caret-color: var(--app-text);
 }
 
+/** @brief Live status dot pulse — only looping animation allowed in the design system */
+@keyframes echook-status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.echook-status-pulse {
+    animation: echook-status-pulse 2s ease-in-out infinite;
+}
+
 /* Respect reduced-motion preference for UI animations */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -58,5 +88,9 @@ input:-webkit-autofill:active {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+
+    .echook-status-pulse {
+        animation: none !important;
     }
 }
