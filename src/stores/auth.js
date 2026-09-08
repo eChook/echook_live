@@ -389,6 +389,30 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     /**
+     * @brief Submit freeform feedback for the authenticated account.
+     * @description Calls POST /account/feedback. The server attributes the
+     *              feedback to the session's car account and records a timestamp;
+     *              the client only sends the message text.
+     * @param {string} message - Freeform feedback text
+     * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+     */
+    async function submitFeedback(message) {
+        try {
+            const response = await api.post('/account/feedback', { message }, { withCredentials: true })
+            if (response.data?.success) {
+                return { success: true, message: response.data.message }
+            }
+            return { success: false, error: response.data?.message || 'Failed to send feedback' }
+        } catch (error) {
+            console.error('Submit feedback failed', error)
+            return {
+                success: false,
+                error: resolveAccountApiErrorMessage(error, 'Failed to send feedback')
+            }
+        }
+    }
+
+    /**
      * @brief Log out the current user.
      * @description Clears the local user state. Server-side session is
      *              invalidated via cookie expiration.
@@ -419,6 +443,7 @@ export const useAuthStore = defineStore('auth', () => {
         deleteTelemetry,
         deleteTelemetryRange,
         deleteAccount,
+        submitFeedback,
         startDemo
     }
 }, {

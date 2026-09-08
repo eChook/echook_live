@@ -56,6 +56,19 @@ export const useAdminStore = defineStore('admin', () => {
     /** @brief SQL telemetry database statistics and per-car sizes */
     const sqlStats = ref(null)
 
+    /** @brief User-submitted feedback entries */
+    const feedback = ref([])
+
+    /** @brief Pagination metadata for feedback entries */
+    const feedbackMeta = ref({
+        total: 0,
+        limit: 50,
+        offset: 0
+    })
+
+    /** @brief Loading state for feedback fetch */
+    const isFeedbackLoading = ref(false)
+
     /** @brief Loading state for stats fetch */
     const isStatsLoading = ref(false)
 
@@ -502,6 +515,33 @@ export const useAdminStore = defineStore('admin', () => {
         }
     }
 
+    /**
+     * @brief Fetch paginated user feedback submissions.
+     * @param {Object} options - Pagination options
+     * @param {number} [options.limit=50] - Number of feedback entries to fetch
+     * @param {number} [options.offset=0] - Offset into feedback list
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async function fetchFeedback({ limit = 50, offset = 0 } = {}) {
+        isFeedbackLoading.value = true
+        try {
+            const res = await api.get('/admin/feedback', { params: { limit, offset } })
+            feedback.value = Array.isArray(res.data?.items) ? res.data.items : []
+            feedbackMeta.value = {
+                total: Number(res.data?.total || 0),
+                limit: Number(res.data?.limit || limit),
+                offset: Number(res.data?.offset || offset)
+            }
+            return { success: true }
+        } catch (e) {
+            const message = e.response?.data?.message || e.response?.data?.error || e.message || 'Fetch feedback failed'
+            error.value = message
+            return { success: false, error: message }
+        } finally {
+            isFeedbackLoading.value = false
+        }
+    }
+
     return {
         // State
         users,
@@ -519,6 +559,9 @@ export const useAdminStore = defineStore('admin', () => {
         sqlStats,
         backupLoading,
         backupStatus,
+        feedback,
+        feedbackMeta,
+        isFeedbackLoading,
 
         // Actions
         fetchUsers,
@@ -539,6 +582,7 @@ export const useAdminStore = defineStore('admin', () => {
         testR2Connectivity,
         runR2BackupNow,
         fetchR2Logs,
-        fetchSqlStatsByCar
+        fetchSqlStatsByCar,
+        fetchFeedback
     }
 })
