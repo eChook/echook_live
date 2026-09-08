@@ -68,6 +68,11 @@ const props = defineProps({
     disabled: {
         type: Boolean,
         default: false
+    },
+    /** @brief CSS class controlling the dialog panel's max width, e.g. for modals with more content. */
+    panelClass: {
+        type: String,
+        default: 'sm:max-w-sm'
     }
 })
 
@@ -105,7 +110,8 @@ function confirm() {
                         leave-from="opacity-100 translate-y-0 sm:scale-100"
                         leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
                         <DialogPanel
-                            class="relative transform overflow-hidden rounded-lg bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm">
+                            class="relative transform overflow-hidden rounded-lg bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-neutral-700 text-left shadow-xl transition-all sm:my-8 sm:w-full"
+                            :class="panelClass">
                             <div class="px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                                 <div class="sm:flex sm:items-start">
                                     <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
