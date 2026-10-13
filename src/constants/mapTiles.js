@@ -1,19 +1,11 @@
 /**
  * @file constants/mapTiles.js
- * @brief Leaflet tile layer URLs for light and dark UI themes.
+ * @brief Leaflet tile layer URL for the app's maps.
+ * @description Dark mode is handled with a CSS filter on the tile pane
+ *              (see .leaflet-tile-pane rules in style.css) rather than a
+ *              second tile source, since CARTO's free dark basemap tiles
+ *              now require an API key.
  */
 
-/** @brief OpenStreetMap (light) and Carto dark basemap URLs. */
-export const MAP_TILE_URLS = {
-    light: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-}
-
-/**
- * @brief Resolve tile URL for the active resolved theme.
- * @param {'light'|'dark'} theme - Effective UI theme from settings store
- * @returns {string} Leaflet tile layer URL template
- */
-export function getMapTileUrl(theme) {
-    return theme === 'dark' ? MAP_TILE_URLS.dark : MAP_TILE_URLS.light
-}
+/** @brief OpenStreetMap tile URL template, used for both light and dark UI themes. */
+export const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
