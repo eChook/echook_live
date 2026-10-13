@@ -31,6 +31,17 @@
 
 /* Custom Glassmorphism Utilities if needed, though Tailwind supports backdrop-blur */
 
+/**
+ * @brief Dark-mode map tiles via CSS filter, not a second tile source.
+ * @description CARTO's free "dark_all" basemap tiles now require an API
+ *              key, so instead of a second Leaflet tile layer we invert the
+ *              OSM tile pane's colors. Markers/controls live in separate
+ *              Leaflet panes and are unaffected.
+ */
+.dark .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
 /* Autofill Override — light theme */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
